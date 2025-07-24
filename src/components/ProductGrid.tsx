@@ -16,6 +16,7 @@ interface FilterState {
   gender: string | null;
   rating: number | null;
   inStock: boolean;
+  searchTerm: string | null;
 }
 
 interface ProductGridProps {
@@ -183,6 +184,24 @@ const ProductGrid = ({
       // Filter by gender (if implemented)
       if (filters.gender && product.gender !== filters.gender) {
         return false;
+      }
+
+      // Filter by search term
+      if (filters.searchTerm) {
+        const searchTermLower = filters.searchTerm.toLowerCase();
+        const nameMatch = product.name.toLowerCase().includes(searchTermLower);
+        const descriptionMatch = product.description ? 
+          product.description.toLowerCase().includes(searchTermLower) : false;
+        const categoryMatch = product.categories ? 
+          product.categories.some((cat: string) => 
+            cat.toLowerCase().includes(searchTermLower)
+          ) : false;
+        const brandMatch = product.brand ? 
+          product.brand.toLowerCase().includes(searchTermLower) : false;
+          
+        if (!(nameMatch || descriptionMatch || categoryMatch || brandMatch)) {
+          return false;
+        }
       }
 
       return true;
@@ -389,11 +408,11 @@ const ProductGrid = ({
       )}
     </div>
   );
-
+  
   function clearAllFilters() {
     // This would call the parent component's onFiltersChange with empty filters
     onToggleFilters();
   }
 };
 
-export default ProductGrid; 
+export default ProductGrid;

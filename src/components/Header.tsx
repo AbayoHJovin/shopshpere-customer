@@ -1,10 +1,11 @@
 "use client"
-import { useState } from "react";
+import { useState, FormEvent, useEffect } from "react";
 import { Search, ShoppingCart, User, Menu, Heart, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Sheet,
   SheetContent,
@@ -13,9 +14,62 @@ import {
   SheetTrigger,
   SheetClose,
 } from "@/components/ui/sheet";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { CartService } from "@/lib/cartService";
 
 const Header = () => {
+  const router = useRouter();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [mobileSearchTerm, setMobileSearchTerm] = useState("");
+  const [cartItemCount, setCartItemCount] = useState(0);
+
+  const handleSearch = (e: FormEvent, term: string) => {
+    e.preventDefault();
+    
+    if (!term.trim()) return;
+    
+    // Build the URL with search parameters
+    const searchParams = new URLSearchParams();
+    searchParams.set('searchTerm', term.trim());
+    
+    // Navigate to shop page with search params
+    router.push(`/shop?${searchParams.toString()}`);
+    
+    // Reset the search fields
+    setSearchTerm("");
+    setMobileSearchTerm("");
+    setIsSearchOpen(false);
+  };
+
+  // Get cart item count on mount and when cart changes
+  useEffect(() => {
+    const getCartCount = async () => {
+      try {
+        const count = await CartService.getCartItemsCount();
+        setCartItemCount(count);
+      } catch (error) {
+        console.error("Error fetching cart count:", error);
+      }
+    };
+
+    getCartCount();
+
+    // Listen for changes to localStorage
+    const handleStorageChange = () => {
+      getCartCount();
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    
+    // Custom event for cart updates
+    window.addEventListener("cartUpdated", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("cartUpdated", handleStorageChange);
+    };
+  }, []);
 
   return (
     <header className="border-b bg-background sticky top-0 z-50">
@@ -56,8 +110,8 @@ const Header = () => {
                   <Link href="/categories" className="text-lg font-medium px-2 py-1 hover:text-primary transition-colors">
                     Categories
                   </Link>
-                  <Link href="#" className="text-lg font-medium px-2 py-1 hover:text-primary transition-colors">
-                    Deals
+                  <Link href="/discounts" className="text-lg font-medium px-2 py-1 hover:text-primary transition-colors">
+                    Discounts
                   </Link>
                   <Link href="#" className="text-lg font-medium px-2 py-1 hover:text-primary transition-colors">
                     Help
@@ -88,27 +142,33 @@ const Header = () => {
                 <Link href="/categories" className="text-sm font-medium hover:text-primary transition-colors">
                   Categories
                 </Link>
-                <span className="text-sm font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
-                  Deals
-                </span>
+                <Link href="/discounts" className="text-sm font-medium hover:text-primary transition-colors">
+                  Discounts
+                </Link>
               </nav>
-              <div className="relative flex-1">
+              <form onSubmit={(e) => handleSearch(e, searchTerm)} className="relative flex-1">
                 <Input 
                   placeholder="Search products, brands, and more..." 
                   className="pl-4 pr-12 h-10 rounded-lg border-2 focus:border-primary"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 />
                 <Button 
+                  type="submit"
                   size="icon" 
                   className="absolute right-1 top-1 h-8 w-8 rounded-md"
                 >
                   <Search className="h-4 w-4" />
                 </Button>
-              </div>
+              </form>
             </div>
           </div>
 
           {/* Actions */}
           <div className="flex items-center gap-1 sm:gap-2">
+            {/* Theme Toggle */}
+            <ThemeToggle />
+            
             {/* Mobile search trigger */}
             <Button 
               variant="ghost" 
@@ -131,14 +191,21 @@ const Header = () => {
             </Button>
             
             {/* Cart button */}
-            <Button variant="ghost" size="icon" className="relative">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="relative"
+              onClick={() => router.push("/cart")}
+            >
               <ShoppingCart className="h-5 w-5" />
-              <Badge 
-                variant="destructive" 
-                className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
-              >
-                2
-              </Badge>
+              {cartItemCount > 0 && (
+                <Badge 
+                  variant="destructive" 
+                  className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+                >
+                  {cartItemCount}
+                </Badge>
+              )}
             </Button>
             
             {/* User button */}
@@ -151,19 +218,22 @@ const Header = () => {
         {/* Mobile search - show only when search is active */}
         {isSearchOpen && (
           <div className="pb-4 lg:hidden">
-            <div className="relative">
+            <form onSubmit={(e) => handleSearch(e, mobileSearchTerm)} className="relative">
               <Input 
                 placeholder="Search products..." 
                 className="pl-4 pr-12 h-10 rounded-lg"
                 autoFocus
+                value={mobileSearchTerm}
+                onChange={(e) => setMobileSearchTerm(e.target.value)}
               />
               <Button 
+                type="submit"
                 size="icon" 
                 className="absolute right-1 top-1 h-8 w-8"
               >
                 <Search className="h-4 w-4" />
               </Button>
-            </div>
+            </form>
           </div>
         )}
 
@@ -179,9 +249,9 @@ const Header = () => {
             <Link href="/categories" className="text-xs font-medium text-center hover:text-primary transition-colors">
               Categories
             </Link>
-            <span className="text-xs font-medium text-center text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
-              Deals
-            </span>
+            <Link href="/discounts" className="text-xs font-medium text-center hover:text-primary transition-colors">
+              Discounts
+            </Link>
           </div>
         </div>
       </div>

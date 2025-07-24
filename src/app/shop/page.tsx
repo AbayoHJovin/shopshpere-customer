@@ -25,6 +25,7 @@ interface FilterState {
   gender: string | null;
   rating: number | null;
   inStock: boolean;
+  searchTerm: string | null;
 }
 
 // Default filter state - used as base for URL parsing
@@ -36,7 +37,8 @@ const defaultFilters: FilterState = {
   discountRanges: [],
   gender: null,
   rating: null,
-  inStock: false
+  inStock: false,
+  searchTerm: null
 };
 
 export default function Shop() {
@@ -73,6 +75,12 @@ export default function Shop() {
     const category = params.get('category');
     if (category && !params.get('categories')) {
       urlFilters.categories = [category];
+    }
+    
+    // Parse search term
+    const searchTerm = params.get('searchTerm');
+    if (searchTerm) {
+      urlFilters.searchTerm = searchTerm;
     }
     
     // Parse string/number values
@@ -115,6 +123,11 @@ export default function Shop() {
         params.set(key, newFilters[key].join(','));
       }
     });
+    
+    // Add search term
+    if (newFilters.searchTerm) {
+      params.set('searchTerm', newFilters.searchTerm);
+    }
     
     // Add string/number values
     if (newFilters.gender) params.set('gender', newFilters.gender);
@@ -175,12 +188,17 @@ export default function Shop() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-foreground">Shop All Products</h1>
-              {filters.categories.length > 0 && (
+              {filters.searchTerm && (
+                <p className="text-muted-foreground mt-1">
+                  Search results for <span className="font-medium text-primary">"{filters.searchTerm}"</span>
+                </p>
+              )}
+              {!filters.searchTerm && filters.categories.length > 0 && (
                 <p className="text-muted-foreground mt-1">
                   Showing results for <span className="font-medium text-primary">{filters.categories.join(', ')}</span>
                 </p>
               )}
-              {filters.categories.length === 0 && (
+              {!filters.searchTerm && filters.categories.length === 0 && (
                 <p className="text-muted-foreground mt-1">
                   Discover our complete collection of {totalProducts} products
                 </p>
