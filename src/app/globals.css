@@ -8,6 +8,7 @@ body {
 }
 
 @layer base {
+  /* Add warning color to the root theme */
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
@@ -38,6 +39,9 @@ body {
     --success: 142 69% 58%;
     --success-foreground: 0 0% 98%;
     
+    --warning: 38 92% 50%;
+    --warning-foreground: 48 96% 89%;
+    
     --rating-star: 45 93% 47%;
   }
   .dark {
@@ -59,6 +63,8 @@ body {
     --destructive-foreground: 210 40% 98%;
     --success: 142 69% 58%;
     --success-foreground: 0 0% 98%;
+    --warning: 48 96% 89%;
+    --warning-foreground: 38 92% 50%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 48%;
@@ -151,4 +157,63 @@ body {
 
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Add animations for checkout flow at the end of the file */
+
+/* Checkout form animation */
+@keyframes slide-in-from-right {
+  0% {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-from-left {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-from-right 0.4s ease-out forwards;
+}
+
+.animate-slide-in-left {
+  animation: slide-in-from-left 0.4s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+/* Card animation delays for staggered effect */
+.card-animation-delay-1 {
+  animation-delay: 0.1s;
+}
+
+.card-animation-delay-2 {
+  animation-delay: 0.2s;
+}
+
+.card-animation-delay-3 {
+  animation-delay: 0.3s;
 }

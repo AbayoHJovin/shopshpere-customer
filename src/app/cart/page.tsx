@@ -10,8 +10,9 @@ import {
   Trash2,
   ArrowLeft,
   AlertCircle,
-  Check,
-  Star
+  Star,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,13 +27,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +49,7 @@ import {
 import { allProducts } from "@/data/products";
 import { toast } from "sonner";
 import { CartService } from "@/lib/cartService";
+import { PaymentIcons } from "@/components/PaymentIcons";
 
 // Interface for cart items in this component
 interface CartItemResponse {
@@ -77,23 +80,28 @@ export default function CartPage() {
   const router = useRouter();
   const [cart, setCart] = useState<CartResponseData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [couponCode, setCouponCode] = useState("");
-  const [couponApplied, setCouponApplied] = useState(false);
-  const [couponDiscount, setCouponDiscount] = useState(0);
   const [isRemovingItem, setIsRemovingItem] = useState<string | null>(null);
-
-  // Shipping options
-  const shippingOptions = [
-    { id: "free", name: "Free Shipping", price: 0 },
-    { id: "standard", name: "Standard Shipping (3-5 business days)", price: 5.99 },
-    { id: "express", name: "Express Shipping (1-2 business days)", price: 12.99 },
-  ];
-  const [selectedShipping, setSelectedShipping] = useState(shippingOptions[0].id);
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+  const [paginatedItems, setPaginatedItems] = useState<CartItemResponse[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Load cart from localStorage on component mount
   useEffect(() => {
     loadCart();
   }, []);
+
+  // Update paginated items when cart or current page changes
+  useEffect(() => {
+    if (!cart) return;
+    
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    setPaginatedItems(cart.items.slice(start, end));
+    setTotalPages(Math.max(1, Math.ceil(cart.items.length / itemsPerPage)));
+  }, [cart, currentPage]);
 
   // Function to load cart data
   const loadCart = async () => {
@@ -101,6 +109,15 @@ export default function CartPage() {
     try {
       const cartData = await CartService.getCart();
       setCart(cartData);
+      
+      // Reset to first page when loading cart
+      setCurrentPage(1);
+      const totalPages = Math.max(1, Math.ceil(cartData.items.length / itemsPerPage));
+      setTotalPages(totalPages);
+      
+      const start = 0;
+      const end = itemsPerPage;
+      setPaginatedItems(cartData.items.slice(start, end));
     } catch (error) {
       console.error("Error loading cart:", error);
       toast.error("Failed to load cart items.");
@@ -196,6 +213,14 @@ export default function CartPage() {
       }
       
       setIsRemovingItem(null);
+      
+      // Check if we need to adjust current page (if last item on page was removed)
+      if (updatedItems.length > 0) {
+        const newTotalPages = Math.max(1, Math.ceil(updatedItems.length / itemsPerPage));
+        if (currentPage > newTotalPages) {
+          setCurrentPage(newTotalPages);
+        }
+      }
     }, 300);
   };
 
@@ -218,44 +243,28 @@ export default function CartPage() {
       console.error("Error clearing cart:", error);
       toast.error("Failed to clear cart.");
     }
-    setCouponApplied(false);
-    setCouponCode("");
-    setCouponDiscount(0);
-  };
-
-  // Function to apply coupon
-  const applyCoupon = async () => {
-    if (!couponCode.trim()) {
-      toast.error("Please enter a coupon code");
-      return;
-    }
     
-    // Mock coupon validation
-    if (couponCode.toUpperCase() === "DISCOUNT20") {
-      setCouponApplied(true);
-      setCouponDiscount(20);
-      toast.success("Coupon applied successfully! 20% discount");
-    } else {
-      toast.error("Invalid coupon code");
-    }
-  };
-
-  // Get shipping cost
-  const getShippingCost = () => {
-    const option = shippingOptions.find(option => option.id === selectedShipping);
-    return option ? option.price : 0;
-  };
-
-  // Calculate discount amount
-  const getDiscountAmount = () => {
-    if (!cart || !couponApplied) return 0;
-    return (cart.subtotal * couponDiscount) / 100;
+    // Reset pagination
+    setCurrentPage(1);
+    setPaginatedItems([]);
+    setTotalPages(1);
   };
 
   // Calculate total
   const getTotal = () => {
     if (!cart) return 0;
-    return cart.subtotal + getShippingCost() - getDiscountAmount();
+    return cart.subtotal; // Shipping is free
+  };
+
+  // Add handleProceedToCheckout function after the getTotal function
+  // Handle proceed to checkout
+  const handleProceedToCheckout = () => {
+    if (!cart || cart.items.length === 0) {
+      toast.error("Your cart is empty. Add items to proceed to checkout.");
+      return;
+    }
+    
+    router.push("/checkout");
   };
 
   // Format price
@@ -265,6 +274,78 @@ export default function CartPage() {
       currency: 'USD',
       minimumFractionDigits: 2
     }).format(price);
+  };
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
+
+  // Generate pagination items
+  const renderPaginationItems = () => {
+    const items = [];
+    
+    // Always show first page
+    items.push(
+      <PaginationItem key="first">
+        <PaginationLink 
+          onClick={() => handlePageChange(1)} 
+          isActive={currentPage === 1}
+        >
+          1
+        </PaginationLink>
+      </PaginationItem>
+    );
+    
+    // Show ellipsis if needed
+    if (currentPage > 3) {
+      items.push(
+        <PaginationItem key="ellipsis-start">
+          <PaginationEllipsis />
+        </PaginationItem>
+      );
+    }
+    
+    // Show current page and neighbors
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+      if (i === 1 || i === totalPages) continue; // Skip first and last as they're always shown
+      items.push(
+        <PaginationItem key={i}>
+          <PaginationLink 
+            onClick={() => handlePageChange(i)} 
+            isActive={currentPage === i}
+          >
+            {i}
+          </PaginationLink>
+        </PaginationItem>
+      );
+    }
+    
+    // Show ellipsis if needed
+    if (currentPage < totalPages - 2) {
+      items.push(
+        <PaginationItem key="ellipsis-end">
+          <PaginationEllipsis />
+        </PaginationItem>
+      );
+    }
+    
+    // Always show last page if there's more than one page
+    if (totalPages > 1) {
+      items.push(
+        <PaginationItem key="last">
+          <PaginationLink 
+            onClick={() => handlePageChange(totalPages)} 
+            isActive={currentPage === totalPages}
+          >
+            {totalPages}
+          </PaginationLink>
+        </PaginationItem>
+      );
+    }
+    
+    return items;
   };
 
   if (loading) {
@@ -326,7 +407,7 @@ export default function CartPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {cart.items.map((item) => (
+                {paginatedItems.map((item) => (
                   <TableRow 
                     key={item.productId} 
                     className={isRemovingItem === item.productId ? "opacity-50 transition-opacity" : ""}
@@ -421,11 +502,36 @@ export default function CartPage() {
                 ))}
               </TableBody>
             </Table>
+            
+            {/* Pagination for desktop */}
+            {totalPages > 1 && (
+              <div className="p-4 border-t">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                    
+                    {renderPaginationItems()}
+                    
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
           </div>
           
           {/* Mobile Cart View */}
           <div className="md:hidden space-y-4">
-            {cart.items.map((item) => (
+            {paginatedItems.map((item) => (
               <Card 
                 key={item.productId} 
                 className={`overflow-hidden ${isRemovingItem === item.productId ? "opacity-50 transition-opacity" : ""}`}
@@ -514,6 +620,37 @@ export default function CartPage() {
                 </CardContent>
               </Card>
             ))}
+            
+            {/* Pagination for mobile */}
+            {totalPages > 1 && (
+              <div className="flex justify-center mt-4">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 p-0"
+                    disabled={currentPage === 1}
+                    onClick={() => handlePageChange(currentPage - 1)}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  
+                  <span className="text-sm">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 p-0"
+                    disabled={currentPage === totalPages}
+                    onClick={() => handlePageChange(currentPage + 1)}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
           
           <div className="flex items-center justify-between mt-6">
@@ -553,8 +690,8 @@ export default function CartPage() {
         </div>
         
         {/* Order Summary Section */}
-        <div>
-          <div className="rounded-lg border overflow-hidden">
+        <div className="mt-4 lg:mt-0">
+          <div className="rounded-lg border overflow-hidden sticky top-24">
             <div className="bg-muted px-6 py-4">
               <h2 className="font-semibold text-lg">Order Summary</h2>
             </div>
@@ -565,60 +702,9 @@ export default function CartPage() {
                 <span className="font-medium">{formatPrice(cart.subtotal)}</span>
               </div>
               
-              {/* Coupon Code */}
-              <div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    placeholder="Coupon Code"
-                    className="flex-1"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
-                    disabled={couponApplied}
-                  />
-                  <Button 
-                    onClick={applyCoupon}
-                    disabled={couponApplied || !couponCode.trim()} 
-                    variant={couponApplied ? "outline" : "default"}
-                    className="whitespace-nowrap"
-                  >
-                    {couponApplied ? (
-                      <>
-                        <Check className="h-4 w-4 mr-2" />
-                        Applied
-                      </>
-                    ) : (
-                      "Apply"
-                    )}
-                  </Button>
-                </div>
-                {couponApplied && (
-                  <div className="flex justify-between mt-2 text-sm">
-                    <span className="text-muted-foreground">Discount ({couponDiscount}%)</span>
-                    <span className="text-success">-{formatPrice(getDiscountAmount())}</span>
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex flex-col gap-2">
-                <span className="text-sm font-medium">Shipping</span>
-                <Select
-                  value={selectedShipping}
-                  onValueChange={setSelectedShipping}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select shipping method" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {shippingOptions.map((option) => (
-                      <SelectItem key={option.id} value={option.id}>
-                        <div className="flex justify-between w-full">
-                          <span>{option.name}</span>
-                          <span>{option.price === 0 ? "Free" : formatPrice(option.price)}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Shipping</span>
+                <span className="font-medium text-success">Free</span>
               </div>
               
               <Separator className="my-4" />
@@ -630,26 +716,16 @@ export default function CartPage() {
               
               {/* Estimated Delivery */}
               <div className="text-sm text-muted-foreground">
-                <p>
-                  {selectedShipping === "express" 
-                    ? "Estimated delivery: 1-2 business days"
-                    : selectedShipping === "standard"
-                      ? "Estimated delivery: 3-5 business days"
-                      : "Estimated delivery: 5-7 business days"}
-                </p>
+                <p>Estimated delivery: 3-5 business days</p>
               </div>
               
-              <Button className="w-full mt-4" size="lg">
+              {/* Update the "Proceed to Checkout" button in the Order Summary section */}
+              <Button className="w-full mt-4" size="lg" onClick={handleProceedToCheckout}>
                 Proceed to Checkout
               </Button>
               
               {/* Payment options */}
-              <div className="flex items-center justify-center gap-2 mt-4">
-                <div className="h-8 w-12 bg-muted rounded flex items-center justify-center text-xs font-medium">VISA</div>
-                <div className="h-8 w-12 bg-muted rounded flex items-center justify-center text-xs font-medium">MC</div>
-                <div className="h-8 w-12 bg-muted rounded flex items-center justify-center text-xs font-medium">AMEX</div>
-                <div className="h-8 w-12 bg-muted rounded flex items-center justify-center text-xs font-medium">PYPL</div>
-              </div>
+              <PaymentIcons className="mt-4" />
               
               <div className="border-t pt-4 mt-4">
                 <div className="flex items-start gap-2 text-sm">

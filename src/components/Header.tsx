@@ -1,6 +1,6 @@
 "use client"
 import { useState, FormEvent, useEffect } from "react";
-import { Search, ShoppingCart, User, Menu, Heart, X } from "lucide-react";
+import { Search, ShoppingCart, User, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -81,7 +81,9 @@ const Header = () => {
           </div>
           <div className="flex items-center gap-4">
             <span className="text-muted-foreground">Help</span>
-            <span className="text-muted-foreground">Track Order</span>
+            <Link href="/track-order" className="text-muted-foreground hover:text-primary transition-colors">
+              Track Order
+            </Link>
           </div>
         </div>
 
@@ -113,11 +115,11 @@ const Header = () => {
                   <Link href="/discounts" className="text-lg font-medium px-2 py-1 hover:text-primary transition-colors">
                     Discounts
                   </Link>
-                  <Link href="#" className="text-lg font-medium px-2 py-1 hover:text-primary transition-colors">
-                    Help
-                  </Link>
-                  <Link href="#" className="text-lg font-medium px-2 py-1 hover:text-primary transition-colors">
+                  <Link href="/track-order" className="text-lg font-medium px-2 py-1 hover:text-primary transition-colors">
                     Track Order
+                  </Link>
+                  <Link href="/account" className="text-lg font-medium px-2 py-1 hover:text-primary transition-colors">
+                    My Account
                   </Link>
                 </nav>
               </SheetContent>
@@ -178,17 +180,6 @@ const Header = () => {
             >
               {isSearchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
             </Button>
-
-            {/* Wishlist button - hide on xs, show on sm+ */}
-            <Button variant="ghost" size="icon" className="hidden sm:inline-flex relative">
-              <Heart className="h-5 w-5" />
-              <Badge 
-                variant="destructive" 
-                className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
-              >
-                3
-              </Badge>
-            </Button>
             
             {/* Cart button */}
             <Button 
@@ -209,7 +200,11 @@ const Header = () => {
             </Button>
             
             {/* User button */}
-            <Button variant="ghost" size="icon">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => router.push("/account")}
+            >
               <User className="h-5 w-5" />
             </Button>
           </div>
