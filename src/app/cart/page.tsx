@@ -12,7 +12,7 @@ import {
   AlertCircle,
   Star,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -46,7 +46,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { allProducts } from "@/data/products";
+// Note: This component should be updated to use real product data from ProductService
 import { toast } from "sonner";
 import { CartService } from "@/lib/cartService";
 import { PaymentIcons } from "@/components/PaymentIcons";
@@ -81,7 +81,7 @@ export default function CartPage() {
   const [cart, setCart] = useState<CartResponseData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRemovingItem, setIsRemovingItem] = useState<string | null>(null);
-  
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
@@ -96,7 +96,7 @@ export default function CartPage() {
   // Update paginated items when cart or current page changes
   useEffect(() => {
     if (!cart) return;
-    
+
     const start = (currentPage - 1) * itemsPerPage;
     const end = start + itemsPerPage;
     setPaginatedItems(cart.items.slice(start, end));
@@ -109,12 +109,15 @@ export default function CartPage() {
     try {
       const cartData = await CartService.getCart();
       setCart(cartData);
-      
+
       // Reset to first page when loading cart
       setCurrentPage(1);
-      const totalPages = Math.max(1, Math.ceil(cartData.items.length / itemsPerPage));
+      const totalPages = Math.max(
+        1,
+        Math.ceil(cartData.items.length / itemsPerPage)
+      );
       setTotalPages(totalPages);
-      
+
       const start = 0;
       const end = itemsPerPage;
       setPaginatedItems(cartData.items.slice(start, end));
@@ -128,8 +131,8 @@ export default function CartPage() {
 
   // Add function to dispatch cart updated event
   const dispatchCartUpdatedEvent = () => {
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('cartUpdated'));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("cartUpdated"));
     }
   };
 
@@ -139,18 +142,18 @@ export default function CartPage() {
 
     if (newQuantity < 1) newQuantity = 1;
 
-    const updatedItems = cart.items.map(item => {
+    const updatedItems = cart.items.map((item) => {
       if (item.productId === productId) {
         // Find the product to check stock
-        const product = allProducts.find(p => p.id === productId);
+        const product = allProducts.find((p) => p.id === productId);
         const maxStock = product?.inStock ? 100 : 0; // Mock value or use actual stock
-        
+
         // Ensure quantity doesn't exceed stock
         if (newQuantity > maxStock) {
           newQuantity = maxStock;
           toast.warning(`Only ${maxStock} items available in stock.`);
         }
-        
+
         return {
           ...item,
           quantity: newQuantity,
@@ -169,11 +172,11 @@ export default function CartPage() {
     };
 
     setCart(updatedCart);
-    
+
     try {
       await CartService.updateCartItem(productId, {
         productId,
-        quantity: newQuantity
+        quantity: newQuantity,
       });
       // Dispatch event to update cart count in header
       dispatchCartUpdatedEvent();
@@ -187,12 +190,14 @@ export default function CartPage() {
   // Update the removeItem function to dispatch the event
   const removeItem = async (productId: string) => {
     if (!cart) return;
-    
+
     setIsRemovingItem(productId);
-    
+
     setTimeout(async () => {
-      const updatedItems = cart.items.filter(item => item.productId !== productId);
-      
+      const updatedItems = cart.items.filter(
+        (item) => item.productId !== productId
+      );
+
       // Create updated cart
       const updatedCart = {
         ...cart,
@@ -200,9 +205,9 @@ export default function CartPage() {
         totalItems: updatedItems.reduce((sum, item) => sum + item.quantity, 0),
         subtotal: updatedItems.reduce((sum, item) => sum + item.totalPrice, 0),
       };
-      
+
       setCart(updatedCart);
-      
+
       try {
         await CartService.removeItemFromCart(productId);
         toast.success("Item removed from cart");
@@ -211,12 +216,15 @@ export default function CartPage() {
         console.error("Error removing item from cart:", error);
         toast.error("Failed to remove item from cart.");
       }
-      
+
       setIsRemovingItem(null);
-      
+
       // Check if we need to adjust current page (if last item on page was removed)
       if (updatedItems.length > 0) {
-        const newTotalPages = Math.max(1, Math.ceil(updatedItems.length / itemsPerPage));
+        const newTotalPages = Math.max(
+          1,
+          Math.ceil(updatedItems.length / itemsPerPage)
+        );
         if (currentPage > newTotalPages) {
           setCurrentPage(newTotalPages);
         }
@@ -243,7 +251,7 @@ export default function CartPage() {
       console.error("Error clearing cart:", error);
       toast.error("Failed to clear cart.");
     }
-    
+
     // Reset pagination
     setCurrentPage(1);
     setPaginatedItems([]);
@@ -263,16 +271,16 @@ export default function CartPage() {
       toast.error("Your cart is empty. Add items to proceed to checkout.");
       return;
     }
-    
+
     router.push("/checkout");
   };
 
   // Format price
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
     }).format(price);
   };
 
@@ -285,19 +293,19 @@ export default function CartPage() {
   // Generate pagination items
   const renderPaginationItems = () => {
     const items = [];
-    
+
     // Always show first page
     items.push(
       <PaginationItem key="first">
-        <PaginationLink 
-          onClick={() => handlePageChange(1)} 
+        <PaginationLink
+          onClick={() => handlePageChange(1)}
           isActive={currentPage === 1}
         >
           1
         </PaginationLink>
       </PaginationItem>
     );
-    
+
     // Show ellipsis if needed
     if (currentPage > 3) {
       items.push(
@@ -306,14 +314,18 @@ export default function CartPage() {
         </PaginationItem>
       );
     }
-    
+
     // Show current page and neighbors
-    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+    for (
+      let i = Math.max(2, currentPage - 1);
+      i <= Math.min(totalPages - 1, currentPage + 1);
+      i++
+    ) {
       if (i === 1 || i === totalPages) continue; // Skip first and last as they're always shown
       items.push(
         <PaginationItem key={i}>
-          <PaginationLink 
-            onClick={() => handlePageChange(i)} 
+          <PaginationLink
+            onClick={() => handlePageChange(i)}
             isActive={currentPage === i}
           >
             {i}
@@ -321,7 +333,7 @@ export default function CartPage() {
         </PaginationItem>
       );
     }
-    
+
     // Show ellipsis if needed
     if (currentPage < totalPages - 2) {
       items.push(
@@ -330,13 +342,13 @@ export default function CartPage() {
         </PaginationItem>
       );
     }
-    
+
     // Always show last page if there's more than one page
     if (totalPages > 1) {
       items.push(
         <PaginationItem key="last">
-          <PaginationLink 
-            onClick={() => handlePageChange(totalPages)} 
+          <PaginationLink
+            onClick={() => handlePageChange(totalPages)}
             isActive={currentPage === totalPages}
           >
             {totalPages}
@@ -344,7 +356,7 @@ export default function CartPage() {
         </PaginationItem>
       );
     }
-    
+
     return items;
   };
 
@@ -371,7 +383,9 @@ export default function CartPage() {
             <ShoppingCart className="h-16 w-16 text-muted-foreground" />
           </div>
           <h2 className="text-xl font-semibold mb-2">Your cart is empty</h2>
-          <p className="text-muted-foreground mb-8">Looks like you haven't added any products to your cart yet.</p>
+          <p className="text-muted-foreground mb-8">
+            Looks like you haven't added any products to your cart yet.
+          </p>
           <Button size="lg" asChild>
             <Link href="/shop">Continue Shopping</Link>
           </Button>
@@ -408,14 +422,18 @@ export default function CartPage() {
               </TableHeader>
               <TableBody>
                 {paginatedItems.map((item) => (
-                  <TableRow 
-                    key={item.productId} 
-                    className={isRemovingItem === item.productId ? "opacity-50 transition-opacity" : ""}
+                  <TableRow
+                    key={item.productId}
+                    className={
+                      isRemovingItem === item.productId
+                        ? "opacity-50 transition-opacity"
+                        : ""
+                    }
                   >
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <Link 
-                          href={`/product/${item.productId}`} 
+                        <Link
+                          href={`/product/${item.productId}`}
                           className="w-20 h-20 rounded-md overflow-hidden flex-shrink-0 hover:opacity-80 transition-opacity"
                         >
                           <img
@@ -425,7 +443,7 @@ export default function CartPage() {
                           />
                         </Link>
                         <div className="flex flex-col">
-                          <Link 
+                          <Link
                             href={`/product/${item.productId}`}
                             className="font-medium hover:text-primary transition-colors"
                           >
@@ -448,10 +466,10 @@ export default function CartPage() {
                               ({item.ratingCount})
                             </span>
                           </div>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="flex items-center gap-1 text-sm self-start mt-1 h-7 px-2 text-muted-foreground hover:text-destructive" 
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="flex items-center gap-1 text-sm self-start mt-1 h-7 px-2 text-muted-foreground hover:text-destructive"
                             onClick={() => removeItem(item.productId)}
                           >
                             <Trash2 className="h-3 w-3" />
@@ -462,7 +480,9 @@ export default function CartPage() {
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex flex-col items-center">
-                        <span className="font-medium">{formatPrice(item.price)}</span>
+                        <span className="font-medium">
+                          {formatPrice(item.price)}
+                        </span>
                         {item.previousPrice && (
                           <span className="text-sm text-muted-foreground line-through">
                             {formatPrice(item.previousPrice)}
@@ -477,7 +497,9 @@ export default function CartPage() {
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0 rounded-none"
-                            onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                            onClick={() =>
+                              updateQuantity(item.productId, item.quantity - 1)
+                            }
                           >
                             <Minus className="h-3 w-3" />
                           </Button>
@@ -488,7 +510,9 @@ export default function CartPage() {
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0 rounded-none"
-                            onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                            onClick={() =>
+                              updateQuantity(item.productId, item.quantity + 1)
+                            }
                           >
                             <Plus className="h-3 w-3" />
                           </Button>
@@ -502,25 +526,33 @@ export default function CartPage() {
                 ))}
               </TableBody>
             </Table>
-            
+
             {/* Pagination for desktop */}
             {totalPages > 1 && (
               <div className="p-4 border-t">
                 <Pagination>
                   <PaginationContent>
                     <PaginationItem>
-                      <PaginationPrevious 
+                      <PaginationPrevious
                         onClick={() => handlePageChange(currentPage - 1)}
-                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        className={
+                          currentPage === 1
+                            ? "pointer-events-none opacity-50"
+                            : "cursor-pointer"
+                        }
                       />
                     </PaginationItem>
-                    
+
                     {renderPaginationItems()}
-                    
+
                     <PaginationItem>
-                      <PaginationNext 
+                      <PaginationNext
                         onClick={() => handlePageChange(currentPage + 1)}
-                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                        className={
+                          currentPage === totalPages
+                            ? "pointer-events-none opacity-50"
+                            : "cursor-pointer"
+                        }
                       />
                     </PaginationItem>
                   </PaginationContent>
@@ -528,18 +560,22 @@ export default function CartPage() {
               </div>
             )}
           </div>
-          
+
           {/* Mobile Cart View */}
           <div className="md:hidden space-y-4">
             {paginatedItems.map((item) => (
-              <Card 
-                key={item.productId} 
-                className={`overflow-hidden ${isRemovingItem === item.productId ? "opacity-50 transition-opacity" : ""}`}
+              <Card
+                key={item.productId}
+                className={`overflow-hidden ${
+                  isRemovingItem === item.productId
+                    ? "opacity-50 transition-opacity"
+                    : ""
+                }`}
               >
                 <CardContent className="p-0">
                   <div className="flex gap-3">
-                    <Link 
-                      href={`/product/${item.productId}`} 
+                    <Link
+                      href={`/product/${item.productId}`}
                       className="w-24 h-24 flex-shrink-0"
                     >
                       <img
@@ -549,7 +585,7 @@ export default function CartPage() {
                       />
                     </Link>
                     <div className="flex flex-col p-3 flex-1">
-                      <Link 
+                      <Link
                         href={`/product/${item.productId}`}
                         className="font-medium text-sm hover:text-primary transition-colors line-clamp-2"
                       >
@@ -572,24 +608,31 @@ export default function CartPage() {
                           ({item.ratingCount})
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between mt-auto">
                         <div className="flex flex-col">
-                          <span className="font-medium">{formatPrice(item.price)}</span>
+                          <span className="font-medium">
+                            {formatPrice(item.price)}
+                          </span>
                           {item.previousPrice && (
                             <span className="text-xs text-muted-foreground line-through">
                               {formatPrice(item.previousPrice)}
                             </span>
                           )}
                         </div>
-                        
+
                         <div className="flex items-center gap-2">
                           <div className="flex border rounded-md overflow-hidden">
                             <Button
                               variant="ghost"
                               size="sm"
                               className="h-7 w-7 p-0 rounded-none"
-                              onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                              onClick={() =>
+                                updateQuantity(
+                                  item.productId,
+                                  item.quantity - 1
+                                )
+                              }
                             >
                               <Minus className="h-3 w-3" />
                             </Button>
@@ -600,15 +643,20 @@ export default function CartPage() {
                               variant="ghost"
                               size="sm"
                               className="h-7 w-7 p-0 rounded-none"
-                              onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                              onClick={() =>
+                                updateQuantity(
+                                  item.productId,
+                                  item.quantity + 1
+                                )
+                              }
                             >
                               <Plus className="h-3 w-3" />
                             </Button>
                           </div>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive" 
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
                             onClick={() => removeItem(item.productId)}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -620,7 +668,7 @@ export default function CartPage() {
                 </CardContent>
               </Card>
             ))}
-            
+
             {/* Pagination for mobile */}
             {totalPages > 1 && (
               <div className="flex justify-center mt-4">
@@ -634,11 +682,11 @@ export default function CartPage() {
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  
+
                   <span className="text-sm">
                     Page {currentPage} of {totalPages}
                   </span>
-                  
+
                   <Button
                     variant="outline"
                     size="icon"
@@ -652,7 +700,7 @@ export default function CartPage() {
               </div>
             )}
           </div>
-          
+
           <div className="flex items-center justify-between mt-6">
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -665,12 +713,13 @@ export default function CartPage() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Clear your cart?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will remove all items from your cart. This action cannot be undone.
+                    This will remove all items from your cart. This action
+                    cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction 
+                  <AlertDialogAction
                     onClick={clearCart}
                     className="bg-destructive hover:bg-destructive/90"
                   >
@@ -679,7 +728,7 @@ export default function CartPage() {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-            
+
             <Button variant="ghost" size="sm" asChild className="sm:hidden">
               <Link href="/shop" className="flex items-center gap-1">
                 <ArrowLeft className="h-4 w-4" />
@@ -688,50 +737,57 @@ export default function CartPage() {
             </Button>
           </div>
         </div>
-        
+
         {/* Order Summary Section */}
         <div className="mt-4 lg:mt-0">
           <div className="rounded-lg border overflow-hidden sticky top-24">
             <div className="bg-muted px-6 py-4">
               <h2 className="font-semibold text-lg">Order Summary</h2>
             </div>
-            
+
             <div className="p-6 space-y-4">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span className="font-medium">{formatPrice(cart.subtotal)}</span>
+                <span className="font-medium">
+                  {formatPrice(cart.subtotal)}
+                </span>
               </div>
-              
+
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Shipping</span>
                 <span className="font-medium text-success">Free</span>
               </div>
-              
+
               <Separator className="my-4" />
-              
+
               <div className="flex justify-between text-lg font-semibold">
                 <span>Total</span>
                 <span>{formatPrice(getTotal())}</span>
               </div>
-              
+
               {/* Estimated Delivery */}
               <div className="text-sm text-muted-foreground">
                 <p>Estimated delivery: 3-5 business days</p>
               </div>
-              
+
               {/* Update the "Proceed to Checkout" button in the Order Summary section */}
-              <Button className="w-full mt-4" size="lg" onClick={handleProceedToCheckout}>
+              <Button
+                className="w-full mt-4"
+                size="lg"
+                onClick={handleProceedToCheckout}
+              >
                 Proceed to Checkout
               </Button>
-              
+
               {/* Payment options */}
               <PaymentIcons className="mt-4" />
-              
+
               <div className="border-t pt-4 mt-4">
                 <div className="flex items-start gap-2 text-sm">
                   <AlertCircle className="h-4 w-4 mt-0.5 text-muted-foreground" />
                   <p className="text-muted-foreground">
-                    Items in your cart are not reserved. Checkout now to secure your order.
+                    Items in your cart are not reserved. Checkout now to secure
+                    your order.
                   </p>
                 </div>
               </div>
@@ -741,4 +797,4 @@ export default function CartPage() {
       </div>
     </div>
   );
-} 
+}
