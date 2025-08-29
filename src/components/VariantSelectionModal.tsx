@@ -20,23 +20,20 @@ import {
   X,
   Package,
   DollarSign,
-  Hash,
   Star,
   Check,
   AlertCircle,
+  ExternalLink,
 } from "lucide-react";
-// import Image from "next/image"; // Fallback to regular img for now
-import {
-  ProductDTO,
-  ProductVariantDTO,
-  AddToCartRequest,
-} from "@/lib/productService";
+import { ProductDTO, ProductVariantDTO } from "@/lib/productService";
+import { CartItemRequest } from "@/lib/cartService";
+import Link from "next/link";
 
 interface VariantSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   product: ProductDTO;
-  onAddToCart: (request: AddToCartRequest) => Promise<void>;
+  onAddToCart: (request: CartItemRequest) => Promise<void>;
 }
 
 const VariantSelectionModal = ({
@@ -62,7 +59,7 @@ const VariantSelectionModal = ({
   // Get available variants
   const availableVariants =
     product.variants?.filter(
-      (variant) => variant.isActive && variant.isInStock
+      (variant) => variant.isActive && variant.stockQuantity > 0
     ) || [];
 
   // Handle variant selection
@@ -84,7 +81,7 @@ const VariantSelectionModal = ({
     setIsLoading(true);
     try {
       await onAddToCart({
-        variantId: selectedVariant.variantId,
+        variantId: selectedVariant.variantId.toString(),
         quantity,
       });
       onClose();
@@ -103,291 +100,264 @@ const VariantSelectionModal = ({
     }).format(price);
   };
 
-  // Get primary image for variant
-  const getVariantImage = (variant: ProductVariantDTO) => {
-    const primaryImage = variant.images?.find((img) => img.isPrimary);
-    return (
-      primaryImage?.url || product.images?.find((img) => img.isPrimary)?.url
-    );
+  // Get main product image
+  const getMainImage = () => {
+    const primaryImage = product.images?.find((img) => img.isPrimary);
+    return primaryImage?.url || product.images?.[0]?.url || "";
   };
 
-  // Group attributes by type
-  const getGroupedAttributes = (variant: ProductVariantDTO) => {
-    const grouped: Record<string, string[]> = {};
-    variant.attributes?.forEach((attr) => {
-      if (!grouped[attr.attributeType]) {
-        grouped[attr.attributeType] = [];
-      }
-      grouped[attr.attributeType].push(attr.attributeValue);
-    });
-    return grouped;
+  // Get variant image
+  const getVariantImage = (variant: ProductVariantDTO) => {
+    const primaryImage = variant.images?.find((img) => img.isPrimary);
+    return primaryImage?.url || variant.images?.[0]?.url || getMainImage();
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <Package className="h-5 w-5" />
-            Select Product Variant
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-xl font-semibold">
+              Select Variant
+            </DialogTitle>
+            <div className="flex items-center gap-2">
+              <Link href={`/product/${product.productId}`}>
+                <Button variant="outline" size="sm" className="h-8">
+                  <ExternalLink className="h-4 w-4 mr-1" />
+                  View Product
+                </Button>
+              </Link>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+                className="h-8 w-8"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
           <DialogDescription>
-            Choose from available variants of "{product.name}"
+            Choose your preferred variant and quantity for {product.name}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-6">
-          {/* Product Info */}
-          <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
-            {product.images && product.images.length > 0 && (
-              <div className="flex-shrink-0">
-                <div className="w-20 h-20 relative rounded-md overflow-hidden">
-                  <img
-                    src={
-                      product.images.find((img) => img.isPrimary)?.url ||
-                      product.images[0].url
-                    }
-                    alt={product.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-lg truncate">{product.name}</h3>
-              <p className="text-gray-600 text-sm line-clamp-2">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Product Image */}
+          <div className="space-y-4">
+            <div className="relative aspect-square overflow-hidden rounded-lg border">
+              <img
+                src={
+                  selectedVariant
+                    ? getVariantImage(selectedVariant)
+                    : getMainImage()
+                }
+                alt={
+                  selectedVariant ? selectedVariant.variantSku : product.name
+                }
+                className="w-full h-full object-cover"
+              />
+            </div>
+
+            {/* Product Info */}
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold">{product.name}</h3>
+              <p className="text-sm text-muted-foreground">
                 {product.description}
               </p>
-              <div className="flex items-center gap-4 mt-2">
-                <span className="font-semibold text-lg">
-                  {formatPrice(product.discountedPrice || product.basePrice)}
+              <div className="flex items-center gap-2">
+                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                <span className="text-sm">
+                  {product.averageRating?.toFixed(1) || "0.0"} (
+                  {product.reviewCount || 0} reviews)
                 </span>
-                {product.salePrice && (
-                  <span className="text-sm text-gray-500 line-through">
-                    {formatPrice(product.salePrice)}
-                  </span>
-                )}
-                {product.averageRating && (
-                  <div className="flex items-center gap-1 text-sm">
-                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                    <span>{product.averageRating.toFixed(1)}</span>
-                    {product.reviewCount && (
-                      <span className="text-gray-500">
-                        ({product.reviewCount})
-                      </span>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
           </div>
 
-          {/* Variants List */}
-          <div>
-            <h4 className="font-semibold mb-4 flex items-center gap-2">
-              <Hash className="h-4 w-4" />
-              Available Variants ({availableVariants.length})
-            </h4>
-
-            {availableVariants.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <AlertCircle className="h-8 w-8 mx-auto mb-2" />
-                <p>No variants available for this product</p>
-              </div>
-            ) : (
-              <ScrollArea className="max-h-60">
-                <div className="space-y-3">
-                  {availableVariants.map((variant) => {
-                    const isSelected =
-                      selectedVariant?.variantId === variant.variantId;
-                    const variantImage = getVariantImage(variant);
-                    const groupedAttributes = getGroupedAttributes(variant);
-
-                    return (
+          {/* Variant Selection */}
+          <div className="space-y-4">
+            {/* Available Variants */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Available Variants</Label>
+              <ScrollArea className="h-64">
+                <div className="space-y-2">
+                  {availableVariants.length > 0 ? (
+                    availableVariants.map((variant) => (
                       <Card
                         key={variant.variantId}
-                        className={`cursor-pointer transition-all duration-200 ${
-                          isSelected
-                            ? "ring-2 ring-primary border-primary bg-primary/5"
-                            : "hover:border-primary/50 hover:shadow-md"
+                        className={`cursor-pointer transition-all ${
+                          selectedVariant?.variantId === variant.variantId
+                            ? "ring-2 ring-primary border-primary"
+                            : "hover:border-primary/50"
                         }`}
                         onClick={() => handleVariantSelect(variant)}
                       >
-                        <CardContent className="p-4">
-                          <div className="flex items-start gap-4">
+                        <CardContent className="p-3">
+                          <div className="flex items-start gap-3">
                             {/* Variant Image */}
-                            {variantImage && (
-                              <div className="flex-shrink-0">
-                                <div className="w-16 h-16 relative rounded-md overflow-hidden border">
-                                  <img
-                                    src={variantImage}
-                                    alt={
-                                      variant.variantName || variant.variantSku
-                                    }
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
+                            <div className="flex-shrink-0">
+                              <div className="w-16 h-16 relative rounded-md overflow-hidden border">
+                                <img
+                                  src={getVariantImage(variant)}
+                                  alt={variant.variantSku}
+                                  className="w-full h-full object-cover"
+                                />
                               </div>
-                            )}
+                            </div>
 
                             {/* Variant Info */}
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-4">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <h5 className="font-semibold">
-                                      {variant.variantName || "Variant"}
-                                    </h5>
-                                    {isSelected && (
-                                      <Check className="h-4 w-4 text-primary" />
-                                    )}
-                                  </div>
-
-                                  <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
-                                    <span className="font-mono bg-muted px-2 py-1 rounded text-xs">
-                                      SKU: {variant.variantSku}
-                                    </span>
-                                    <span>
-                                      Stock: {variant.stockQuantity} units
-                                    </span>
-                                  </div>
-
-                                  {/* Attributes */}
-                                  {Object.keys(groupedAttributes).length >
-                                    0 && (
-                                    <div className="flex flex-wrap gap-2 mb-2">
-                                      {Object.entries(groupedAttributes).map(
-                                        ([type, values]) => (
-                                          <div
-                                            key={type}
-                                            className="flex flex-wrap gap-1"
-                                          >
-                                            {values.map((value, idx) => (
-                                              <Badge
-                                                key={`${type}-${value}-${idx}`}
-                                                variant="secondary"
-                                                className="text-xs"
-                                              >
-                                                {type}: {value}
-                                              </Badge>
-                                            ))}
-                                          </div>
-                                        )
-                                      )}
-                                    </div>
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm">
+                                    {variant.variantSku}
+                                  </span>
+                                  {selectedVariant?.variantId ===
+                                    variant.variantId && (
+                                    <Check className="h-4 w-4 text-primary" />
                                   )}
                                 </div>
-
-                                {/* Price */}
-                                <div className="text-right">
-                                  <div className="font-semibold text-lg">
-                                    {formatPrice(
-                                      variant.salePrice || variant.price
-                                    )}
-                                  </div>
-                                  {variant.salePrice &&
-                                    variant.salePrice !== variant.price && (
-                                      <div className="text-sm text-muted-foreground line-through">
-                                        {formatPrice(variant.price)}
-                                      </div>
-                                    )}
-                                </div>
+                                <span className="font-semibold text-sm">
+                                  {formatPrice(variant.price)}
+                                </span>
                               </div>
+
+                              <div className="flex items-center gap-4 text-xs text-muted-foreground mb-2">
+                                <span className="flex items-center gap-1">
+                                  <Package className="h-3 w-3" />
+                                  {variant.stockQuantity} in stock
+                                </span>
+                              </div>
+
+                              {/* Variant Attributes */}
+                              {variant.attributes &&
+                                variant.attributes.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {variant.attributes.map((attr, index) => (
+                                      <Badge
+                                        key={index}
+                                        variant="secondary"
+                                        className="text-xs"
+                                      >
+                                        {attr.attributeTypeName}:{" "}
+                                        {attr.attributeValue}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
                             </div>
                           </div>
                         </CardContent>
                       </Card>
-                    );
-                  })}
+                    ))
+                  ) : (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <AlertCircle className="h-4 w-4" />
+                      <span>No variants available</span>
+                    </div>
+                  )}
                 </div>
               </ScrollArea>
-            )}
-          </div>
+            </div>
 
-          {/* Quantity Selection and Add to Cart */}
-          {selectedVariant && (
-            <>
-              <Separator />
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="quantity" className="text-sm font-medium">
-                      Quantity
-                    </Label>
-                    <p className="text-xs text-muted-foreground">
-                      Max: {selectedVariant.stockQuantity} available
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleQuantityChange(quantity - 1)}
-                      disabled={quantity <= 1}
-                    >
-                      <Minus className="h-4 w-4" />
-                    </Button>
-                    <Input
-                      id="quantity"
-                      type="number"
-                      value={quantity}
-                      onChange={(e) =>
-                        handleQuantityChange(parseInt(e.target.value) || 1)
-                      }
-                      className="w-20 text-center"
-                      min={1}
-                      max={selectedVariant.stockQuantity}
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleQuantityChange(quantity + 1)}
-                      disabled={quantity >= selectedVariant.stockQuantity}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+            <Separator />
 
-                {/* Total Price */}
-                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                  <span className="font-semibold">Total:</span>
-                  <span className="text-xl font-bold">
-                    {formatPrice(
-                      (selectedVariant.salePrice || selectedVariant.price) *
-                        quantity
-                    )}
-                  </span>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-3">
+            {/* Quantity Selection */}
+            {selectedVariant && (
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Quantity</Label>
+                <div className="flex items-center gap-3">
                   <Button
                     variant="outline"
-                    className="flex-1"
-                    onClick={onClose}
-                    disabled={isLoading}
+                    size="icon"
+                    onClick={() => handleQuantityChange(quantity - 1)}
+                    disabled={quantity <= 1}
                   >
-                    Cancel
+                    <Minus className="h-4 w-4" />
                   </Button>
+                  <Input
+                    type="number"
+                    min="1"
+                    max={selectedVariant.stockQuantity}
+                    value={quantity}
+                    onChange={(e) =>
+                      handleQuantityChange(parseInt(e.target.value) || 1)
+                    }
+                    className="w-20 text-center"
+                  />
                   <Button
-                    className="flex-1"
-                    onClick={handleAddToCart}
-                    disabled={isLoading || !selectedVariant}
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handleQuantityChange(quantity + 1)}
+                    disabled={quantity >= selectedVariant.stockQuantity}
                   >
-                    {isLoading ? (
-                      "Adding..."
-                    ) : (
-                      <>
-                        <ShoppingCart className="h-4 w-4 mr-2" />
-                        Add to Cart
-                      </>
-                    )}
+                    <Plus className="h-4 w-4" />
                   </Button>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  {selectedVariant.stockQuantity} available
+                </p>
               </div>
-            </>
-          )}
+            )}
+
+            <Separator />
+
+            {/* Selected Variant Summary */}
+            {selectedVariant && (
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Summary</Label>
+                <Card>
+                  <CardContent className="p-3">
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm">Variant:</span>
+                        <span className="text-sm font-medium">
+                          {selectedVariant.variantSku}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Quantity:</span>
+                        <span className="text-sm font-medium">{quantity}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Price:</span>
+                        <span className="text-sm font-medium">
+                          {formatPrice(selectedVariant.price)}
+                        </span>
+                      </div>
+                      <Separator />
+                      <div className="flex justify-between">
+                        <span className="font-medium">Total:</span>
+                        <span className="font-bold">
+                          {formatPrice(selectedVariant.price * quantity)}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Add to Cart Button */}
+            <Button
+              onClick={handleAddToCart}
+              disabled={!selectedVariant || isLoading}
+              className="w-full"
+            >
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  Adding to Cart...
+                </>
+              ) : (
+                <>
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  Add to Cart
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

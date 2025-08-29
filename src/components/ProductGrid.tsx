@@ -26,6 +26,7 @@ import {
   Page,
   ProductSearchDTO,
 } from "@/lib/productService";
+import { filterMappingService } from "@/lib/filterMappingService";
 
 interface FilterState {
   priceRange: number[];
@@ -122,35 +123,69 @@ const ProductGrid = ({
     }
   };
 
-  // Convert filters to backend search DTO
-  const createSearchDTO = (): ProductSearchDTO => {
+  // Convert filters to backend search DTO (async now due to ID mapping)
+  const createSearchDTO = async (): Promise<ProductSearchDTO> => {
     const searchDTO: ProductSearchDTO = {
       page: currentPage - 1, // Backend uses 0-based indexing
       size: productsPerPage,
       sortBy,
       sortDirection,
-      isActive: true,
     };
 
     // Add search term
-    if (filters.searchTerm) {
-      searchDTO.query = filters.searchTerm;
+    if (filters.searchTerm && filters.searchTerm.trim() !== "") {
+      searchDTO.searchKeyword = filters.searchTerm.trim();
     }
 
-    // Add price range
+    // Add categories with proper ID mapping
+    if (filters.categories && filters.categories.length > 0) {
+      try {
+        const categoryIds = await filterMappingService.mapCategoryNamesToIds(
+          filters.categories
+        );
+        if (categoryIds.length > 0) {
+          searchDTO.categoryIds = categoryIds;
+        } else {
+          console.warn("No valid category IDs found for:", filters.categories);
+          // Fallback: use category names directly if mapping fails
+          searchDTO.categoryNames = filters.categories;
+        }
+      } catch (error) {
+        console.error("Error mapping category names to IDs:", error);
+        // Fallback: use category names directly
+        searchDTO.categoryNames = filters.categories;
+      }
+    }
+
+    // Add brands with proper ID mapping
+    if (filters.brands && filters.brands.length > 0) {
+      try {
+        const brandIds = await filterMappingService.mapBrandNamesToIds(
+          filters.brands
+        );
+        if (brandIds.length > 0) {
+          searchDTO.brandIds = brandIds;
+        } else {
+          console.warn("No valid brand IDs found for:", filters.brands);
+          // Fallback: use brand names directly if mapping fails
+          searchDTO.brandNames = filters.brands;
+        }
+      } catch (error) {
+        console.error("Error mapping brand names to IDs:", error);
+        // Fallback: use brand names directly
+        searchDTO.brandNames = filters.brands;
+      }
+    }
+
+    // Add price range (use basePriceMin/Max as per backend)
     if (filters.priceRange[0] > 0 || filters.priceRange[1] < 1000) {
-      searchDTO.minPrice = filters.priceRange[0];
-      searchDTO.maxPrice = filters.priceRange[1];
+      searchDTO.basePriceMin = filters.priceRange[0];
+      searchDTO.basePriceMax = filters.priceRange[1];
     }
 
-    // Add gender filter
-    if (filters.gender) {
-      searchDTO.gender = filters.gender;
-    }
-
-    // Add rating filter
+    // Add rating filter (use averageRatingMin as per backend)
     if (filters.rating !== null) {
-      searchDTO.minRating = filters.rating;
+      searchDTO.averageRatingMin = filters.rating;
     }
 
     // Add in stock filter
@@ -158,11 +193,40 @@ const ProductGrid = ({
       searchDTO.inStock = true;
     }
 
-    // Add attributes (remove colors and sizes as they come from attributes now)
+    // Add attributes as variant attributes
     if (filters.attributes && Object.keys(filters.attributes).length > 0) {
-      searchDTO.attributes = filters.attributes;
+      const variantAttrs: string[] = [];
+      Object.entries(filters.attributes).forEach(([type, values]) => {
+        values.forEach((value) => {
+          variantAttrs.push(`${type}:${value}`);
+        });
+      });
+      if (variantAttrs.length > 0) {
+        searchDTO.variantAttributes = variantAttrs;
+      }
     }
 
+    // Ensure we have at least one filter criterion to avoid backend validation error
+    const hasAnyFilter =
+      searchDTO.searchKeyword ||
+      searchDTO.categoryIds?.length > 0 ||
+      searchDTO.categoryNames?.length > 0 ||
+      searchDTO.brandIds?.length > 0 ||
+      searchDTO.brandNames?.length > 0 ||
+      searchDTO.basePriceMin !== undefined ||
+      searchDTO.basePriceMax !== undefined ||
+      searchDTO.averageRatingMin !== undefined ||
+      searchDTO.inStock !== undefined ||
+      searchDTO.variantAttributes?.length > 0;
+
+    if (!hasAnyFilter) {
+      console.warn(
+        "No valid filter criteria found, using getAllProducts instead"
+      );
+      throw new Error("No valid filter criteria");
+    }
+
+    console.log("Search DTO created:", searchDTO);
     return searchDTO;
   };
 
@@ -192,7 +256,7 @@ const ProductGrid = ({
 
       if (hasActiveFilters()) {
         // Use search endpoint when filters are applied
-        const searchDTO = createSearchDTO();
+        const searchDTO = await createSearchDTO();
         productPage = await ProductService.searchProducts(searchDTO);
       } else {
         // Use getAllProducts when no filters

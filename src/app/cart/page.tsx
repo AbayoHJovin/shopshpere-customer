@@ -13,6 +13,7 @@ import {
   Star,
   ChevronLeft,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -46,81 +47,36 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-// Note: This component should be updated to use real product data from ProductService
 import { toast } from "sonner";
-import { CartService } from "@/lib/cartService";
+import { CartService, CartResponse, CartItemResponse } from "@/lib/cartService";
 import { PaymentIcons } from "@/components/PaymentIcons";
-
-// Interface for cart items in this component
-interface CartItemResponse {
-  id: string;
-  productId: string;
-  name: string;
-  price: number;
-  previousPrice: number | null;
-  imageUrl: string;
-  quantity: number;
-  stock: number;
-  totalPrice: number;
-  averageRating: number;
-  ratingCount: number;
-}
-
-interface CartResponseData {
-  cartId: string;
-  userId: string;
-  items: CartItemResponse[];
-  totalItems: number;
-  subtotal: number;
-  totalPages: number;
-  currentPage: number;
-}
+import { useAppSelector } from "@/lib/store/hooks";
 
 export default function CartPage() {
   const router = useRouter();
-  const [cart, setCart] = useState<CartResponseData | null>(null);
+  const { isAuthenticated } = useAppSelector((state) => state.auth);
+  const [cart, setCart] = useState<CartResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRemovingItem, setIsRemovingItem] = useState<string | null>(null);
+  const [isUpdatingItem, setIsUpdatingItem] = useState<string | null>(null);
 
   // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
-  const [paginatedItems, setPaginatedItems] = useState<CartItemResponse[]>([]);
+  const [currentPage, setCurrentPage] = useState(0); // Backend uses 0-based pagination
+  const itemsPerPage = 10;
   const [totalPages, setTotalPages] = useState(1);
 
-  // Load cart from localStorage on component mount
+  // Load cart from API on component mount
   useEffect(() => {
     loadCart();
-  }, []);
-
-  // Update paginated items when cart or current page changes
-  useEffect(() => {
-    if (!cart) return;
-
-    const start = (currentPage - 1) * itemsPerPage;
-    const end = start + itemsPerPage;
-    setPaginatedItems(cart.items.slice(start, end));
-    setTotalPages(Math.max(1, Math.ceil(cart.items.length / itemsPerPage)));
-  }, [cart, currentPage]);
+  }, [currentPage]);
 
   // Function to load cart data
   const loadCart = async () => {
     setLoading(true);
     try {
-      const cartData = await CartService.getCart();
+      const cartData = await CartService.getCart(currentPage, itemsPerPage);
       setCart(cartData);
-
-      // Reset to first page when loading cart
-      setCurrentPage(1);
-      const totalPages = Math.max(
-        1,
-        Math.ceil(cartData.items.length / itemsPerPage)
-      );
-      setTotalPages(totalPages);
-
-      const start = 0;
-      const end = itemsPerPage;
-      setPaginatedItems(cartData.items.slice(start, end));
+      setTotalPages(cartData.totalPages || 1);
     } catch (error) {
       console.error("Error loading cart:", error);
       toast.error("Failed to load cart items.");
@@ -136,126 +92,88 @@ export default function CartPage() {
     }
   };
 
-  // Update the updateQuantity function to dispatch the event
-  const updateQuantity = async (productId: string, newQuantity: number) => {
+  // Update quantity function
+  const updateQuantity = async (itemId: string, newQuantity: number) => {
     if (!cart) return;
 
     if (newQuantity < 1) newQuantity = 1;
 
-    const updatedItems = cart.items.map((item) => {
-      if (item.productId === productId) {
-        // Find the product to check stock
-        const product = allProducts.find((p) => p.id === productId);
-        const maxStock = product?.inStock ? 100 : 0; // Mock value or use actual stock
+    // Find the item to check stock
+    const item = cart.items.find((item) => item.id === itemId);
+    if (!item) return;
 
-        // Ensure quantity doesn't exceed stock
-        if (newQuantity > maxStock) {
-          newQuantity = maxStock;
-          toast.warning(`Only ${maxStock} items available in stock.`);
-        }
+    // Ensure quantity doesn't exceed stock
+    const maxStock = item.stock || 100;
+    if (newQuantity > maxStock) {
+      newQuantity = maxStock;
+      toast.warning(`Only ${maxStock} items available in stock.`);
+    }
 
-        return {
-          ...item,
-          quantity: newQuantity,
-          totalPrice: item.price * newQuantity,
-        };
-      }
-      return item;
-    });
-
-    // Create updated cart
-    const updatedCart = {
-      ...cart,
-      items: updatedItems,
-      totalItems: updatedItems.reduce((sum, item) => sum + item.quantity, 0),
-      subtotal: updatedItems.reduce((sum, item) => sum + item.totalPrice, 0),
-    };
-
-    setCart(updatedCart);
+    setIsUpdatingItem(itemId);
 
     try {
-      await CartService.updateCartItem(productId, {
-        productId,
+      const updatedCart = await CartService.updateCartItem(itemId, {
+        productId: item.productId,
         quantity: newQuantity,
       });
-      // Dispatch event to update cart count in header
+
+      setCart(updatedCart);
       dispatchCartUpdatedEvent();
-      // Don't show success toast for quantity updates to avoid UI noise
+      toast.success("Cart updated successfully");
     } catch (error) {
       console.error("Error updating cart:", error);
-      toast.error("Failed to update cart items.");
+      toast.error("Failed to update cart item.");
+      // Reload cart to get the correct state
+      await loadCart();
+    } finally {
+      setIsUpdatingItem(null);
     }
   };
 
-  // Update the removeItem function to dispatch the event
-  const removeItem = async (productId: string) => {
+  // Remove item function
+  const removeItem = async (itemId: string) => {
     if (!cart) return;
 
-    setIsRemovingItem(productId);
+    setIsRemovingItem(itemId);
 
-    setTimeout(async () => {
-      const updatedItems = cart.items.filter(
-        (item) => item.productId !== productId
-      );
-
-      // Create updated cart
-      const updatedCart = {
-        ...cart,
-        items: updatedItems,
-        totalItems: updatedItems.reduce((sum, item) => sum + item.quantity, 0),
-        subtotal: updatedItems.reduce((sum, item) => sum + item.totalPrice, 0),
-      };
-
+    try {
+      const updatedCart = await CartService.removeItemFromCart(itemId);
       setCart(updatedCart);
+      toast.success("Item removed from cart");
+      dispatchCartUpdatedEvent();
 
-      try {
-        await CartService.removeItemFromCart(productId);
-        toast.success("Item removed from cart");
-        dispatchCartUpdatedEvent();
-      } catch (error) {
-        console.error("Error removing item from cart:", error);
-        toast.error("Failed to remove item from cart.");
+      // Adjust current page if needed
+      if (updatedCart.items.length === 0 && currentPage > 0) {
+        setCurrentPage(Math.max(0, currentPage - 1));
       }
-
+    } catch (error) {
+      console.error("Error removing item from cart:", error);
+      toast.error("Failed to remove item from cart.");
+    } finally {
       setIsRemovingItem(null);
-
-      // Check if we need to adjust current page (if last item on page was removed)
-      if (updatedItems.length > 0) {
-        const newTotalPages = Math.max(
-          1,
-          Math.ceil(updatedItems.length / itemsPerPage)
-        );
-        if (currentPage > newTotalPages) {
-          setCurrentPage(newTotalPages);
-        }
-      }
-    }, 300);
+    }
   };
 
-  // Update the clearCart function to dispatch the event
+  // Clear cart function
   const clearCart = async () => {
-    setCart({
-      cartId: "local-cart",
-      userId: "local-user",
-      items: [],
-      totalItems: 0,
-      subtotal: 0,
-      totalPages: 1,
-      currentPage: 0,
-    });
     try {
       await CartService.clearCart();
+      setCart({
+        cartId: "",
+        userId: "",
+        items: [],
+        totalItems: 0,
+        subtotal: 0,
+        totalPages: 1,
+        currentPage: 0,
+      });
+      setCurrentPage(0);
       toast.success("Cart cleared successfully");
       dispatchCartUpdatedEvent();
     } catch (error) {
       console.error("Error clearing cart:", error);
       toast.error("Failed to clear cart.");
     }
-
-    // Reset pagination
-    setCurrentPage(1);
-    setPaginatedItems([]);
-    setTotalPages(1);
   };
 
   // Calculate total
@@ -264,9 +182,13 @@ export default function CartPage() {
     return cart.subtotal; // Shipping is free
   };
 
-  // Add handleProceedToCheckout function after the getTotal function
   // Handle proceed to checkout
   const handleProceedToCheckout = () => {
+    if (!isAuthenticated) {
+      toast.error("Please sign in to proceed to checkout.");
+      return;
+    }
+
     if (!cart || cart.items.length === 0) {
       toast.error("Your cart is empty. Add items to proceed to checkout.");
       return;
@@ -286,7 +208,7 @@ export default function CartPage() {
 
   // Handle page change
   const handlePageChange = (page: number) => {
-    if (page < 1 || page > totalPages) return;
+    if (page < 0 || page >= totalPages) return;
     setCurrentPage(page);
   };
 
@@ -298,8 +220,8 @@ export default function CartPage() {
     items.push(
       <PaginationItem key="first">
         <PaginationLink
-          onClick={() => handlePageChange(1)}
-          isActive={currentPage === 1}
+          onClick={() => handlePageChange(0)}
+          isActive={currentPage === 0}
         >
           1
         </PaginationLink>
@@ -307,7 +229,7 @@ export default function CartPage() {
     );
 
     // Show ellipsis if needed
-    if (currentPage > 3) {
+    if (currentPage > 2) {
       items.push(
         <PaginationItem key="ellipsis-start">
           <PaginationEllipsis />
@@ -317,25 +239,25 @@ export default function CartPage() {
 
     // Show current page and neighbors
     for (
-      let i = Math.max(2, currentPage - 1);
-      i <= Math.min(totalPages - 1, currentPage + 1);
+      let i = Math.max(1, currentPage - 1);
+      i <= Math.min(totalPages - 2, currentPage + 1);
       i++
     ) {
-      if (i === 1 || i === totalPages) continue; // Skip first and last as they're always shown
+      if (i === 0 || i === totalPages - 1) continue; // Skip first and last as they're always shown
       items.push(
         <PaginationItem key={i}>
           <PaginationLink
             onClick={() => handlePageChange(i)}
             isActive={currentPage === i}
           >
-            {i}
+            {i + 1}
           </PaginationLink>
         </PaginationItem>
       );
     }
 
     // Show ellipsis if needed
-    if (currentPage < totalPages - 2) {
+    if (currentPage < totalPages - 3) {
       items.push(
         <PaginationItem key="ellipsis-end">
           <PaginationEllipsis />
@@ -348,8 +270,8 @@ export default function CartPage() {
       items.push(
         <PaginationItem key="last">
           <PaginationLink
-            onClick={() => handlePageChange(totalPages)}
-            isActive={currentPage === totalPages}
+            onClick={() => handlePageChange(totalPages - 1)}
+            isActive={currentPage === totalPages - 1}
           >
             {totalPages}
           </PaginationLink>
@@ -364,10 +286,9 @@ export default function CartPage() {
     return (
       <div className="container mx-auto px-4 py-16">
         <div className="flex flex-col items-center justify-center min-h-[50vh]">
-          <div className="animate-pulse space-y-4 w-full max-w-4xl">
-            <div className="h-12 bg-muted rounded-md w-1/3"></div>
-            <div className="h-96 bg-muted rounded-md w-full"></div>
-            <div className="h-32 bg-muted rounded-md w-full"></div>
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span>Loading your cart...</span>
           </div>
         </div>
       </div>
@@ -421,11 +342,11 @@ export default function CartPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedItems.map((item) => (
+                {cart.items.map((item) => (
                   <TableRow
-                    key={item.productId}
+                    key={item.id}
                     className={
-                      isRemovingItem === item.productId
+                      isRemovingItem === item.id
                         ? "opacity-50 transition-opacity"
                         : ""
                     }
@@ -437,7 +358,7 @@ export default function CartPage() {
                           className="w-20 h-20 rounded-md overflow-hidden flex-shrink-0 hover:opacity-80 transition-opacity"
                         >
                           <img
-                            src={item.imageUrl}
+                            src={item.url}
                             alt={item.name}
                             className="w-full h-full object-cover"
                           />
@@ -470,9 +391,14 @@ export default function CartPage() {
                             variant="ghost"
                             size="sm"
                             className="flex items-center gap-1 text-sm self-start mt-1 h-7 px-2 text-muted-foreground hover:text-destructive"
-                            onClick={() => removeItem(item.productId)}
+                            onClick={() => removeItem(item.id)}
+                            disabled={isRemovingItem === item.id}
                           >
-                            <Trash2 className="h-3 w-3" />
+                            {isRemovingItem === item.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3 w-3" />
+                            )}
                             Remove
                           </Button>
                         </div>
@@ -498,10 +424,17 @@ export default function CartPage() {
                             size="sm"
                             className="h-8 w-8 p-0 rounded-none"
                             onClick={() =>
-                              updateQuantity(item.productId, item.quantity - 1)
+                              updateQuantity(item.id, item.quantity - 1)
+                            }
+                            disabled={
+                              isUpdatingItem === item.id || item.quantity <= 1
                             }
                           >
-                            <Minus className="h-3 w-3" />
+                            {isUpdatingItem === item.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Minus className="h-3 w-3" />
+                            )}
                           </Button>
                           <div className="w-10 flex items-center justify-center bg-background">
                             {item.quantity}
@@ -511,10 +444,18 @@ export default function CartPage() {
                             size="sm"
                             className="h-8 w-8 p-0 rounded-none"
                             onClick={() =>
-                              updateQuantity(item.productId, item.quantity + 1)
+                              updateQuantity(item.id, item.quantity + 1)
+                            }
+                            disabled={
+                              isUpdatingItem === item.id ||
+                              item.quantity >= item.stock
                             }
                           >
-                            <Plus className="h-3 w-3" />
+                            {isUpdatingItem === item.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Plus className="h-3 w-3" />
+                            )}
                           </Button>
                         </div>
                       </div>
@@ -536,7 +477,7 @@ export default function CartPage() {
                       <PaginationPrevious
                         onClick={() => handlePageChange(currentPage - 1)}
                         className={
-                          currentPage === 1
+                          currentPage === 0
                             ? "pointer-events-none opacity-50"
                             : "cursor-pointer"
                         }
@@ -549,7 +490,7 @@ export default function CartPage() {
                       <PaginationNext
                         onClick={() => handlePageChange(currentPage + 1)}
                         className={
-                          currentPage === totalPages
+                          currentPage === totalPages - 1
                             ? "pointer-events-none opacity-50"
                             : "cursor-pointer"
                         }
@@ -563,11 +504,11 @@ export default function CartPage() {
 
           {/* Mobile Cart View */}
           <div className="md:hidden space-y-4">
-            {paginatedItems.map((item) => (
+            {cart.items.map((item) => (
               <Card
-                key={item.productId}
+                key={item.id}
                 className={`overflow-hidden ${
-                  isRemovingItem === item.productId
+                  isRemovingItem === item.id
                     ? "opacity-50 transition-opacity"
                     : ""
                 }`}
@@ -579,7 +520,7 @@ export default function CartPage() {
                       className="w-24 h-24 flex-shrink-0"
                     >
                       <img
-                        src={item.imageUrl}
+                        src={item.url}
                         alt={item.name}
                         className="w-full h-full object-cover"
                       />
@@ -628,13 +569,17 @@ export default function CartPage() {
                               size="sm"
                               className="h-7 w-7 p-0 rounded-none"
                               onClick={() =>
-                                updateQuantity(
-                                  item.productId,
-                                  item.quantity - 1
-                                )
+                                updateQuantity(item.id, item.quantity - 1)
+                              }
+                              disabled={
+                                isUpdatingItem === item.id || item.quantity <= 1
                               }
                             >
-                              <Minus className="h-3 w-3" />
+                              {isUpdatingItem === item.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Minus className="h-3 w-3" />
+                              )}
                             </Button>
                             <div className="w-8 flex items-center justify-center bg-background text-sm">
                               {item.quantity}
@@ -644,22 +589,32 @@ export default function CartPage() {
                               size="sm"
                               className="h-7 w-7 p-0 rounded-none"
                               onClick={() =>
-                                updateQuantity(
-                                  item.productId,
-                                  item.quantity + 1
-                                )
+                                updateQuantity(item.id, item.quantity + 1)
+                              }
+                              disabled={
+                                isUpdatingItem === item.id ||
+                                item.quantity >= item.stock
                               }
                             >
-                              <Plus className="h-3 w-3" />
+                              {isUpdatingItem === item.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Plus className="h-3 w-3" />
+                              )}
                             </Button>
                           </div>
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                            onClick={() => removeItem(item.productId)}
+                            onClick={() => removeItem(item.id)}
+                            disabled={isRemovingItem === item.id}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            {isRemovingItem === item.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
                           </Button>
                         </div>
                       </div>
@@ -677,21 +632,21 @@ export default function CartPage() {
                     variant="outline"
                     size="icon"
                     className="h-8 w-8 p-0"
-                    disabled={currentPage === 1}
+                    disabled={currentPage === 0}
                     onClick={() => handlePageChange(currentPage - 1)}
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
 
                   <span className="text-sm">
-                    Page {currentPage} of {totalPages}
+                    Page {currentPage + 1} of {totalPages}
                   </span>
 
                   <Button
                     variant="outline"
                     size="icon"
                     className="h-8 w-8 p-0"
-                    disabled={currentPage === totalPages}
+                    disabled={currentPage === totalPages - 1}
                     onClick={() => handlePageChange(currentPage + 1)}
                   >
                     <ChevronRight className="h-4 w-4" />
@@ -770,7 +725,7 @@ export default function CartPage() {
                 <p>Estimated delivery: 3-5 business days</p>
               </div>
 
-              {/* Update the "Proceed to Checkout" button in the Order Summary section */}
+              {/* Proceed to Checkout button */}
               <Button
                 className="w-full mt-4"
                 size="lg"

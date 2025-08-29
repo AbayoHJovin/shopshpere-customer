@@ -5,7 +5,7 @@ export interface CartItemResponse {
   name: string;
   price: number;
   previousPrice: number | null;
-  imageUrl: string;
+  url: string;
   quantity: number;
   stock: number;
   totalPrice: number;
@@ -24,18 +24,27 @@ export interface CartResponse {
 }
 
 export interface CartItemRequest {
-  productId: string;
+  productId?: string;
+  variantId?: string;
   quantity: number;
 }
+
+// Base API URL
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
+
+/**
+ * Get authentication token from localStorage
+ */
+const getAuthToken = (): string | null => {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("auth_token");
+};
 
 export interface MessageResponse {
   message: string;
   success: boolean;
 }
-
-// Base API URL
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
 
 /**
  * Service to interact with the Cart API
@@ -45,25 +54,61 @@ export const CartService = {
    * Get the user's cart
    */
   getCart: async (page = 0, size = 10): Promise<CartResponse> => {
-    // Check if we're in a client component
-    if (typeof window === "undefined") {
-      throw new Error(
-        "This function should be called from client components only"
+    const token = getAuthToken();
+
+    if (!token) {
+      console.warn(
+        "No authentication token found, using localStorage fallback"
       );
+      return getCartFromLocalStorage();
     }
 
     try {
-      // In real implementation, we would make API call with authentication
-      // const response = await fetch(`${API_BASE_URL}/cart?page=${page}&size=${size}`, {
-      //   headers: {
-      //     'Authorization': `Bearer ${localStorage.getItem('token')}`
-      //   }
-      // });
-      // const data = await response.json();
-      // return data;
+      const response = await fetch(
+        `${API_BASE_URL}/cart/view?page=${page}&size=${size}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
-      // For now, use localStorage as a fallback
-      return getCartFromLocalStorage();
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          console.warn("Authentication failed, using localStorage fallback");
+          return getCartFromLocalStorage();
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Transform backend response to match frontend interface
+      const backendData = data.data;
+      return {
+        cartId: backendData.cartId?.toString() || "",
+        userId: backendData.userId?.toString() || "",
+        items:
+          backendData.items?.map((item: any) => ({
+            id: item.id?.toString() || "",
+            productId:
+              item.variantId?.toString() || item.productId?.toString() || "",
+            name: item.productName || item.name || "",
+            price: item.price || 0,
+            previousPrice: item.previousPrice || null,
+            url: item.productImage || item.url || "",
+            quantity: item.quantity || 0,
+            stock: item.availableStock || item.stock || 0,
+            totalPrice: item.totalPrice || 0,
+            averageRating: item.averageRating || 0,
+            ratingCount: item.ratingCount || 0,
+          })) || [],
+        totalItems: backendData.totalItems || 0,
+        subtotal: backendData.subtotal || backendData.total || 0,
+        totalPages: data.pagination?.totalPages || 1,
+        currentPage: data.pagination?.page || 0,
+      };
     } catch (error) {
       console.error("Error fetching cart:", error);
       return getCartFromLocalStorage();
@@ -74,24 +119,54 @@ export const CartService = {
    * Add an item to the cart
    */
   addItemToCart: async (request: CartItemRequest): Promise<CartResponse> => {
-    try {
-      // In real implementation, we would make API call with authentication
-      // const response = await fetch(`${API_BASE_URL}/cart`, {
-      //   method: 'POST',
-      //   headers: {
-      //     'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      //     'Content-Type': 'application/json'
-      //   },
-      //   body: JSON.stringify(request)
-      // });
-      // const data = await response.json();
-      // return data;
+    const token = getAuthToken();
 
-      // For now, use localStorage as a fallback
-      return addToLocalStorageCart(request.productId, request.quantity);
+    if (!token) {
+      console.warn(
+        "No authentication token found, using localStorage fallback"
+      );
+      return addToLocalStorageCart(
+        request.productId || request.variantId || "",
+        request.quantity
+      );
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/cart/add`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          console.warn("Authentication failed, using localStorage fallback");
+          return addToLocalStorageCart(
+            request.productId || request.variantId || "",
+            request.quantity
+          );
+        }
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+
+      // Trigger cart update event
+      window.dispatchEvent(new CustomEvent("cartUpdated"));
+
+      return data.data;
     } catch (error) {
       console.error("Error adding item to cart:", error);
-      return addToLocalStorageCart(request.productId, request.quantity);
+      return addToLocalStorageCart(
+        request.productId || request.variantId || "",
+        request.quantity
+      );
     }
   },
 
@@ -99,50 +174,97 @@ export const CartService = {
    * Update an item in the cart
    */
   updateCartItem: async (
-    productId: string,
+    itemId: string,
     request: CartItemRequest
   ): Promise<CartResponse> => {
-    try {
-      // In real implementation, we would make API call with authentication
-      // const response = await fetch(`${API_BASE_URL}/cart/${productId}`, {
-      //   method: 'PUT',
-      //   headers: {
-      //     'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      //     'Content-Type': 'application/json'
-      //   },
-      //   body: JSON.stringify(request)
-      // });
-      // const data = await response.json();
-      // return data;
+    const token = getAuthToken();
 
-      // For now, use localStorage as a fallback
-      return updateLocalStorageCartItem(productId, request.quantity);
+    if (!token) {
+      console.warn(
+        "No authentication token found, using localStorage fallback"
+      );
+      return updateLocalStorageCartItem(itemId, request.quantity);
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/cart/update`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cartItemId: parseInt(itemId),
+          quantity: request.quantity,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          console.warn("Authentication failed, using localStorage fallback");
+          return updateLocalStorageCartItem(itemId, request.quantity);
+        }
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+
+      // Trigger cart update event
+      window.dispatchEvent(new CustomEvent("cartUpdated"));
+
+      // Return updated cart by fetching it again
+      return await CartService.getCart();
     } catch (error) {
       console.error("Error updating cart item:", error);
-      return updateLocalStorageCartItem(productId, request.quantity);
+      return updateLocalStorageCartItem(itemId, request.quantity);
     }
   },
 
   /**
    * Remove an item from the cart
    */
-  removeItemFromCart: async (productId: string): Promise<CartResponse> => {
-    try {
-      // In real implementation, we would make API call with authentication
-      // const response = await fetch(`${API_BASE_URL}/cart/${productId}`, {
-      //   method: 'DELETE',
-      //   headers: {
-      //     'Authorization': `Bearer ${localStorage.getItem('token')}`
-      //   }
-      // });
-      // const data = await response.json();
-      // return data;
+  removeItemFromCart: async (itemId: string): Promise<CartResponse> => {
+    const token = getAuthToken();
 
-      // For now, use localStorage as a fallback
-      return removeFromLocalStorageCart(productId);
+    if (!token) {
+      console.warn(
+        "No authentication token found, using localStorage fallback"
+      );
+      return removeFromLocalStorageCart(itemId);
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/cart/remove/${itemId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          console.warn("Authentication failed, using localStorage fallback");
+          return removeFromLocalStorageCart(itemId);
+        }
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+
+      // Trigger cart update event
+      window.dispatchEvent(new CustomEvent("cartUpdated"));
+
+      // Return updated cart by fetching it again
+      return await CartService.getCart();
     } catch (error) {
       console.error("Error removing item from cart:", error);
-      return removeFromLocalStorageCart(productId);
+      return removeFromLocalStorageCart(itemId);
     }
   },
 
@@ -150,23 +272,48 @@ export const CartService = {
    * Clear the cart
    */
   clearCart: async (): Promise<MessageResponse> => {
-    try {
-      // In real implementation, we would make API call with authentication
-      // const response = await fetch(`${API_BASE_URL}/cart`, {
-      //   method: 'DELETE',
-      //   headers: {
-      //     'Authorization': `Bearer ${localStorage.getItem('token')}`
-      //   }
-      // });
-      // const data = await response.json();
-      // return data;
+    const token = getAuthToken();
 
-      // For now, use localStorage as a fallback
+    if (!token) {
+      console.warn(
+        "No authentication token found, using localStorage fallback"
+      );
       localStorage.setItem("cart", JSON.stringify([]));
       return {
-        message: "Cart cleared successfully",
+        message: "Cart cleared successfully (local only)",
         success: true,
       };
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/cart/clear`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          console.warn("Authentication failed, using localStorage fallback");
+          localStorage.setItem("cart", JSON.stringify([]));
+          return {
+            message: "Cart cleared successfully (local only)",
+            success: true,
+          };
+        }
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+
+      // Trigger cart update event
+      window.dispatchEvent(new CustomEvent("cartUpdated"));
+
+      return data;
     } catch (error) {
       console.error("Error clearing cart:", error);
       localStorage.setItem("cart", JSON.stringify([]));
@@ -181,24 +328,41 @@ export const CartService = {
    * Get the number of items in the cart
    */
   getCartItemsCount: async (): Promise<number> => {
-    try {
-      // In real implementation, we would make API call with authentication
-      // const response = await fetch(`${API_BASE_URL}/cart/count`, {
-      //   headers: {
-      //     'Authorization': `Bearer ${localStorage.getItem('token')}`
-      //   }
-      // });
-      // const data = await response.json();
-      // return data;
+    const token = getAuthToken();
 
-      // For now, use localStorage as a fallback
+    if (!token) {
+      console.warn(
+        "No authentication token found, using localStorage fallback"
+      );
       const cartItems = localStorage.getItem("cart");
       if (!cartItems) return 0;
-
       return JSON.parse(cartItems).length;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/cart/has-items`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          console.warn("Authentication failed, using localStorage fallback");
+          const cartItems = localStorage.getItem("cart");
+          if (!cartItems) return 0;
+          return JSON.parse(cartItems).length;
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.data.hasItems ? 1 : 0;
     } catch (error) {
       console.error("Error getting cart item count:", error);
-      return 0;
+      const cartItems = localStorage.getItem("cart");
+      if (!cartItems) return 0;
+      return JSON.parse(cartItems).length;
     }
   },
 };
@@ -219,48 +383,37 @@ function getCartFromLocalStorage(): CartResponse {
       };
     }
 
-    // Import the products from the data store
-    // We would typically fetch this from an API
-    // For this example, we're using the local data
-    const { allProducts } = require("@/data/products");
-
     const cartIds = JSON.parse(cartItems) as string[];
 
-    // Get product details for each cart item
+    // Create a simple cart response without requiring product data
+    // In a real implementation, this would fetch product details from the backend
     const cartItemsWithDetails: CartItemResponse[] = cartIds.reduce(
       (acc: CartItemResponse[], id) => {
-        const product = allProducts.find((p: any) => p.id === id);
-        if (product) {
-          const existingItem = acc.find((item) => item.productId === id);
+        const existingItem = acc.find((item) => item.productId === id);
 
-          if (existingItem) {
-            // If item already exists, increment quantity
-            existingItem.quantity += 1;
-            existingItem.totalPrice =
-              existingItem.quantity * existingItem.price;
-            return acc;
-          } else {
-            // Add new item to cart
-            const price = product.discountedPrice || product.price;
-            const originalPrice = product.originalPrice || null;
-
-            acc.push({
-              id: `cart-item-${id}`,
-              productId: id,
-              name: product.name,
-              price: price,
-              previousPrice: originalPrice,
-              imageUrl: product.image,
-              quantity: 1,
-              stock: product.stock || 100, // Use product stock or mock value
-              totalPrice: price,
-              averageRating: product.rating,
-              ratingCount: product.reviewCount,
-            });
-            return acc;
-          }
+        if (existingItem) {
+          // If item already exists, increment quantity
+          existingItem.quantity += 1;
+          existingItem.totalPrice = existingItem.quantity * existingItem.price;
+          return acc;
+        } else {
+          // Add new item to cart with placeholder data
+          // In real implementation, this would fetch from backend
+          acc.push({
+            id: `cart-item-${id}`,
+            productId: id,
+            name: `Product ${id}`, // Placeholder name
+            price: 0, // Will be updated when product details are fetched
+            previousPrice: null,
+            url: "", // Will be updated when product details are fetched
+            quantity: 1,
+            stock: 100, // Placeholder stock
+            totalPrice: 0, // Will be calculated when price is known
+            averageRating: 0,
+            ratingCount: 0,
+          });
+          return acc;
         }
-        return acc;
       },
       []
     );
@@ -349,7 +502,6 @@ function removeFromLocalStorageCart(productId: string): CartResponse {
     const cartItems = localStorage.getItem("cart");
     const cart = cartItems ? (JSON.parse(cartItems) as string[]) : [];
 
-    // Remove all instances of the product
     const filteredCart = cart.filter((id) => id !== productId);
 
     localStorage.setItem("cart", JSON.stringify(filteredCart));

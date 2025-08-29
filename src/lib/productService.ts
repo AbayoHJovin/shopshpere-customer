@@ -25,13 +25,16 @@ export interface ProductDTO {
   images: ProductImageDTO[];
   videos: ProductVideoDTO[];
   variants: ProductVariantDTO[];
+  averageRating?: number;
+  reviewCount?: number;
+  reviews?: ReviewDTO[];
   createdAt: string;
   updatedAt: string;
 }
 
 export interface ProductImageDTO {
   imageId: number;
-  imageUrl: string;
+  url: string;
   altText?: string;
   isPrimary: boolean;
   sortOrder: number;
@@ -59,7 +62,7 @@ export interface ProductVariantDTO {
 
 export interface VariantImageDTO {
   imageId: number;
-  imageUrl: string;
+  url: string;
   altText?: string;
   isPrimary: boolean;
   sortOrder: number;
@@ -71,41 +74,111 @@ export interface VariantAttributeDTO {
   attributeValue: string;
 }
 
-// For product grid display
+// Backend Category DTO
+export interface CategoryDto {
+  id: number;
+  name: string;
+  description?: string;
+  slug: string;
+  url?: string;
+}
+
+// Backend Brand DTO
+export interface BrandDto {
+  brandId: string;
+  brandName: string;
+  description?: string;
+  logoUrl?: string;
+}
+
+// Backend Primary Image DTO
+export interface PrimaryImageDto {
+  id: number;
+  imageUrl: string;
+  altText?: string;
+  title?: string;
+  isPrimary: boolean;
+  sortOrder: number;
+  width?: number;
+  height?: number;
+  fileSize?: number;
+  mimeType?: string;
+}
+
+// Backend Discount Info DTO
+export interface DiscountInfoDto {
+  discountId: string;
+  discountType: string;
+  discountValue: number;
+  validFrom: string;
+  validTo: string;
+}
+
+// For product grid display - updated to match backend response
 export interface ManyProductsDto {
   productId: string;
-  name: string;
-  slug: string;
-  basePrice: number;
-  discountPercentage: number;
-  finalPrice: number;
+  productName: string;
+  shortDescription?: string;
+  price: number;
+  compareAtPrice?: number;
   stockQuantity: number;
-  isActive: boolean;
-  categoryName: string;
-  brandName: string;
-  gender: string;
-  primaryImageUrl?: string;
-  rating: number;
-  reviewCount: number;
-  createdAt: string;
+  category: CategoryDto;
+  brand: BrandDto;
+  isBestSeller: boolean;
+  isFeatured: boolean;
+  discountInfo?: DiscountInfoDto;
+  primaryImage?: PrimaryImageDto;
+  averageRating?: number;
+  reviewCount?: number;
 }
 
 export interface ProductSearchDTO {
-  query?: string;
-  categoryIds?: number[];
-  brandIds?: string[];
-  minPrice?: number;
-  maxPrice?: number;
-  gender?: string;
-  tags?: string[];
+  // Text search
+  searchKeyword?: string;
+  name?: string;
+  description?: string;
+  sku?: string;
+
+  // Price filters (backend expects BigDecimal, send as numbers)
+  basePriceMin?: number;
+  basePriceMax?: number;
+  salePriceMin?: number;
+  salePriceMax?: number;
+
+  // Stock filters
+  stockQuantityMin?: number;
+  stockQuantityMax?: number;
   inStock?: boolean;
-  minRating?: number;
-  isActive?: boolean;
-  sortBy?: string;
-  sortDirection?: string;
+
+  // Category and brand filters
+  categoryId?: number;
+  categoryIds?: number[];
+  categoryNames?: string[];
+  brandId?: string;
+  brandIds?: string[];
+  brandNames?: string[];
+
+  // Feature flags
+  isFeatured?: boolean;
+  isBestseller?: boolean;
+  isNewArrival?: boolean;
+
+  // Rating filters
+  averageRatingMin?: number;
+  averageRatingMax?: number;
+
+  // Discount filters
+  hasDiscount?: boolean;
+  isOnSale?: boolean;
+
+  // Pagination and sorting
   page?: number;
   size?: number;
-  attributes?: Record<string, string[]>; // attributeTypeName -> [values]
+  sortBy?: string;
+  sortDirection?: string;
+
+  // Variant attributes
+  variantAttributes?: string[]; // e.g., ["Color:Red", "Size:LG"]
 }
 
 export interface Page<T> {
@@ -141,6 +214,29 @@ export interface AddToCartRequest {
   productId?: string;
   variantId?: number;
   quantity: number;
+}
+
+export interface ReviewDTO {
+  id: number;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  productId: string;
+  productName: string;
+  rating: number;
+  title: string;
+  content: string;
+  status: string;
+  isVerifiedPurchase: boolean;
+  helpfulVotes: number;
+  notHelpfulVotes: number;
+  moderatorNotes?: string;
+  moderatedBy?: string;
+  moderatedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
 /**
@@ -293,19 +389,85 @@ export const ProductService = {
   /**
    * Convert ManyProductsDto to format expected by ProductCard component
    */
-  convertToProductCardFormat: (product: ManyProductsDto) => ({
-    id: product.productId,
-    name: product.name,
-    price: product.finalPrice,
-    originalPrice: product.basePrice,
-    rating: product.rating,
-    reviewCount: product.reviewCount,
-    image: product.primaryImageUrl || "/placeholder-product.jpg",
-    discount: product.discountPercentage,
-    isNew: false, // Could be calculated based on createdAt
-    isBestseller: false, // Could be based on some criteria
-    discountedPrice: product.finalPrice,
-  }),
+  convertToProductCardFormat: (product: ManyProductsDto) => {
+    const discountPercentage = product.discountInfo
+      ? Math.round(
+          (((product.compareAtPrice || product.price) - product.price) /
+            (product.compareAtPrice || product.price)) *
+            100
+        )
+      : 0;
+
+    return {
+      id: product.productId,
+      name: product.productName,
+      price: product.price,
+      originalPrice: product.compareAtPrice || undefined,
+      rating: product.averageRating || 0, // Use actual rating from backend
+      reviewCount: product.reviewCount || 0, // Use actual review count from backend
+      image: product.primaryImage?.imageUrl || "/placeholder-product.jpg",
+      discount: discountPercentage > 0 ? discountPercentage : undefined,
+      isNew: false, // Could be calculated based on creation date
+      isBestseller: product.isBestSeller,
+      discountedPrice: product.price,
+    };
+  },
+
+  /**
+   * Get product reviews with pagination
+   */
+  getProductReviews: async (
+    productId: string,
+    page: number = 0,
+    size: number = 10,
+    sortBy: string = "createdAt",
+    sortDirection: string = "desc"
+  ): Promise<{
+    data: ReviewDTO[];
+    pagination: {
+      page: number;
+      size: number;
+      totalElements: number;
+      totalPages: number;
+    };
+  }> => {
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        size: size.toString(),
+        sortBy,
+        sortDirection,
+      });
+
+      const response = await fetch(
+        `${API_BASE_URL}/reviews/product/${productId}?${params}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch product reviews: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        data: result.data || [],
+        pagination: result.pagination || {
+          page: 0,
+          size: 10,
+          totalElements: 0,
+          totalPages: 0,
+        },
+      };
+    } catch (error) {
+      console.error("Error fetching product reviews:", error);
+      throw error;
+    }
+  },
 };
 
 export default ProductService;

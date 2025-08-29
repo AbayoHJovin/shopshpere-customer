@@ -69,22 +69,31 @@ export function ShopClient() {
       // Parse price range
       const minPrice = searchParams.get("minPrice");
       const maxPrice = searchParams.get("maxPrice");
-      if (minPrice && maxPrice) {
-        urlFilters.priceRange = [parseInt(minPrice), parseInt(maxPrice)];
+      if (
+        minPrice &&
+        maxPrice &&
+        minPrice !== "undefined" &&
+        maxPrice !== "undefined"
+      ) {
+        const min = parseInt(minPrice);
+        const max = parseInt(maxPrice);
+        if (!isNaN(min) && !isNaN(max)) {
+          urlFilters.priceRange = [min, max];
+        }
       }
 
       // Parse array values
       const arrayKeys = ["categories", "brands", "discountRanges"] as const;
       arrayKeys.forEach((key) => {
         const value = searchParams.get(key);
-        if (value) {
+        if (value && value !== "undefined") {
           urlFilters[key] = value.split(",");
         }
       });
 
       // Parse attributes (special handling for nested object)
       const attributesParam = searchParams.get("attributes");
-      if (attributesParam) {
+      if (attributesParam && attributesParam !== "undefined") {
         try {
           urlFilters.attributes = JSON.parse(
             decodeURIComponent(attributesParam)
@@ -95,11 +104,16 @@ export function ShopClient() {
       }
 
       // Parse string/number values
-      urlFilters.gender = searchParams.get("gender");
+      const genderParam = searchParams.get("gender");
+      urlFilters.gender =
+        genderParam && genderParam !== "undefined" ? genderParam : null;
 
       const ratingParam = searchParams.get("rating");
-      if (ratingParam) {
-        urlFilters.rating = parseInt(ratingParam);
+      if (ratingParam && ratingParam !== "undefined") {
+        const rating = parseInt(ratingParam);
+        if (!isNaN(rating)) {
+          urlFilters.rating = rating;
+        }
       }
 
       // Parse boolean values

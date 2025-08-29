@@ -20,7 +20,7 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { FilterService, FilterOptions, FilterError } from "@/lib/filterService";
 
 interface ProductFiltersProps {
@@ -37,11 +37,18 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
   const [filterErrors, setFilterErrors] = useState<FilterError[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
+  const [localPriceRange, setLocalPriceRange] = useState(filters.priceRange);
+  const priceRangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load filter options from backend
   useEffect(() => {
     loadFilterOptions();
   }, []);
+
+  // Sync local price range with filters
+  useEffect(() => {
+    setLocalPriceRange(filters.priceRange);
+  }, [filters.priceRange]);
 
   const loadFilterOptions = async () => {
     setIsLoading(true);
@@ -94,28 +101,58 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
     { range: "Over 60%", min: 61, max: 100, count: 8 },
   ];
 
-  const updateFilters = (key: string, value: any) => {
-    const newFilters = { ...filters, [key]: value };
-    onFiltersChange(newFilters);
-  };
+  const updateFilters = useCallback(
+    (key: string, value: any) => {
+      const newFilters = { ...filters, [key]: value };
+      onFiltersChange(newFilters);
+    },
+    [filters, onFiltersChange]
+  );
 
-  const toggleCategory = (categoryName: string) => {
+  // Debounced price range update
+  const updatePriceRange = useCallback(
+    (value: number[]) => {
+      setLocalPriceRange(value);
+
+      // Clear existing timeout
+      if (priceRangeTimeoutRef.current) {
+        clearTimeout(priceRangeTimeoutRef.current);
+      }
+
+      // Set new timeout
+      priceRangeTimeoutRef.current = setTimeout(() => {
+        updateFilters("priceRange", value);
+      }, 300); // 300ms debounce
+    },
+    [updateFilters]
+  );
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (priceRangeTimeoutRef.current) {
+        clearTimeout(priceRangeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const toggleCategory = useCallback((categoryName: string) => {
     setExpandedCategories((prev) =>
       prev.includes(categoryName)
         ? prev.filter((c) => c !== categoryName)
         : [...prev, categoryName]
     );
-  };
+  }, []);
 
-  const toggleSection = (sectionName: string) => {
+  const toggleSection = useCallback((sectionName: string) => {
     setCollapsedSections((prev) =>
       prev.includes(sectionName)
         ? prev.filter((s) => s !== sectionName)
         : [...prev, sectionName]
     );
-  };
+  }, []);
 
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     onFiltersChange({
       priceRange: [0, 1000],
       categories: [],
@@ -126,7 +163,7 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
       rating: null,
       inStock: false,
     });
-  };
+  }, [onFiltersChange]);
 
   const hasActiveFilters =
     filters.priceRange[0] > 0 ||
@@ -429,17 +466,17 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
         "Price Range",
         <div className="space-y-4">
           <Slider
-            value={filters.priceRange}
-            onValueChange={(value) => updateFilters("priceRange", value)}
+            value={localPriceRange}
+            onValueChange={updatePriceRange}
             max={1000}
             step={10}
             className="w-full"
           />
           <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>${filters.priceRange[0]}</span>
+            <span>${localPriceRange[0]}</span>
             <span>
-              ${filters.priceRange[1]}
-              {filters.priceRange[1] === 1000 && "+"}
+              ${localPriceRange[1]}
+              {localPriceRange[1] === 1000 && "+"}
             </span>
           </div>
         </div>

@@ -5,8 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Star, ShoppingCart, Check, Eye, Loader2 } from "lucide-react";
 import Link from "next/link";
 import VariantSelectionModal from "./VariantSelectionModal";
-import { ProductService, ProductDTO, AddToCartRequest } from "@/lib/productService";
+import { ProductService, ProductDTO } from "@/lib/productService";
+import { CartService, CartItemRequest } from "@/lib/cartService";
 import { useToast } from "@/hooks/use-toast";
+import { useAppSelector } from "@/lib/store/hooks";
 
 interface ProductCardProps {
   id: string;
@@ -40,28 +42,62 @@ const ProductCard = ({
   const [showVariantModal, setShowVariantModal] = useState(false);
   const [productDetails, setProductDetails] = useState<ProductDTO | null>(null);
   const { toast } = useToast();
+  const { isAuthenticated } = useAppSelector((state) => state.auth);
 
   // Check if product is in cart on component mount
   useEffect(() => {
-    const cart = getCart();
-    setIsInCart(cart.includes(id));
+    checkCartStatus();
   }, [id]);
+
+  const checkCartStatus = async () => {
+    try {
+      const cart = await CartService.getCart();
+      const isProductInCart = cart.items.some((item) => item.productId === id);
+      setIsInCart(isProductInCart);
+    } catch (error) {
+      console.error("Error checking cart status:", error);
+    }
+  };
 
   // Check if product has variants and handle cart action
   const handleCartToggle = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to add items to your cart.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (isInCart) {
       // Remove from cart
-      const cart = getCart();
-      const newCart = cart.filter((itemId) => itemId !== id);
-      localStorage.setItem("cart", JSON.stringify(newCart));
-      setIsInCart(false);
-      toast({
-        title: "Removed from cart",
-        description: `${name} has been removed from your cart.`,
-      });
+      try {
+        setIsLoading(true);
+        const cart = await CartService.getCart();
+        const cartItem = cart.items.find((item) => item.productId === id);
+
+        if (cartItem) {
+          await CartService.removeItemFromCart(cartItem.id);
+          setIsInCart(false);
+          toast({
+            title: "Removed from cart",
+            description: `${name} has been removed from your cart.`,
+          });
+        }
+      } catch (error) {
+        console.error("Error removing from cart:", error);
+        toast({
+          title: "Error",
+          description: "Failed to remove item from cart. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
       return;
     }
 
@@ -91,17 +127,10 @@ const ProductCard = ({
   };
 
   // Handle adding to cart (for both products and variants)
-  const handleAddToCart = async (request: AddToCartRequest) => {
+  const handleAddToCart = async (request: CartItemRequest) => {
     try {
-      await ProductService.addToCart(request);
-      
-      // Update local state
-      const cart = getCart();
-      const itemId = request.productId || `variant_${request.variantId}`;
-      for (let i = 0; i < request.quantity; i++) {
-        cart.push(itemId);
-      }
-      localStorage.setItem("cart", JSON.stringify(cart));
+      setIsLoading(true);
+      await CartService.addItemToCart(request);
       setIsInCart(true);
 
       toast({
@@ -115,17 +144,8 @@ const ProductCard = ({
         description: "Failed to add item to cart. Please try again.",
         variant: "destructive",
       });
-    }
-  };
-
-  // Get cart from localStorage
-  const getCart = (): string[] => {
-    try {
-      const cartData = localStorage.getItem("cart");
-      return cartData ? JSON.parse(cartData) : [];
-    } catch (error) {
-      console.error("Error parsing cart data:", error);
-      return [];
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -203,84 +223,41 @@ const ProductCard = ({
         </Link>
 
         {/* Product Info */}
-        <Link href={`/product/${id}`} className="block p-4 space-y-2">
-          <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors">
-            {name}
-          </h3>
+        <div className="p-4">
+          <Link href={`/product/${id}`}>
+            <h3 className="font-semibold text-sm mb-1 line-clamp-2 group-hover:text-primary transition-colors">
+              {name}
+            </h3>
+          </Link>
 
           {/* Rating */}
-          <div className="flex items-center gap-1">
-            <div className="flex items-center">
-              {[...Array(5)].map((_, i) => (
-                <Star
-                  key={i}
-                  className={`h-3 w-3 ${
-                    i < Math.floor(rating)
-                      ? "fill-rating-star text-rating-star"
-                      : "text-muted-foreground"
-                  }`}
-                />
-              ))}
-            </div>
+          <div className="flex items-center gap-1 mb-2">
+            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
             <span className="text-xs text-muted-foreground">
-              ({reviewCount})
+              {rating.toFixed(1)} ({reviewCount})
             </span>
           </div>
 
           {/* Price */}
           <div className="flex items-center gap-2">
-            <span className="text-lg font-bold text-price">
-              ${discountedPrice || price}
+            <span className="font-bold text-lg">
+              ${discountedPrice ? discountedPrice.toFixed(2) : price.toFixed(2)}
             </span>
-            {originalPrice && (
+            {originalPrice && originalPrice > price && (
               <span className="text-sm text-muted-foreground line-through">
-                ${originalPrice}
+                ${originalPrice.toFixed(2)}
               </span>
             )}
           </div>
-        </Link>
-
-        {/* Mobile Buttons (visible on small screens where hover doesn't work well) */}
-        <div className="sm:hidden p-4 pt-0 grid grid-cols-2 gap-2">
-          <Button
-            className={`h-8 text-xs ${
-              isInCart ? "bg-success hover:bg-success/90" : ""
-            }`}
-            onClick={handleCartToggle}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                Loading
-              </>
-            ) : isInCart ? (
-              <>
-                <Check className="h-3 w-3 mr-1" />
-                Added
-              </>
-            ) : (
-              <>
-                <ShoppingCart className="h-3 w-3 mr-1" />
-                Add to Cart
-              </>
-            )}
-          </Button>
-          <Link href={`/product/${id}`} className="w-full">
-            <Button variant="outline" className="w-full h-8 text-xs">
-              <Eye className="h-3 w-3 mr-1" />
-              View
-            </Button>
-          </Link>
         </div>
       </CardContent>
 
       {/* Variant Selection Modal */}
-      {productDetails && (
+      {showVariantModal && productDetails && (
         <VariantSelectionModal
+          product={productDetails}
           isOpen={showVariantModal}
           onClose={() => setShowVariantModal(false)}
-          product={productDetails}
           onAddToCart={handleAddToCart}
         />
       )}

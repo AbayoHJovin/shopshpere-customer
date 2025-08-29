@@ -778,7 +778,7 @@ export function CheckoutClient() {
                             <Link href={`/product/${item.productId}`}>
                               <img
                                 src={
-                                  item.imageUrl ||
+                                  item.url ||
                                   "https://placehold.co/100x100?text=Product"
                                 }
                                 alt={item.productName}

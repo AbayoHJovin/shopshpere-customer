@@ -5,6 +5,8 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { ReduxProvider } from "@/lib/providers/ReduxProvider";
+import { AuthProvider } from "@/lib/providers/AuthProvider";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -19,7 +21,8 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   title: "ShopSphere - Your One-Stop Shopping Destination",
-  description: "Discover amazing products at unbeatable prices. Shop electronics, fashion, home goods and more.",
+  description:
+    "Discover amazing products at unbeatable prices. Shop electronics, fashion, home goods and more.",
 };
 
 export default function RootLayout({
@@ -30,17 +33,21 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <Header />
-          <main>{children}</main>
-          <Footer />
-          <Toaster />
-        </ThemeProvider>
+        <ReduxProvider>
+          <AuthProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              enableSystem
+              disableTransitionOnChange
+            >
+              <Header />
+              <main>{children}</main>
+              <Footer />
+              <Toaster />
+            </ThemeProvider>
+          </AuthProvider>
+        </ReduxProvider>
       </body>
     </html>
   );
