@@ -1,171 +1,178 @@
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
-
 export interface WishlistProduct {
   id: number;
-  variantId: number;
-  variantSku: string;
+  productId: string;
+  productSku: string;
   productName: string;
-  notes?: string;
-  priority?: number;
+  productImage: string | null;
+  notes: string | null;
+  priority: number;
   addedAt: string;
   inStock: boolean;
   availableStock: number;
   price: number;
-  images?: Array<{
-    imageId: number;
-    url: string;
-    altText?: string;
-  }>;
+  finalPrice: number;
 }
 
 export interface WishlistResponse {
   products: WishlistProduct[];
   totalProducts: number;
-  totalPages: number;
   currentPage: number;
-  pageSize: number;
+  totalPages: number;
 }
 
 export interface AddToWishlistRequest {
-  variantId: number;
+  productId: string;
   notes?: string;
   priority?: number;
 }
 
-const getAuthToken = (): string | null => {
-  if (typeof window !== "undefined") {
-    return localStorage.getItem("auth_token");
+export interface UpdateWishlistProductRequest {
+  wishlistProductId: number;
+  notes?: string;
+  priority?: number;
+}
+
+class WishlistServices {
+  private baseUrl =
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
+
+  private async getAuthHeaders(): Promise<HeadersInit> {
+    const token = localStorage.getItem("auth_token");
+    return {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+    };
   }
-  return null;
-};
 
-export const WishlistService = {
-  addToWishlist: async (
-    request: AddToWishlistRequest
-  ): Promise<WishlistProduct> => {
-    const token = getAuthToken();
-    if (!token) throw new Error("Authentication required");
-
-    const response = await fetch(`${API_BASE_URL}/wishlist/add`, {
+  async addToWishlist(request: AddToWishlistRequest): Promise<WishlistProduct> {
+    const response = await fetch(`${this.baseUrl}/wishlist/add`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers: await this.getAuthHeaders(),
       body: JSON.stringify(request),
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(
-        errorData.message || `HTTP error! status: ${response.status}`
-      );
+      const error = await response.json();
+      throw new Error(error.message || "Failed to add to wishlist");
     }
 
-    const data = await response.json();
-    return data.data;
-  },
+    const result = await response.json();
+    return result.data;
+  }
 
-  getWishlist: async (page = 0, size = 10): Promise<WishlistResponse> => {
-    const token = getAuthToken();
-    if (!token) throw new Error("Authentication required");
-
+  async getWishlist(
+    page: number = 0,
+    size: number = 10
+  ): Promise<WishlistResponse> {
     const response = await fetch(
-      `${API_BASE_URL}/wishlist/view?page=${page}&size=${size}`,
+      `${this.baseUrl}/wishlist/view?page=${page}&size=${size}`,
       {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+        method: "GET",
+        headers: await this.getAuthHeaders(),
       }
     );
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(
-        errorData.message || `HTTP error! status: ${response.status}`
-      );
+      const error = await response.json();
+      throw new Error(error.message || "Failed to fetch wishlist");
     }
 
-    const data = await response.json();
-    return data.data;
-  },
+    const result = await response.json();
+    return {
+      products: result.data.products,
+      totalProducts: result.data.totalProducts,
+      currentPage: result.pagination.page,
+      totalPages: result.pagination.totalPages,
+    };
+  }
 
-  removeFromWishlist: async (wishlistProductId: number): Promise<void> => {
-    const token = getAuthToken();
-    if (!token) throw new Error("Authentication required");
-
+  async removeFromWishlist(wishlistProductId: number): Promise<void> {
     const response = await fetch(
-      `${API_BASE_URL}/wishlist/remove/${wishlistProductId}`,
+      `${this.baseUrl}/wishlist/remove/${wishlistProductId}`,
       {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: await this.getAuthHeaders(),
       }
     );
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(
-        errorData.message || `HTTP error! status: ${response.status}`
-      );
+      const error = await response.json();
+      throw new Error(error.message || "Failed to remove from wishlist");
     }
-  },
+  }
 
-  clearWishlist: async (): Promise<void> => {
-    const token = getAuthToken();
-    if (!token) throw new Error("Authentication required");
-
-    const response = await fetch(`${API_BASE_URL}/wishlist/clear`, {
+  async clearWishlist(): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/wishlist/clear`, {
       method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: await this.getAuthHeaders(),
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(
-        errorData.message || `HTTP error! status: ${response.status}`
-      );
+      const error = await response.json();
+      throw new Error(error.message || "Failed to clear wishlist");
     }
-  },
+  }
 
-  moveToCart: async (
+  async moveToCart(
     wishlistProductId: number,
-    quantity = 1
-  ): Promise<void> => {
-    const token = getAuthToken();
-    if (!token) throw new Error("Authentication required");
-
+    quantity: number = 1
+  ): Promise<void> {
     const response = await fetch(
-      `${API_BASE_URL}/wishlist/move-to-cart/${wishlistProductId}?quantity=${quantity}`,
+      `${this.baseUrl}/wishlist/move-to-cart/${wishlistProductId}?quantity=${quantity}`,
       {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: await this.getAuthHeaders(),
       }
     );
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(
-        errorData.message || `HTTP error! status: ${response.status}`
-      );
+      const error = await response.json();
+      throw new Error(error.message || "Failed to move to cart");
     }
-  },
+  }
 
-  isInWishlist: async (variantId: number): Promise<boolean> => {
+  async isInWishlist(productId: string): Promise<boolean> {
     try {
-      const wishlist = await WishlistService.getWishlist(0, 1000);
-      return wishlist.products.some(
-        (product) => product.variantId === variantId
+      const response = await fetch(
+        `${this.baseUrl}/wishlist/view?page=0&size=1000`,
+        {
+          method: "GET",
+          headers: await this.getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const result = await response.json();
+      const products = result.data.products;
+      return products.some(
+        (product: WishlistProduct) => product.productId === productId
       );
     } catch (error) {
+      console.error("Error checking wishlist status:", error);
       return false;
     }
-  },
-};
+  }
+
+  async updateWishlistProduct(
+    request: UpdateWishlistProductRequest
+  ): Promise<WishlistProduct> {
+    const response = await fetch(`${this.baseUrl}/wishlist/update`, {
+      method: "PUT",
+      headers: await this.getAuthHeaders(),
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Failed to update wishlist product");
+    }
+
+    const result = await response.json();
+    return result.data;
+  }
+}
+
+export const WishlistService = new WishlistServices();

@@ -285,6 +285,14 @@ const Header = () => {
               variant="ghost"
               size="icon"
               className="relative"
+              onClick={() => router.push("/wishlist")}
+            >
+              <Heart className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative"
               onClick={() => router.push("/cart")}
             >
               <ShoppingCart className="h-5 w-5" />

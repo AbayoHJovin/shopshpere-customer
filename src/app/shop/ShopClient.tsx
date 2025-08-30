@@ -66,61 +66,104 @@ export function ShopClient() {
         searchTerm: "",
       };
 
-      // Parse price range
+      // Parse price range - with better validation
       const minPrice = searchParams.get("minPrice");
       const maxPrice = searchParams.get("maxPrice");
       if (
         minPrice &&
         maxPrice &&
         minPrice !== "undefined" &&
-        maxPrice !== "undefined"
+        maxPrice !== "undefined" &&
+        minPrice !== "null" &&
+        maxPrice !== "null" &&
+        minPrice.trim() !== "" &&
+        maxPrice.trim() !== ""
       ) {
         const min = parseInt(minPrice);
         const max = parseInt(maxPrice);
-        if (!isNaN(min) && !isNaN(max)) {
+        if (!isNaN(min) && !isNaN(max) && min >= 0 && max >= 0) {
           urlFilters.priceRange = [min, max];
         }
       }
 
-      // Parse array values
+      // Parse array values - with better validation
       const arrayKeys = ["categories", "brands", "discountRanges"] as const;
       arrayKeys.forEach((key) => {
         const value = searchParams.get(key);
-        if (value && value !== "undefined") {
-          urlFilters[key] = value.split(",");
+        if (
+          value &&
+          value !== "undefined" &&
+          value !== "null" &&
+          value.trim() !== ""
+        ) {
+          // Split and filter out any invalid values
+          const values = value
+            .split(",")
+            .filter(
+              (item) =>
+                item !== undefined &&
+                item !== null &&
+                item !== "undefined" &&
+                item !== "null" &&
+                item.trim() !== ""
+            );
+          if (values.length > 0) {
+            urlFilters[key] = values;
+          }
         }
       });
 
       // Parse attributes (special handling for nested object)
       const attributesParam = searchParams.get("attributes");
-      if (attributesParam && attributesParam !== "undefined") {
+      if (
+        attributesParam &&
+        attributesParam !== "undefined" &&
+        attributesParam !== "null" &&
+        attributesParam.trim() !== ""
+      ) {
         try {
-          urlFilters.attributes = JSON.parse(
-            decodeURIComponent(attributesParam)
-          );
+          const parsed = JSON.parse(decodeURIComponent(attributesParam));
+          if (parsed && typeof parsed === "object") {
+            urlFilters.attributes = parsed;
+          }
         } catch (error) {
           console.warn("Failed to parse attributes from URL:", error);
         }
       }
 
-      // Parse string/number values
+      // Parse string/number values - with better validation
       const genderParam = searchParams.get("gender");
       urlFilters.gender =
-        genderParam && genderParam !== "undefined" ? genderParam : null;
+        genderParam &&
+        genderParam !== "undefined" &&
+        genderParam !== "null" &&
+        genderParam.trim() !== ""
+          ? genderParam
+          : null;
 
       const ratingParam = searchParams.get("rating");
-      if (ratingParam && ratingParam !== "undefined") {
+      if (
+        ratingParam &&
+        ratingParam !== "undefined" &&
+        ratingParam !== "null" &&
+        ratingParam.trim() !== ""
+      ) {
         const rating = parseInt(ratingParam);
-        if (!isNaN(rating)) {
+        if (!isNaN(rating) && rating >= 0) {
           urlFilters.rating = rating;
         }
       }
 
       // Parse boolean values
-      urlFilters.inStock = searchParams.get("inStock") === "true";
+      const inStockParam = searchParams.get("inStock");
+      urlFilters.inStock = inStockParam === "true";
 
-      // Parse search term
-      urlFilters.searchTerm = searchParams.get("search") || "";
+      // Parse search term - with better validation
+      const searchParam = searchParams.get("search");
+      urlFilters.searchTerm =
+        searchParam && searchParam !== "undefined" && searchParam !== "null"
+          ? searchParam.trim()
+          : "";
 
       return urlFilters;
     };
@@ -134,40 +177,72 @@ export function ShopClient() {
     (newFilters: FilterState) => {
       const urlParams = new URLSearchParams();
 
-      // Add price range
-      if (newFilters.priceRange[0] > 0) {
+      // Add price range - only if values are valid numbers
+      if (
+        newFilters.priceRange[0] > 0 &&
+        newFilters.priceRange[0] !== undefined &&
+        newFilters.priceRange[0] !== null
+      ) {
         urlParams.set("minPrice", newFilters.priceRange[0].toString());
       }
 
-      if (newFilters.priceRange[1] < 1000) {
+      if (
+        newFilters.priceRange[1] < 1000 &&
+        newFilters.priceRange[1] !== undefined &&
+        newFilters.priceRange[1] !== null
+      ) {
         urlParams.set("maxPrice", newFilters.priceRange[1].toString());
       }
 
-      // Add array values
+      // Add array values - only if arrays exist and have valid items
       const arrayKeys = ["categories", "brands", "discountRanges"] as const;
       arrayKeys.forEach((key) => {
-        if (newFilters[key]?.length > 0) {
-          urlParams.set(key, newFilters[key].join(","));
+        if (
+          newFilters[key] &&
+          Array.isArray(newFilters[key]) &&
+          newFilters[key].length > 0
+        ) {
+          // Filter out any undefined/null values from the array
+          const validValues = newFilters[key].filter(
+            (item) => item !== undefined && item !== null && item !== ""
+          );
+          if (validValues.length > 0) {
+            urlParams.set(key, validValues.join(","));
+          }
         }
       });
 
-      // Add string/number values
-      if (newFilters.gender) {
+      // Add string/number values - only if they are valid
+      if (
+        newFilters.gender &&
+        newFilters.gender !== undefined &&
+        newFilters.gender !== null &&
+        newFilters.gender !== ""
+      ) {
         urlParams.set("gender", newFilters.gender);
       }
 
-      if (newFilters.rating !== null) {
+      if (
+        newFilters.rating !== null &&
+        newFilters.rating !== undefined &&
+        !isNaN(newFilters.rating)
+      ) {
         urlParams.set("rating", newFilters.rating.toString());
       }
 
       // Add boolean values
-      if (newFilters.inStock) {
+      if (newFilters.inStock === true) {
         urlParams.set("inStock", "true");
       }
 
-      // Add search term
-      if (newFilters.searchTerm) {
-        urlParams.set("search", newFilters.searchTerm);
+      // Add search term - only if it's a valid string
+      if (
+        newFilters.searchTerm &&
+        newFilters.searchTerm.trim() !== "" &&
+        newFilters.searchTerm !== undefined &&
+        newFilters.searchTerm !== null
+      ) {
+        urlParams.set("search", newFilters.searchTerm.trim());
       }
 
       // Update URL without reloading page

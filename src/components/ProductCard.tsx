@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Star, ShoppingCart, Check, Eye, Loader2 } from "lucide-react";
+import { Star, ShoppingCart, Check, Eye, Loader2, Heart } from "lucide-react";
 import Link from "next/link";
 import VariantSelectionModal from "./VariantSelectionModal";
 import { ProductService, ProductDTO } from "@/lib/productService";
 import { CartService, CartItemRequest } from "@/lib/cartService";
+import { WishlistService, AddToWishlistRequest } from "@/lib/wishlistService";
 import { useToast } from "@/hooks/use-toast";
 import { useAppSelector } from "@/lib/store/hooks";
 
@@ -38,15 +39,18 @@ const ProductCard = ({
   discountedPrice,
 }: ProductCardProps) => {
   const [isInCart, setIsInCart] = useState(false);
+  const [isInWishlist, setIsInWishlist] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isWishlistLoading, setIsWishlistLoading] = useState(false);
   const [showVariantModal, setShowVariantModal] = useState(false);
   const [productDetails, setProductDetails] = useState<ProductDTO | null>(null);
   const { toast } = useToast();
   const { isAuthenticated } = useAppSelector((state) => state.auth);
 
-  // Check if product is in cart on component mount
+  // Check if product is in cart and wishlist on component mount
   useEffect(() => {
     checkCartStatus();
+    checkWishlistStatus();
   }, [id]);
 
   const checkCartStatus = async () => {
@@ -56,6 +60,19 @@ const ProductCard = ({
       setIsInCart(isProductInCart);
     } catch (error) {
       console.error("Error checking cart status:", error);
+    }
+  };
+
+  const checkWishlistStatus = async () => {
+    if (!isAuthenticated) return;
+
+    try {
+      // Check if the product is in wishlist
+      const isProductInWishlist = await WishlistService.isInWishlist(id);
+      setIsInWishlist(isProductInWishlist);
+    } catch (error) {
+      console.error("Error checking wishlist status:", error);
+      setIsInWishlist(false);
     }
   };
 
@@ -149,6 +166,65 @@ const ProductCard = ({
     }
   };
 
+  // Handle wishlist toggle
+  const handleWishlistToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to add items to your wishlist.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isInWishlist) {
+      // Remove from wishlist
+      try {
+        setIsWishlistLoading(true);
+        // For now, we'll just show a message that removal is not implemented yet
+        toast({
+          title: "Remove from wishlist",
+          description: "Please go to your wishlist page to remove items.",
+        });
+      } catch (error) {
+        console.error("Error removing from wishlist:", error);
+        toast({
+          title: "Error",
+          description: "Failed to remove item from wishlist. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsWishlistLoading(false);
+      }
+      return;
+    }
+
+    // Add to wishlist
+    setIsWishlistLoading(true);
+    try {
+      await WishlistService.addToWishlist({
+        productId: id,
+      });
+      setIsInWishlist(true);
+      toast({
+        title: "Added to wishlist",
+        description: `${name} has been added to your wishlist.`,
+      });
+    } catch (error) {
+      console.error("Error adding to wishlist:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add item to wishlist. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsWishlistLoading(false);
+    }
+  };
+
   return (
     <Card className="group relative overflow-hidden border hover:border-primary/20 hover:shadow-lg transition-all duration-300">
       <CardContent className="p-0">
@@ -179,6 +255,27 @@ const ProductCard = ({
                 </Badge>
               )}
             </div>
+
+            {/* Wishlist Button (always visible) */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`absolute top-2 right-2 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-all ${
+                isInWishlist
+                  ? "text-red-500"
+                  : "text-muted-foreground hover:text-red-500"
+              }`}
+              onClick={handleWishlistToggle}
+              disabled={isWishlistLoading}
+            >
+              {isWishlistLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Heart
+                  className={`h-4 w-4 ${isInWishlist ? "fill-current" : ""}`}
+                />
+              )}
+            </Button>
 
             {/* Buttons (appear on hover) */}
             <div className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">

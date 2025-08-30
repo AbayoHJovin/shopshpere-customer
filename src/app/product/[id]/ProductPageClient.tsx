@@ -18,11 +18,13 @@ import {
   ChevronRight,
   Play,
   Loader2,
+  Heart,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import ProductCard from "@/components/ProductCard";
 import { ProductService, ProductDTO } from "@/lib/productService";
 import { CartService, CartItemRequest } from "@/lib/cartService";
+import { WishlistService, AddToWishlistRequest } from "@/lib/wishlistService";
 import { useToast } from "@/hooks/use-toast";
 import { useAppSelector } from "@/lib/store/hooks";
 import VariantSelectionModal from "@/components/VariantSelectionModal";
@@ -50,8 +52,10 @@ export function ProductPageClient({ productId }: { productId: string }) {
   const [displayStock, setDisplayStock] = useState<number>(0);
   const [quantity, setQuantity] = useState(1);
   const [isInCart, setIsInCart] = useState(false);
+  const [isInWishlist, setIsInWishlist] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isCartLoading, setIsCartLoading] = useState(false);
+  const [isWishlistLoading, setIsWishlistLoading] = useState(false);
   const [showVariantModal, setShowVariantModal] = useState(false);
   const [rating, setRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
@@ -63,10 +67,11 @@ export function ProductPageClient({ productId }: { productId: string }) {
     fetchProductData();
   }, [productId]);
 
-  // Check cart status when product changes
+  // Check cart and wishlist status when product changes
   useEffect(() => {
     if (product) {
       checkCartStatus();
+      checkWishlistStatus();
     }
   }, [product]);
 
@@ -122,6 +127,21 @@ export function ProductPageClient({ productId }: { productId: string }) {
       setIsInCart(isProductInCart);
     } catch (error) {
       console.error("Error checking cart status:", error);
+    }
+  };
+
+  const checkWishlistStatus = async () => {
+    if (!isAuthenticated || !product) return;
+
+    try {
+      // Check if the product is in wishlist
+      const isProductInWishlist = await WishlistService.isInWishlist(
+        product.productId
+      );
+      setIsInWishlist(isProductInWishlist);
+    } catch (error) {
+      console.error("Error checking wishlist status:", error);
+      setIsInWishlist(false);
     }
   };
 
@@ -210,6 +230,63 @@ export function ProductPageClient({ productId }: { productId: string }) {
       });
     } finally {
       setIsCartLoading(false);
+    }
+  };
+
+  // Handle wishlist toggle
+  const handleWishlistToggle = async () => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to add items to your wishlist.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isInWishlist) {
+      // Remove from wishlist
+      try {
+        setIsWishlistLoading(true);
+        toast({
+          title: "Remove from wishlist",
+          description: "Please go to your wishlist page to remove items.",
+        });
+      } catch (error) {
+        console.error("Error removing from wishlist:", error);
+        toast({
+          title: "Error",
+          description: "Failed to remove item from wishlist. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsWishlistLoading(false);
+      }
+      return;
+    }
+
+    // Add to wishlist
+    setIsWishlistLoading(true);
+    try {
+      if (product) {
+        await WishlistService.addToWishlist({
+          productId: product.productId,
+        });
+        setIsInWishlist(true);
+        toast({
+          title: "Added to wishlist",
+          description: `${product.name} has been added to your wishlist.`,
+        });
+      }
+    } catch (error) {
+      console.error("Error adding to wishlist:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add item to wishlist. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsWishlistLoading(false);
     }
   };
 
@@ -646,6 +723,23 @@ export function ProductPageClient({ productId }: { productId: string }) {
                     <ShoppingCart className="h-5 w-5 mr-2" />
                     Add to Cart
                   </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className={`hidden sm:flex ${
+                  isInWishlist ? "text-red-500 border-red-500" : ""
+                }`}
+                onClick={handleWishlistToggle}
+                disabled={isWishlistLoading}
+              >
+                {isWishlistLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Heart
+                    className={`h-5 w-5 ${isInWishlist ? "fill-current" : ""}`}
+                  />
                 )}
               </Button>
               <Button variant="outline" size="icon" className="hidden sm:flex">
