@@ -1,6 +1,5 @@
 // Filter service for fetching filter options from backend
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
+import { API_ENDPOINTS } from "./api";
 
 // DTOs based on backend responses
 export interface CategoryDTO {
@@ -179,7 +178,7 @@ export const FilterService = {
     try {
       // First get top-level categories
       const topLevelResponse = await fetch(
-        `${API_BASE_URL}/categories/top-level`,
+        `${API_ENDPOINTS.CATEGORIES}/top-level`,
         {
           method: "GET",
           headers: {
@@ -201,7 +200,7 @@ export const FilterService = {
         topLevelCategories.map(async (category) => {
           try {
             const subcategoriesResponse = await fetch(
-              `${API_BASE_URL}/categories/sub-categories/${category.categoryId}`,
+              `${API_ENDPOINTS.CATEGORIES}/sub-categories/${category.categoryId}`,
               {
                 method: "GET",
                 headers: {
@@ -246,7 +245,7 @@ export const FilterService = {
    */
   fetchActiveBrands: async (): Promise<BrandDTO[]> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/brands/active`, {
+      const response = await fetch(`${API_ENDPOINTS.BRANDS}/active`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -276,15 +275,12 @@ export const FilterService = {
   > => {
     try {
       // First get all attribute types
-      const typesResponse = await fetch(
-        `${API_BASE_URL}/product-attribute-types`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const typesResponse = await fetch(`${API_ENDPOINTS.ATTRIBUTE_TYPES}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
       if (!typesResponse.ok) {
         throw new Error(
@@ -300,7 +296,7 @@ export const FilterService = {
         attributeTypes.map(async (type) => {
           try {
             const valuesResponse = await fetch(
-              `${API_BASE_URL}/product-attribute-values/type/${type.attributeTypeId}`,
+              `${API_ENDPOINTS.ATTRIBUTE_VALUES}/type/${type.attributeTypeId}`,
               {
                 method: "GET",
                 headers: {
@@ -352,7 +348,7 @@ export const FilterService = {
   fetchCategories: async (page = 0, size = 50): Promise<Page<CategoryDTO>> => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/categories?page=${page}&size=${size}&sortBy=name&sortDir=asc`,
+        `${API_ENDPOINTS.CATEGORIES}?page=${page}&size=${size}&sortBy=name&sortDir=asc`,
         {
           method: "GET",
           headers: {
@@ -379,7 +375,7 @@ export const FilterService = {
   fetchBrands: async (page = 0, size = 50): Promise<Page<BrandDTO>> => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/brands?page=${page}&size=${size}&sortBy=brandName&sortDir=asc`,
+        `${API_ENDPOINTS.BRANDS}?page=${page}&size=${size}&sortBy=brandName&sortDir=asc`,
         {
           method: "GET",
           headers: {

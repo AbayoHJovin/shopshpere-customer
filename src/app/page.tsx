@@ -1,281 +1,458 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Header from "@/components/Header";
 import CategoryNav from "@/components/CategoryNav";
-import HeroSection from "@/components/HeroSection";
-import ProductSection from "@/components/ProductSection";
-import DiscountTimer from "@/components/DiscountTimer";
+import HeroCarousel from "@/components/HeroCarousel";
+import ProductCardGrid from "@/components/ProductCardGrid";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
-import { Flame, Sparkles, Gift, Zap, ArrowRight, Monitor, Smartphone, Headphones, Laptop, Camera, Watch, Tv, Speaker } from "lucide-react";
-
-// Import product images from assets
 import {
-  headphones,
-  smartphone,
-  laptop,
-  sneakers,
-  watch,
-  coffeeMaker,
-  backpack
-} from "@/assets";
-
-const allProducts = [
-  {
-    id: "1",
-    name: "Premium Wireless Headphones with Noise Cancellation",
-    price: 199,
-    originalPrice: 249,
-    rating: 4.5,
-    reviewCount: 1234,
-    image: headphones,
-    discount: 20,
-    isBestseller: true
-  },
-  {
-    id: "2",
-    name: "Latest Smartphone with Pro Camera System",
-    price: 899,
-    originalPrice: 999,
-    rating: 4.8,
-    reviewCount: 567,
-    image: smartphone,
-    discount: 10,
-    isNew: true
-  },
-  {
-    id: "3",
-    name: "High-Performance Laptop for Professionals",
-    price: 1299,
-    rating: 4.6,
-    reviewCount: 234,
-    image: laptop,
-    isBestseller: true
-  },
-  {
-    id: "4",
-    name: "Comfortable Running Sneakers",
-    price: 129,
-    originalPrice: 159,
-    rating: 4.3,
-    reviewCount: 789,
-    image: sneakers,
-    discount: 19
-  },
-  {
-    id: "5",
-    name: "Elegant Smartwatch with Health Tracking",
-    price: 349,
-    rating: 4.4,
-    reviewCount: 456,
-    image: watch,
-    isNew: true
-  },
-  {
-    id: "6",
-    name: "Professional Coffee Maker Machine",
-    price: 229,
-    originalPrice: 279,
-    rating: 4.7,
-    reviewCount: 123,
-    image: coffeeMaker,
-    discount: 18
-  },
-  {
-    id: "7",
-    name: "Designer Travel Backpack with Laptop Compartment",
-    price: 89,
-    rating: 4.2,
-    reviewCount: 345,
-    image: backpack
-  },
-  {
-    id: "8",
-    name: "Premium Wireless Headphones Pro",
-    price: 299,
-    originalPrice: 349,
-    rating: 4.9,
-    reviewCount: 890,
-    image: headphones,
-    discount: 14,
-    isBestseller: true
-  }
-];
+  TrendingUp,
+  Sparkles,
+  Tag,
+  Star,
+  ShoppingBag,
+  Music,
+  Shirt,
+  Home as HomeIcon,
+  Gamepad2,
+  BookOpen,
+} from "lucide-react";
+import { landingPageService, LandingPageData } from "@/lib/landingPageService";
+import { FilterService } from "@/lib/filterService";
+import CountdownTimer from "@/components/CountdownTimer";
 
 export default function Home() {
-  // Create discount end time (24 hours from now)
-  const discountEndTime = new Date();
-  discountEndTime.setHours(discountEndTime.getHours() + 24);
-  
-  // Filter products by categories
-  const trendingProducts = allProducts.filter(p => p.isBestseller).slice(0, 5);
-  const newArrivals = allProducts.filter(p => p.isNew).slice(0, 5);
-  const discountedProducts = allProducts.filter(p => p.discount).slice(0, 5);
-  const electronicsProducts = allProducts.filter(p => 
-    p.name.toLowerCase().includes('headphones') || 
-    p.name.toLowerCase().includes('smartphone') || 
-    p.name.toLowerCase().includes('laptop') ||
-    p.name.toLowerCase().includes('watch')
-  ).slice(0, 5);
+  const [landingData, setLandingData] = useState<LandingPageData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<any[]>([]);
 
-  // Electronics categories with icons and counts
-  const electronicCategories = [
-    { name: "Smartphones", icon: <Smartphone className="h-8 w-8" />, count: 45, color: "from-blue-500 to-cyan-400" },
-    { name: "Laptops", icon: <Laptop className="h-8 w-8" />, count: 67, color: "from-violet-500 to-purple-400" },
-    { name: "Headphones", icon: <Headphones className="h-8 w-8" />, count: 34, color: "from-amber-500 to-orange-400" },
-    { name: "Cameras", icon: <Camera className="h-8 w-8" />, count: 28, color: "from-green-500 to-emerald-400" },
-    { name: "Wearables", icon: <Watch className="h-8 w-8" />, count: 52, color: "from-rose-500 to-pink-400" },
-    { name: "TVs", icon: <Tv className="h-8 w-8" />, count: 41, color: "from-slate-500 to-gray-400" },
-    { name: "Audio", icon: <Speaker className="h-8 w-8" />, count: 37, color: "from-red-500 to-orange-400" },
-    { name: "Accessories", icon: <Monitor className="h-8 w-8" />, count: 93, color: "from-teal-500 to-cyan-400" }
-  ];
-  
-  // Show limited categories initially, and expand when "Load More" is clicked
-  const [showAllCategories, setShowAllCategories] = useState(false);
-  const displayedCategories = showAllCategories ? electronicCategories : electronicCategories.slice(0, 4);
+  // Helper function to generate consistent hash from string
+  const hashCode = (str: string): number => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return hash;
+  };
 
-  const handleLoadMore = (section: string) => {
-    if (section === 'categories') {
-      setShowAllCategories(true);
-    } else {
-      console.log(`Loading more ${section} products...`);
+  // Helper function to check if string is a valid URL
+  const isValidUrl = (string: string): boolean => {
+    try {
+      new URL(string);
+      return true;
+    } catch (_) {
+      return false;
     }
   };
 
-  return (
-    <div className="min-h-screen bg-background">
-      <CategoryNav />
-      <HeroSection />
-      
-      <div className="container mx-auto px-4 py-8 space-y-16">
-        {/* Trending Products */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent rounded-3xl -z-10"></div>
-          <div className="p-8">
-            <div className="flex items-center gap-3 mb-6">
-              <Flame className="h-6 w-6 text-destructive" />
-              <h2 className="text-3xl font-bold bg-gradient-to-r from-primary to-destructive bg-clip-text text-transparent">
-                Trending Now
-              </h2>
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Fetch landing page data and categories in parallel
+        const [landingDataResult, categoriesResult] = await Promise.allSettled([
+          landingPageService.fetchLandingPageData(),
+          FilterService.fetchHierarchicalCategories(),
+        ]);
+
+        if (landingDataResult.status === "fulfilled") {
+          setLandingData(landingDataResult.value);
+        } else {
+          throw new Error("Failed to fetch landing page data");
+        }
+
+        if (categoriesResult.status === "fulfilled") {
+          setCategories(categoriesResult.value);
+        }
+      } catch (error) {
+        console.error("Error fetching landing page data:", error);
+        setError("Failed to load landing page data. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const handleSeeMore = (section: string) => {
+    switch (section) {
+      case "top-selling":
+        window.location.href = "/shop?sortBy=rating&sortDir=desc";
+        break;
+      case "new-products":
+        window.location.href = "/shop?sortBy=createdAt&sortDir=desc";
+        break;
+      case "discounted":
+        window.location.href = "/shop?discountRanges=10-50";
+        break;
+      case "categories":
+        window.location.href = "/categories";
+        break;
+      case "brands":
+        window.location.href = "/shop?sortBy=brandName";
+        break;
+      default:
+        window.location.href = "/shop";
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <CategoryNav />
+        <div className="container mx-auto px-4 py-8">
+          <div className="animate-pulse space-y-8">
+            <div className="h-96 bg-gray-200 rounded-lg"></div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-64 bg-gray-200 rounded-lg"></div>
+              ))}
             </div>
-            <ProductSection
-              title=""
-              products={trendingProducts}
-              onLoadMore={() => handleLoadMore('trending')}
-            />
           </div>
         </div>
+      </div>
+    );
+  }
 
-        {/* Flash Sale with Timer */}
-        <div className="relative bg-gradient-to-r from-destructive/10 via-destructive/5 to-accent/10 rounded-3xl p-8">
-          <div className="absolute top-4 right-4">
-            <DiscountTimer endTime={discountEndTime} />
-          </div>
-          <div className="flex items-center gap-3 mb-6">
-            <Zap className="h-6 w-6 text-destructive animate-pulse" />
-            <h2 className="text-3xl font-bold text-destructive">Flash Sale</h2>
-            <div className="bg-destructive text-destructive-foreground px-3 py-1 rounded-full text-sm font-medium animate-pulse">
-              Limited Time!
-            </div>
-          </div>
-          <ProductSection
-            title=""
-            products={discountedProducts}
-            onLoadMore={() => handleLoadMore('deals')}
+  if (error || !landingData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+            Something went wrong
+          </h2>
+          <p className="text-gray-600 mb-4">
+            {error || "Unable to load the homepage content."}
+          </p>
+          <Button
+            onClick={() => window.location.reload()}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <CategoryNav />
+
+      {/* Hero Carousel */}
+      <HeroCarousel />
+
+      {/* Main Content */}
+      <div className="container mx-auto px-4 py-8 space-y-8">
+        {/* Top Row - 2 columns */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <ProductCardGrid
+            products={landingData.topSellingProducts}
+            title="Top-selling products"
+            onSeeMore={() => handleSeeMore("top-selling")}
+            maxItems={4}
+          />
+
+          <ProductCardGrid
+            products={landingData.newProducts}
+            title="New products"
+            onSeeMore={() => handleSeeMore("new-products")}
+            maxItems={4}
           />
         </div>
 
-        {/* New Arrivals */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-l from-accent/5 to-transparent rounded-3xl -z-10"></div>
-          <div className="p-8">
-            <div className="flex items-center gap-3 mb-6">
-              <Sparkles className="h-6 w-6 text-accent animate-pulse" />
-              <h2 className="text-3xl font-bold bg-gradient-to-r from-accent to-primary bg-clip-text text-transparent">
-                Fresh Arrivals
+        {/* Second Row - Discounted Products */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <ProductCardGrid
+            products={landingData.discountedProducts}
+            title="Discounted products"
+            onSeeMore={() => handleSeeMore("discounted")}
+            maxItems={4}
+          />
+        </div>
+
+        {/* Third Row - Popular Categories and Brands side by side on large screens */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Popular Categories - takes 2 columns on large screens */}
+          <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Popular categories
               </h2>
-              <div className="bg-accent/20 text-accent-foreground px-3 py-1 rounded-full text-sm font-medium">
-                Just In
-              </div>
+              <Button
+                variant="link"
+                onClick={() => handleSeeMore("categories")}
+                className="text-blue-600 hover:text-blue-800 p-0 h-auto"
+              >
+                See more
+              </Button>
             </div>
-            <ProductSection
-              title=""
-              products={newArrivals}
-              onLoadMore={() => handleLoadMore('new arrivals')}
-            />
+
+            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {landingData.popularCategories.slice(0, 6).map((category) => {
+                const colors = [
+                  "#FF6B6B",
+                  "#4ECDC4",
+                  "#45B7D1",
+                  "#96CEB4",
+                  "#FFEAA7",
+                  "#DDA0DD",
+                  "#98D8C8",
+                  "#F7DC6F",
+                ];
+                const colorIndex =
+                  Math.abs(hashCode(category.name)) % colors.length;
+                const backgroundColor = colors[colorIndex];
+
+                return (
+                  <Link
+                    key={category.id}
+                    href={`/shop?categories=${encodeURIComponent(
+                      category.name
+                    )}`}
+                    className="group"
+                  >
+                    <div className="relative bg-gray-100 rounded-lg overflow-hidden aspect-square mb-2">
+                      {category.image && isValidUrl(category.image) ? (
+                        <img
+                          src={category.image}
+                          alt={category.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        />
+                      ) : (
+                        <div
+                          className="w-full h-full group-hover:scale-105 transition-transform duration-200"
+                          style={{ backgroundColor }}
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-200" />
+                      <div className="absolute bottom-2 left-2 right-2">
+                        <h3 className="text-white font-medium text-sm truncate">
+                          {category.name}
+                        </h3>
+                        <p className="text-white/80 text-xs">
+                          {category.productCount} products
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Popular Brands - takes 1 column on large screens */}
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Popular brands
+              </h2>
+              <Button
+                variant="link"
+                onClick={() => handleSeeMore("brands")}
+                className="text-blue-600 hover:text-blue-800 p-0 h-auto"
+              >
+                See more
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {landingData.popularBrands.slice(0, 6).map((brand) => {
+                const colors = [
+                  "#FF6B6B",
+                  "#4ECDC4",
+                  "#45B7D1",
+                  "#96CEB4",
+                  "#FFEAA7",
+                  "#DDA0DD",
+                  "#98D8C8",
+                  "#F7DC6F",
+                ];
+                const colorIndex =
+                  Math.abs(hashCode(brand.name)) % colors.length;
+                const backgroundColor = colors[colorIndex];
+
+                return (
+                  <Link
+                    key={brand.id}
+                    href={`/shop?brands=${encodeURIComponent(brand.name)}`}
+                    className="group"
+                  >
+                    <div className="relative bg-gray-100 rounded-lg overflow-hidden aspect-square mb-2">
+                      {brand.image && isValidUrl(brand.image) ? (
+                        <img
+                          src={brand.image}
+                          alt={brand.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        />
+                      ) : (
+                        <div
+                          className="w-full h-full group-hover:scale-105 transition-transform duration-200"
+                          style={{ backgroundColor }}
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-200" />
+                      <div className="absolute bottom-2 left-2 right-2">
+                        <h3 className="text-white font-medium text-sm truncate">
+                          {brand.name}
+                        </h3>
+                        <p className="text-white/80 text-xs">
+                          {brand.productCount} products
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
         </div>
 
-        {/* Electronics Category */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-secondary/5 to-transparent rounded-3xl -z-10"></div>
-          <div className="p-8">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-              <div className="flex items-center gap-3 mb-3 sm:mb-0">
-                <Gift className="h-6 w-6 text-secondary" />
-                <h2 className="text-3xl font-bold text-secondary">Categories</h2>
-              </div>
-              <Link href="/categories" passHref>
-                <Button variant="link" className="text-secondary font-medium pl-0 sm:pl-4">
-                  View All Categories
-                  <ArrowRight className="ml-1 h-4 w-4" />
-                </Button>
-              </Link>
+        {/* Fourth Row - Active Discounts and Shop by Category */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Active Discounts */}
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Active discounts
+              </h2>
+              <Button
+                variant="link"
+                onClick={() => handleSeeMore("discounted")}
+                className="text-blue-600 hover:text-blue-800 p-0 h-auto"
+              >
+                See more
+              </Button>
             </div>
-            
-            {/* Categories Grid */}
-            <div className="mb-8">
-              <p className="text-lg text-muted-foreground mb-6">Browse by categories</p>
-              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                {displayedCategories.map((category, index) => (
-                  <Link 
-                    href={`/shop?categories=${encodeURIComponent(category.name)}`}
-                    key={category.name}
-                    className="block"
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {landingData.discountedProducts
+                .filter(
+                  (product) =>
+                    product.hasActiveDiscount && product.discountEndDate
+                )
+                .slice(0, 8)
+                .map((product) => (
+                  <Link
+                    key={product.id}
+                    href={`/product/${product.id}`}
+                    className="group"
                   >
-                    <div 
-                      className="group relative cursor-pointer rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg"
-                    >
-                      <div className={`absolute inset-0 bg-gradient-to-br ${category.color} opacity-90 group-hover:opacity-100 transition-opacity`}></div>
-                      <div className="relative p-6 flex flex-col items-center justify-center h-full text-white">
-                        <div className="bg-white/20 p-3 rounded-full mb-3 backdrop-blur-sm transition-all duration-300 group-hover:bg-white/30">
-                          {category.icon}
+                    <div className="relative bg-gray-100 rounded-lg overflow-hidden aspect-square mb-1">
+                      {product.image &&
+                      product.image !==
+                        "https://via.placeholder.com/400x400" ? (
+                        <img
+                          src={product.image}
+                          alt={product.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-500">
+                          <span className="text-xs font-medium">No Image</span>
                         </div>
-                        <h3 className="font-semibold text-lg text-center">{category.name}</h3>
-                        <p className="text-sm text-white/80">{category.count} products</p>
+                      )}
+                      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-200" />
+                      <div className="absolute top-1 left-1">
+                        <span className="bg-red-500 text-white px-1 py-0.5 rounded text-[10px] font-bold">
+                          {product.discount}% OFF
+                        </span>
+                      </div>
+                      <div className="absolute bottom-1 left-1 right-1">
+                        <h3 className="text-white font-medium text-xs truncate">
+                          {product.name}
+                        </h3>
+                        <div className="flex items-center justify-between mt-0.5">
+                          <p className="text-white/80 text-[10px]">
+                            {product.brand} • {product.category}
+                          </p>
+                          {product.discountEndDate && (
+                            <CountdownTimer
+                              endDate={product.discountEndDate}
+                              onExpired={() => {
+                                console.log(
+                                  `Discount expired for ${product.name}`
+                                );
+                              }}
+                            />
+                          )}
+                        </div>
                       </div>
                     </div>
                   </Link>
                 ))}
-              </div>
-              
-              {!showAllCategories && (
-                <div className="text-center mt-8">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => handleLoadMore('categories')}
-                    className="border-secondary text-secondary hover:bg-secondary/10"
-                  >
-                    Load More Categories
-                  </Button>
+
+              {landingData.discountedProducts.filter(
+                (product) =>
+                  product.hasActiveDiscount && product.discountEndDate
+              ).length === 0 && (
+                <div className="col-span-full text-center py-8 text-gray-500">
+                  <p className="text-sm">No active discounts at the moment</p>
                 </div>
               )}
             </div>
-            
-            {/* Featured Electronics Products */}
-            <div className="mt-10">
-              <h3 className="text-xl font-medium mb-6">Featured Products</h3>
-              <ProductSection
-                title=""
-                products={electronicsProducts}
-                onLoadMore={() => handleLoadMore('electronics')}
-              />
+          </div>
+
+          {/* Category Quick Links */}
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">
+              Shop by category
+            </h2>
+
+            <div className="grid grid-cols-2 gap-4">
+              {categories.slice(0, 6).map((category) => {
+                const colors = [
+                  "bg-pink-500",
+                  "bg-purple-500",
+                  "bg-green-500",
+                  "bg-blue-500",
+                  "bg-orange-500",
+                  "bg-gray-500",
+                ];
+                const colorIndex =
+                  Math.abs(hashCode(category.name)) % colors.length;
+                const backgroundColor = colors[colorIndex];
+
+                return (
+                  <Link
+                    key={category.categoryId}
+                    href={`/shop?categories=${encodeURIComponent(
+                      category.name
+                    )}`}
+                    className="group"
+                  >
+                    <div
+                      className={`${backgroundColor} rounded-lg p-4 text-white group-hover:opacity-90 transition-opacity duration-200 relative overflow-hidden`}
+                    >
+                      {category.imageUrl && isValidUrl(category.imageUrl) ? (
+                        <div className="absolute inset-0">
+                          <img
+                            src={category.imageUrl}
+                            alt={category.name}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/40" />
+                        </div>
+                      ) : null}
+                      <div className="relative flex items-center gap-3">
+                        <span className="font-medium">{category.name}</span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );

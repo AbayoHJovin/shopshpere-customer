@@ -1,6 +1,5 @@
 // Product service for fetching products from backend
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
+import { API_ENDPOINTS } from "./api";
 
 // Product DTOs matching the backend
 export interface ProductDTO {
@@ -254,7 +253,7 @@ export const ProductService = {
   ): Promise<Page<ManyProductsDto>> => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/products?page=${page}&size=${size}&sortBy=${sortBy}&sortDirection=${sortDirection}`,
+        `${API_ENDPOINTS.PRODUCTS}?page=${page}&size=${size}&sortBy=${sortBy}&sortDirection=${sortDirection}`,
         {
           method: "GET",
           headers: {
@@ -282,7 +281,7 @@ export const ProductService = {
     searchDTO: ProductSearchDTO
   ): Promise<Page<ManyProductsDto>> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/products/search`, {
+      const response = await fetch(`${API_ENDPOINTS.SEARCH_PRODUCTS}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -307,12 +306,15 @@ export const ProductService = {
    */
   getProductById: async (productId: string): Promise<ProductDTO> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await fetch(
+        `${API_ENDPOINTS.PRODUCT_BY_ID(productId)}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`Failed to fetch product: ${response.status}`);
@@ -331,7 +333,7 @@ export const ProductService = {
    */
   getProductBySlug: async (slug: string): Promise<ProductDTO> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/products/slug/${slug}`, {
+      const response = await fetch(`${API_ENDPOINTS.PRODUCT_BY_SLUG(slug)}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -362,7 +364,7 @@ export const ProductService = {
    */
   addToCart: async (request: AddToCartRequest): Promise<any> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/cart`, {
+      const response = await fetch(`${API_ENDPOINTS.CART}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -440,7 +442,7 @@ export const ProductService = {
       });
 
       const response = await fetch(
-        `${API_BASE_URL}/reviews/product/${productId}?${params}`,
+        `${API_ENDPOINTS.PRODUCT_REVIEWS(productId)}?${params}`,
         {
           method: "GET",
           headers: {

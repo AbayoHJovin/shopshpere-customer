@@ -4,14 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  CreditCard,
-  LockIcon,
-  AlertCircle,
-  CheckCircle2,
-  Loader2,
-} from "lucide-react";
+import { ArrowLeft, CreditCard, LockIcon, Loader2 } from "lucide-react";
 
 // Components
 import { Button } from "@/components/ui/button";
@@ -48,19 +41,33 @@ import { PaymentIcons } from "@/components/PaymentIcons";
 import { CartService, CartResponse } from "@/lib/cartService";
 import {
   OrderService,
-  OrderCreateRequest,
-  OrderItemRequest,
+  CheckoutRequest,
+  GuestCheckoutRequest,
+  CartItemDTO,
+  AddressDto,
 } from "@/lib/orderService";
+import { useAppSelector } from "@/lib/store/hooks";
 
 // Constants
 const PAYMENT_METHODS = [
-  { id: "credit_card", name: "Credit Card", icon: "/visa-mastercard.svg" },
-  { id: "mtn_momo", name: "MTN Mobile Money", icon: "/mtn-momo.svg" },
+  {
+    id: "credit_card",
+    name: "Credit Card",
+    icon: "/visa-mastercard.svg",
+    description: "Pay with Visa, Mastercard, or other major cards",
+  },
+  {
+    id: "mtn_momo",
+    name: "MTN Mobile Money",
+    icon: "/mtn-momo.svg",
+    description: "Pay using your MTN Mobile Money account",
+  },
 ];
 
 export function CheckoutClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user, isAuthenticated } = useAppSelector((state) => state.auth);
 
   // State
   const [cart, setCart] = useState<CartResponse | null>(null);
@@ -71,9 +78,7 @@ export function CheckoutClient() {
   const [orderSuccess, setOrderSuccess] = useState(false);
 
   // Form state
-  const [formData, setFormData] = useState<
-    Omit<OrderCreateRequest, "items" | "totalAmount">
-  >({
+  const [formData, setFormData] = useState({
     email: "",
     firstName: "",
     lastName: "",
@@ -84,20 +89,6 @@ export function CheckoutClient() {
     postalCode: "",
     country: "",
     notes: "",
-  });
-
-  // Credit card state
-  const [cardInfo, setCardInfo] = useState({
-    cardNumber: "",
-    cardHolder: "",
-    expiryDate: "",
-    cvv: "",
-  });
-
-  // Mobile Money state
-  const [mobileMoneyInfo, setMobileMoneyInfo] = useState({
-    phoneNumber: "",
-    provider: "MTN",
   });
 
   useEffect(() => {
@@ -116,6 +107,16 @@ export function CheckoutClient() {
           return;
         }
 
+        // Pre-populate form data for authenticated users
+        if (isAuthenticated && user) {
+          setFormData((prev) => ({
+            ...prev,
+            email: user.email || "",
+            firstName: user.firstName || "",
+            lastName: user.lastName || "",
+          }));
+        }
+
         // Get countries for dropdown
         const countriesList = await OrderService.getCountries();
         setCountries(countriesList);
@@ -128,36 +129,13 @@ export function CheckoutClient() {
     };
 
     fetchData();
-  }, [router]);
+  }, [router, isAuthenticated, user]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleCardInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setCardInfo((prev) => ({
-      ...prev,
-      [name]:
-        name === "cardNumber"
-          ? formatCardNumber(value)
-          : name === "expiryDate"
-          ? formatExpiryDate(value)
-          : value,
-    }));
-  };
-
-  const handleMobileMoneyInfoChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const { name, value } = e.target;
-    setMobileMoneyInfo((prev) => ({
       ...prev,
       [name]: value,
     }));
@@ -179,58 +157,93 @@ export function CheckoutClient() {
 
     setSubmitting(true);
 
-    // In a real app, we would send the order to the backend
-    // For now, simulate a successful order
     try {
-      // In test mode, just generate a random order number and redirect
-      setTimeout(() => {
-        // Generate a random order number
-        const orderNumber = `ORD-${Math.floor(
-          100000 + Math.random() * 900000
-        )}`;
+      const cartItems: CartItemDTO[] = cart!.items
+        .filter((item) => item.id && item.productId && item.variantId) // Only include items with variantId
+        .map((item) => {
+          const itemId = parseInt(item.id);
+          const variantId = parseInt(item.variantId!);
 
-        // Show success message
-        toast.success("Order placed successfully!");
+          // Skip items with invalid IDs
+          if (isNaN(itemId) || isNaN(variantId)) {
+            console.warn("Skipping item with invalid ID:", item);
+            return null;
+          }
 
-        // Clear cart
-        CartService.clearCart();
+          return {
+            id: itemId,
+            productId: item.productId, // Keep as string (backend will parse it)
+            variantId: variantId, // Always include variantId
+            productName: item.name || "Unknown Product",
+            productImage: item.url || "",
+            quantity: item.quantity || 1,
+            price: item.price || 0,
+            totalPrice:
+              item.totalPrice || (item.price || 0) * (item.quantity || 1),
+            inStock: (item.stock || 0) > 0,
+            availableStock: item.stock || 0,
+            isVariantBased: true, // Always true since we filter for variantId
+          };
+        })
+        .filter((item) => item !== null) as CartItemDTO[]; // Remove null items and type assert
 
-        // Redirect to order success page with the order number
-        router.push(`/order-success?orderNumber=${orderNumber}`);
-      }, 1500);
+      // Validate that we have valid cart items
+      if (cartItems.length === 0) {
+        toast.error(
+          "No valid items found in cart. Please refresh and try again."
+        );
+        setSubmitting(false);
+        return;
+      }
 
-      // Commented out real implementation for later
-      /* 
-      // Create order items from cart
-      const orderItems: OrderItemRequest[] = cart!.items.map(item => ({
-        productId: item.productId,
-        quantity: item.quantity,
-        price: item.price,
-        productName: item.productName
-      }));
-      
-      // Create the order request
-      const orderRequest: OrderCreateRequest = {
-        ...formData,
-        items: orderItems,
-        totalAmount: cart!.total
+      // Create address object
+      const address: AddressDto = {
+        streetAddress: formData.streetAddress,
+        city: formData.city,
+        state: formData.stateProvince,
+        postalCode: formData.postalCode,
+        country: formData.country,
       };
-      
-      // Submit the order (for authenticated user or guest)
-      const orderResponse = await OrderService.createGuestOrder(orderRequest);
-      
-      // Show success message
-      toast.success("Order placed successfully!");
-      
-      // Clear cart
-      await CartService.clearCart();
-      
-      // Redirect to order success page
-      router.push(`/order-success?orderNumber=${orderResponse.orderNumber}`);
-      */
+
+      let sessionUrl: string;
+
+      if (isAuthenticated && user) {
+        // Authenticated user checkout
+        const checkoutRequest: CheckoutRequest = {
+          items: cartItems,
+          shippingAddress: address,
+          currency: "usd",
+          userId: user.id,
+        };
+
+        console.log("Sending checkout request:", checkoutRequest); // Debug log
+        const response = await OrderService.createCheckoutSession(
+          checkoutRequest
+        );
+        sessionUrl = response.sessionUrl;
+      } else {
+        // Guest checkout
+        const guestCheckoutRequest: GuestCheckoutRequest = {
+          guestName: formData.firstName,
+          guestLastName: formData.lastName,
+          guestEmail: formData.email,
+          guestPhone: formData.phoneNumber,
+          address: address,
+          items: cartItems,
+        };
+
+        console.log("Sending guest checkout request:", guestCheckoutRequest); // Debug log
+        const response = await OrderService.createGuestCheckoutSession(
+          guestCheckoutRequest
+        );
+        sessionUrl = response.sessionUrl;
+      }
+
+      // Redirect to Stripe checkout
+      window.location.href = sessionUrl;
     } catch (error) {
-      console.error("Error placing order:", error);
-      toast.error("Error placing order. Please try again later.");
+      console.error("Error creating checkout session:", error);
+      toast.error("Error processing checkout. Please try again later.");
     } finally {
       setSubmitting(false);
     }
@@ -299,95 +312,9 @@ export function CheckoutClient() {
   };
 
   const validatePaymentInfo = () => {
-    let isValid = true;
-    const errors: string[] = [];
-
-    if (activeTab === "credit_card") {
-      // Validate credit card info
-      if (
-        !cardInfo.cardNumber ||
-        cardInfo.cardNumber.replace(/\s/g, "").length < 16
-      ) {
-        isValid = false;
-        errors.push("Card number is invalid");
-      }
-
-      if (!cardInfo.cardHolder) {
-        isValid = false;
-        errors.push("Card holder name is required");
-      }
-
-      if (!cardInfo.expiryDate || !/^\d{2}\/\d{2}$/.test(cardInfo.expiryDate)) {
-        isValid = false;
-        errors.push("Expiry date is invalid (MM/YY)");
-      } else {
-        // Validate expiry date is in the future
-        const [month, year] = cardInfo.expiryDate.split("/");
-        const expiryDate = new Date(2000 + parseInt(year), parseInt(month) - 1);
-        const now = new Date();
-
-        if (expiryDate <= now) {
-          isValid = false;
-          errors.push("Card has expired");
-        }
-      }
-
-      if (!cardInfo.cvv || !/^\d{3,4}$/.test(cardInfo.cvv)) {
-        isValid = false;
-        errors.push("CVV is invalid");
-      }
-    } else if (activeTab === "mtn_momo") {
-      // Validate Mobile Money info
-      if (
-        !mobileMoneyInfo.phoneNumber ||
-        mobileMoneyInfo.phoneNumber.length < 10
-      ) {
-        isValid = false;
-        errors.push("Mobile money phone number is invalid");
-      }
-    }
-
-    // Show errors if any
-    if (!isValid) {
-      toast.error(
-        <div>
-          <strong>Please fix the following payment errors:</strong>
-          <ul className="list-disc pl-4 mt-2">
-            {errors.map((err, i) => (
-              <li key={i}>{err}</li>
-            ))}
-          </ul>
-        </div>
-      );
-    }
-
-    return isValid;
-  };
-
-  const formatCardNumber = (value: string) => {
-    // Remove all non-digit characters
-    const digits = value.replace(/\D/g, "");
-
-    // Limit to 16 digits
-    const limitedDigits = digits.substring(0, 16);
-
-    // Add spaces after every 4 digits
-    const formatted = limitedDigits.replace(/(\d{4})(?=\d)/g, "$1 ");
-
-    return formatted;
-  };
-
-  const formatExpiryDate = (value: string) => {
-    // Remove all non-digit characters
-    const digits = value.replace(/\D/g, "");
-
-    // Format as MM/YY
-    if (digits.length >= 3) {
-      return `${digits.substring(0, 2)}/${digits.substring(2, 4)}`;
-    } else if (digits.length === 2) {
-      return `${digits}/`;
-    }
-    return digits;
+    // Since we're using Stripe, payment validation is handled by Stripe
+    // We just need to ensure the form is valid
+    return true;
   };
 
   const calculateSubtotal = () => {
@@ -592,161 +519,59 @@ export function CheckoutClient() {
           <Card className="overflow-hidden animate-slide-in-right card-animation-delay-3">
             <CardHeader className="bg-muted">
               <CardTitle>Payment Method</CardTitle>
-              <CardDescription>Choose how you want to pay</CardDescription>
+              <CardDescription>
+                Secure payment powered by Stripe
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-6">
-              <Tabs
-                defaultValue="credit_card"
-                value={activeTab}
-                onValueChange={setActiveTab}
-                className="w-full"
-              >
-                <TabsList className="grid grid-cols-2">
-                  <TabsTrigger
-                    value="credit_card"
-                    className="flex items-center gap-2"
-                  >
-                    <CreditCard className="h-4 w-4" />
-                    Credit Card
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="mtn_momo"
-                    className="flex items-center gap-2"
-                  >
+              <div className="space-y-4">
+                <div className="p-4 border rounded-lg bg-blue-50 border-blue-200">
+                  <div className="flex items-center gap-3">
+                    <CreditCard className="h-6 w-6 text-blue-600" />
+                    <div>
+                      <h3 className="font-medium text-blue-900">
+                        Secure Payment
+                      </h3>
+                      <p className="text-sm text-blue-700">
+                        Your payment will be processed securely by Stripe. We
+                        accept all major credit cards.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2 p-3 border rounded-lg">
                     <Image
-                      src="/mtn-icon.png"
-                      alt="MTN"
-                      width={16}
-                      height={16}
+                      src="/visa-icon.png"
+                      alt="Visa"
+                      width={32}
+                      height={20}
                       className="object-contain"
                     />
-                    Mobile Money
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent value="credit_card" className="space-y-4 mt-4">
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="cardNumber">Card Number</Label>
-                      <div className="relative">
-                        <Input
-                          id="cardNumber"
-                          name="cardNumber"
-                          value={cardInfo.cardNumber}
-                          onChange={handleCardInfoChange}
-                          placeholder="1234 5678 9012 3456"
-                          className="pr-10"
-                        />
-                        <div className="absolute right-3 top-2.5">
-                          <div className="flex items-center gap-1">
-                            <Image
-                              src="/visa-icon.png"
-                              alt="Visa"
-                              width={24}
-                              height={16}
-                              className="object-contain"
-                            />
-                            <Image
-                              src="/mastercard-icon.png"
-                              alt="Mastercard"
-                              width={24}
-                              height={16}
-                              className="object-contain"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="cardHolder">Card Holder Name</Label>
-                      <Input
-                        id="cardHolder"
-                        name="cardHolder"
-                        value={cardInfo.cardHolder}
-                        onChange={handleCardInfoChange}
-                        placeholder="John Smith"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="expiryDate">Expiry Date (MM/YY)</Label>
-                        <Input
-                          id="expiryDate"
-                          name="expiryDate"
-                          value={cardInfo.expiryDate}
-                          onChange={handleCardInfoChange}
-                          placeholder="MM/YY"
-                          maxLength={5}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="cvv">CVV</Label>
-                        <Input
-                          id="cvv"
-                          name="cvv"
-                          value={cardInfo.cvv}
-                          onChange={handleCardInfoChange}
-                          placeholder="123"
-                          type="password"
-                          maxLength={4}
-                        />
-                      </div>
-                    </div>
+                    <span className="text-sm font-medium">Visa</span>
                   </div>
+                  <div className="flex items-center gap-2 p-3 border rounded-lg">
+                    <Image
+                      src="/mastercard-icon.png"
+                      alt="Mastercard"
+                      width={32}
+                      height={20}
+                      className="object-contain"
+                    />
+                    <span className="text-sm font-medium">Mastercard</span>
+                  </div>
+                </div>
 
-                  <div className="mt-4 flex items-center justify-center py-4 bg-muted/30 rounded-md">
-                    <div className="flex items-center">
-                      <LockIcon className="h-4 w-4 text-success mr-2" />
-                      <span className="text-sm text-muted-foreground">
-                        Secured by SSL encryption
-                      </span>
-                    </div>
+                <div className="mt-4 flex items-center justify-center py-4 bg-muted/30 rounded-md">
+                  <div className="flex items-center gap-2">
+                    <LockIcon className="h-4 w-4 text-green-600" />
+                    <span className="text-sm text-muted-foreground">
+                      Secured by Stripe • SSL encrypted
+                    </span>
                   </div>
-                </TabsContent>
-
-                <TabsContent value="mtn_momo" className="space-y-4 mt-4">
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="momoPhoneNumber">Phone Number</Label>
-                      <div className="relative">
-                        <Input
-                          id="momoPhoneNumber"
-                          name="phoneNumber"
-                          value={mobileMoneyInfo.phoneNumber}
-                          onChange={handleMobileMoneyInfoChange}
-                          placeholder="Enter your mobile money number"
-                          className="pr-10"
-                        />
-                        <div className="absolute right-3 top-2.5">
-                          <Image
-                            src="/mtn-icon.png"
-                            alt="MTN"
-                            width={24}
-                            height={16}
-                            className="object-contain"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-4 bg-amber-50 text-amber-900 rounded-md">
-                    <div className="flex gap-2">
-                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                      <div>
-                        <p className="text-sm font-medium">
-                          Payment Instructions
-                        </p>
-                        <p className="text-xs mt-1">
-                          After clicking "Place Order", you'll receive a prompt
-                          on your mobile phone to authorize the payment. Please
-                          follow the instructions and enter your Mobile Money
-                          PIN to complete the transaction.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </TabsContent>
-              </Tabs>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -781,14 +606,14 @@ export function CheckoutClient() {
                                   item.url ||
                                   "https://placehold.co/100x100?text=Product"
                                 }
-                                alt={item.productName}
+                                alt={item.name}
                                 className="h-full w-full object-cover"
                               />
                             </Link>
                           </div>
                           <div className="flex-1">
                             <p className="font-medium text-sm line-clamp-1">
-                              {item.productName}
+                              {item.name}
                             </p>
                             <div className="flex justify-between mt-1">
                               <span className="text-sm text-muted-foreground">
@@ -821,7 +646,7 @@ export function CheckoutClient() {
                   <Separator className="my-2" />
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
-                    <span>{formatPrice(cart.total)}</span>
+                    <span>{formatPrice(cart.subtotal)}</span>
                   </div>
                 </div>
               </CardContent>
@@ -835,10 +660,13 @@ export function CheckoutClient() {
                   {submitting ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Processing...
+                      Redirecting to Payment...
                     </>
                   ) : (
-                    <>Place Order</>
+                    <>
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Proceed to Payment
+                    </>
                   )}
                 </Button>
 

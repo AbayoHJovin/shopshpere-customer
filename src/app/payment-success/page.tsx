@@ -1,0 +1,159 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { CheckCircle, Loader2, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { OrderService } from "@/lib/orderService";
+import Link from "next/link";
+
+export default function PaymentSuccessPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [verifying, setVerifying] = useState(true);
+  const [verificationResult, setVerificationResult] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const sessionId = searchParams.get("session_id");
+    console.log("Payment success page loaded with session ID:", sessionId);
+
+    if (!sessionId) {
+      setError("No session ID found");
+      setVerifying(false);
+      return;
+    }
+
+    verifyPayment(sessionId);
+  }, [searchParams]);
+
+  const verifyPayment = async (sessionId: string) => {
+    try {
+      console.log("Starting payment verification for session:", sessionId);
+      const result = await OrderService.verifyCheckoutSession(sessionId);
+      console.log("Verification result:", result);
+
+      if (result && result.status) {
+        setVerificationResult(result);
+      } else {
+        throw new Error("Invalid verification result");
+      }
+    } catch (err) {
+      console.error("Payment verification error:", err);
+      setError(err instanceof Error ? err.message : "Failed to verify payment");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  if (verifying) {
+    return (
+      <div className="container mx-auto px-4 py-16 flex flex-col items-center justify-center min-h-[50vh]">
+        <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
+        <h1 className="text-2xl font-bold mb-2">Verifying Payment...</h1>
+        <p className="text-muted-foreground">
+          Please wait while we confirm your payment.
+        </p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-16 flex flex-col items-center justify-center min-h-[50vh]">
+        <XCircle className="h-16 w-16 text-red-500 mb-4" />
+        <h1 className="text-2xl font-bold mb-2 text-red-600">
+          Payment Verification Failed
+        </h1>
+        <p className="text-muted-foreground mb-6">{error}</p>
+        <div className="flex gap-4">
+          <Button asChild>
+            <Link href="/shop">Continue Shopping</Link>
+          </Button>
+          <Button variant="outline" onClick={() => router.back()}>
+            Go Back
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-16">
+      <div className="max-w-2xl mx-auto text-center">
+        <CheckCircle className="h-24 w-24 text-green-500 mx-auto mb-6" />
+        <h1 className="text-4xl font-bold mb-4 text-green-600">
+          Payment Successful!
+        </h1>
+        <p className="text-xl text-muted-foreground mb-8">
+          Thank you for your order. We've received your payment and will process
+          your order shortly.
+        </p>
+
+        {verificationResult && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Payment Details</CardTitle>
+            </CardHeader>
+            <CardContent className="text-left">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="font-medium">Payment Status:</span>
+                  <span className="text-green-600 font-medium capitalize">
+                    {verificationResult.status}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Amount:</span>
+                  <span>
+                    ${(verificationResult.amount / 100).toFixed(2)}{" "}
+                    {verificationResult.currency.toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Customer Email:</span>
+                  <span>{verificationResult.customerEmail || "N/A"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Session ID:</span>
+                  <span className="text-xs font-mono">
+                    {verificationResult.sessionId}
+                  </span>
+                </div>
+                {verificationResult.receiptUrl && (
+                  <div className="flex justify-between">
+                    <span className="font-medium">Receipt:</span>
+                    <a
+                      href={verificationResult.receiptUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      View Receipt
+                    </a>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="space-y-4">
+          <p className="text-muted-foreground">
+            You will receive an email confirmation with your order details
+            shortly.
+          </p>
+          <div className="flex gap-4 justify-center">
+            <Button asChild size="lg">
+              <Link href="/shop">Continue Shopping</Link>
+            </Button>
+            <Button variant="outline" size="lg" asChild>
+              <Link href="/orders">View Orders</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -2,6 +2,7 @@
 export interface CartItemResponse {
   id: string;
   productId: string;
+  variantId?: string;
   name: string;
   price: number;
   previousPrice: number | null;
@@ -30,8 +31,7 @@ export interface CartItemRequest {
 }
 
 // Base API URL
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
+import { API_ENDPOINTS } from "./api";
 
 /**
  * Get authentication token from localStorage
@@ -65,7 +65,7 @@ export const CartService = {
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/cart/view?page=${page}&size=${size}`,
+        `${API_ENDPOINTS.CART_VIEW}?page=${page}&size=${size}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -92,8 +92,8 @@ export const CartService = {
         items:
           backendData.items?.map((item: any) => ({
             id: item.id?.toString() || "",
-            productId:
-              item.variantId?.toString() || item.productId?.toString() || "",
+            productId: item.productId?.toString() || "",
+            variantId: item.variantId?.toString() || "",
             name: item.productName || item.name || "",
             price: item.price || 0,
             previousPrice: item.previousPrice || null,
@@ -132,7 +132,7 @@ export const CartService = {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/cart/add`, {
+      const response = await fetch(`${API_ENDPOINTS.CART_ADD}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -187,7 +187,7 @@ export const CartService = {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/cart/update`, {
+      const response = await fetch(`${API_ENDPOINTS.CART_UPDATE}`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -237,7 +237,7 @@ export const CartService = {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/cart/remove/${itemId}`, {
+      const response = await fetch(`${API_ENDPOINTS.CART_REMOVE(itemId)}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -286,7 +286,7 @@ export const CartService = {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/cart/clear`, {
+      const response = await fetch(`${API_ENDPOINTS.CART_CLEAR}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -340,7 +340,7 @@ export const CartService = {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/cart/has-items`, {
+      const response = await fetch(`${API_ENDPOINTS.CART_HAS_ITEMS}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

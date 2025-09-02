@@ -129,7 +129,7 @@ const Header = () => {
           <div className="flex items-center gap-2">
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="lg:hidden">
+                <Button variant="ghost" size="icon" className="md:hidden">
                   <Menu className="h-5 w-5" />
                   <span className="sr-only">Open menu</span>
                 </Button>
@@ -216,9 +216,9 @@ const Header = () => {
             </Link>
           </div>
 
-          <div className="hidden lg:block flex-1 max-w-3xl mx-8">
-            <div className="flex items-center gap-6">
-              <nav className="flex items-center gap-6">
+          <div className="hidden md:block flex-1 max-w-3xl mx-4 lg:mx-8">
+            <div className="flex items-center gap-4 lg:gap-6">
+              <nav className="hidden lg:flex items-center gap-6">
                 <Link
                   href="/"
                   className="text-sm font-medium hover:text-primary transition-colors"
@@ -271,7 +271,7 @@ const Header = () => {
             <Button
               variant="ghost"
               size="icon"
-              className="lg:hidden"
+              className="md:hidden"
               onClick={() => setIsSearchOpen(!isSearchOpen)}
             >
               {isSearchOpen ? (
@@ -284,7 +284,7 @@ const Header = () => {
             <Button
               variant="ghost"
               size="icon"
-              className="relative"
+              className="relative hidden sm:flex"
               onClick={() => router.push("/wishlist")}
             >
               <Heart className="h-5 w-5" />
@@ -351,15 +351,20 @@ const Header = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 sm:gap-2">
                 <Button
                   variant="ghost"
                   size="sm"
+                  className="hidden sm:flex"
                   onClick={() => router.push("/auth/login")}
                 >
                   Sign In
                 </Button>
-                <Button size="sm" onClick={() => router.push("/auth/register")}>
+                <Button
+                  size="sm"
+                  className="text-xs sm:text-sm px-2 sm:px-4"
+                  onClick={() => router.push("/auth/register")}
+                >
                   Sign Up
                 </Button>
               </div>
@@ -368,7 +373,7 @@ const Header = () => {
         </div>
 
         {isSearchOpen && (
-          <div className="pb-4 lg:hidden">
+          <div className="pb-4 md:hidden">
             <form
               onSubmit={(e) => handleSearch(e, mobileSearchTerm)}
               className="relative"
@@ -391,7 +396,7 @@ const Header = () => {
           </div>
         )}
 
-        <div className="pb-2 border-t pt-2 sm:hidden">
+        <div className="pb-2 border-t pt-2 md:hidden">
           <div className="flex items-center justify-around">
             <Link
               href="/"

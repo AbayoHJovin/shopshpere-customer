@@ -9,8 +9,7 @@ import {
   ApiResponse,
 } from "@/lib/types/auth";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
+import { API_ENDPOINTS } from "../api";
 
 class AuthService {
   private getAuthHeaders(): HeadersInit {
@@ -40,7 +39,7 @@ class AuthService {
     userData: UserRegistrationDTO
   ): Promise<ApiResponse<LoginResponseDto>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/users/register`, {
+      const response = await fetch(`${API_ENDPOINTS.AUTH_REGISTER}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -76,7 +75,7 @@ class AuthService {
 
   async login(credentials: LoginDto): Promise<ApiResponse<LoginResponseDto>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/users/login`, {
+      const response = await fetch(`${API_ENDPOINTS.AUTH_LOGIN}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -112,7 +111,7 @@ class AuthService {
 
   async getCurrentUser(): Promise<ApiResponse<User>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/users/me`, {
+      const response = await fetch(`${API_ENDPOINTS.AUTH_ME}`, {
         method: "GET",
         headers: this.getAuthHeaders(),
       });
@@ -145,16 +144,13 @@ class AuthService {
     request: PasswordResetRequest
   ): Promise<ApiResponse<string>> {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/auth/users/request-password-reset`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(request),
-        }
-      );
+      const response = await fetch(`${API_ENDPOINTS.AUTH_PASSWORD_RESET}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(request),
+      });
 
       const data = await response.json();
 
@@ -181,16 +177,13 @@ class AuthService {
     request: VerifyResetCodeRequest
   ): Promise<ApiResponse<boolean>> {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/auth/users/verify-reset-code`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(request),
-        }
-      );
+      const response = await fetch(`${API_ENDPOINTS.AUTH_VERIFY_RESET}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(request),
+      });
 
       const data = await response.json();
 
@@ -219,16 +212,13 @@ class AuthService {
     request: ResetPasswordRequest
   ): Promise<ApiResponse<string>> {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/auth/users/reset-password`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(request),
-        }
-      );
+      const response = await fetch(`${API_ENDPOINTS.AUTH_RESET_PASSWORD}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(request),
+      });
 
       const data = await response.json();
 
@@ -253,7 +243,7 @@ class AuthService {
 
   async logout(): Promise<ApiResponse<string>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/users/logout`, {
+      const response = await fetch(`${API_ENDPOINTS.AUTH_LOGOUT}`, {
         method: "POST",
         headers: this.getAuthHeaders(),
       });
