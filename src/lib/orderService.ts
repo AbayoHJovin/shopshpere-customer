@@ -30,6 +30,7 @@ export interface CheckoutRequest {
   shippingAddress: AddressDto;
   currency?: string;
   userId?: string;
+  platform:string
 }
 
 export interface GuestCheckoutRequest {

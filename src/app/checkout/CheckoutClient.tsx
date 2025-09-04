@@ -214,6 +214,7 @@ export function CheckoutClient() {
           shippingAddress: address,
           currency: "usd",
           userId: user.id,
+          platform:"web"
         };
 
         console.log("Sending checkout request:", checkoutRequest); // Debug log
