@@ -32,6 +32,7 @@ export const API_ENDPOINTS = {
   CART_REMOVE: (itemId: string) => `${API_BASE_URL}/cart/remove/${itemId}`,
   CART_CLEAR: `${API_BASE_URL}/cart/clear`,
   CART_HAS_ITEMS: `${API_BASE_URL}/cart/has-items`,
+  CART_PRODUCTS: `${API_BASE_URL}/cart/products`,
   CART_ITEMS: `${API_BASE_URL}/cart/items`,
   CART_ITEM_BY_ID: (itemId: string) => `${API_BASE_URL}/cart/items/${itemId}`,
   CART_COUNT: `${API_BASE_URL}/cart/count`,

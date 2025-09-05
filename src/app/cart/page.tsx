@@ -184,11 +184,6 @@ export default function CartPage() {
 
   // Handle proceed to checkout
   const handleProceedToCheckout = () => {
-    if (!isAuthenticated) {
-      toast.error("Please sign in to proceed to checkout.");
-      return;
-    }
-
     if (!cart || cart.items.length === 0) {
       toast.error("Your cart is empty. Add items to proceed to checkout.");
       return;
@@ -707,12 +702,6 @@ export default function CartPage() {
                   {formatPrice(cart.subtotal)}
                 </span>
               </div>
-
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Shipping</span>
-                <span className="font-medium text-success">Free</span>
-              </div>
-
               <Separator className="my-4" />
 
               <div className="flex justify-between text-lg font-semibold">
@@ -733,6 +722,13 @@ export default function CartPage() {
               >
                 Proceed to Checkout
               </Button>
+
+              {/* Guest user message */}
+              {!isAuthenticated && (
+                <div className="text-center text-sm text-muted-foreground mt-2">
+                  <p>Continue as guest or sign in to save your cart.</p>
+                </div>
+              )}
 
               {/* Payment options */}
               <PaymentIcons className="mt-4" />

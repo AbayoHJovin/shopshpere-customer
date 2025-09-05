@@ -6,29 +6,37 @@ export interface ProductDTO {
   productId: string;
   name: string;
   description?: string;
-  slug: string;
-  basePrice: number;
-  discountPercentage: number;
-  finalPrice: number;
   sku: string;
+  barcode?: string;
+  basePrice: number;
+  salePrice?: number;
+  discountedPrice?: number;
   stockQuantity: number;
-  weight?: number;
-  dimensions?: string;
-  isActive: boolean;
   categoryId: number;
   categoryName: string;
-  brandId: string;
-  brandName: string;
-  gender: string;
-  tags: string[];
-  images: ProductImageDTO[];
-  videos: ProductVideoDTO[];
-  variants: ProductVariantDTO[];
+  brandId?: string;
+  brandName?: string;
+  model?: string;
+  slug: string;
+  isActive: boolean;
+  isFeatured?: boolean;
+  isBestseller?: boolean;
+  isNewArrival?: boolean;
+  isOnSale?: boolean;
   averageRating?: number;
   reviewCount?: number;
   reviews?: ReviewDTO[];
   createdAt: string;
   updatedAt: string;
+  images: ProductImageDTO[];
+  videos: ProductVideoDTO[];
+  variants: ProductVariantDTO[];
+  fullDescription?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  metaKeywords?: string;
+  dimensionsCm?: string;
+  weightKg?: number;
 }
 
 export interface ProductImageDTO {
@@ -41,20 +49,27 @@ export interface ProductImageDTO {
 
 export interface ProductVideoDTO {
   videoId: number;
-  videoUrl: string;
+  url: string;
   title?: string;
-  duration?: number;
+  description?: string;
   sortOrder: number;
+  durationSeconds?: number;
 }
 
 export interface ProductVariantDTO {
   variantId: number;
   variantSku: string;
+  variantName?: string;
+  variantBarcode?: string;
   price: number;
+  salePrice?: number;
+  costPrice?: number;
   stockQuantity: number;
   isActive: boolean;
-  weight?: number;
-  dimensions?: string;
+  isInStock?: boolean;
+  isLowStock?: boolean;
+  createdAt: string;
+  updatedAt: string;
   images: VariantImageDTO[];
   attributes: VariantAttributeDTO[];
 }
@@ -69,8 +84,9 @@ export interface VariantImageDTO {
 
 export interface VariantAttributeDTO {
   attributeValueId: number;
-  attributeTypeName: string;
   attributeValue: string;
+  attributeTypeId: number;
+  attributeType: string;
 }
 
 // Backend Category DTO
@@ -133,7 +149,6 @@ export interface ManyProductsDto {
 
 export interface ProductSearchDTO {
   // Text search
-  searchKeyword?: string;
   name?: string;
   description?: string;
   sku?: string;

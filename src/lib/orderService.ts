@@ -40,6 +40,7 @@ export interface GuestCheckoutRequest {
   guestPhone?: string;
   address: AddressDto;
   items: CartItemDTO[];
+  platform:string;
 }
 
 export interface CartItemDTO {

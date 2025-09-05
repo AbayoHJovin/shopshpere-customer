@@ -159,21 +159,31 @@ export function CheckoutClient() {
 
     try {
       const cartItems: CartItemDTO[] = cart!.items
-        .filter((item) => item.id && item.productId && item.variantId) // Only include items with variantId
+        .filter((item) => item.id && item.productId) // Only require id and productId
         .map((item) => {
-          const itemId = parseInt(item.id);
-          const variantId = parseInt(item.variantId!);
+          // For guest users, id is a string (localStorage itemId)
+          // For authenticated users, id might be a number
+          let itemId: number | undefined;
+          if (isAuthenticated) {
+            // For authenticated users, try to parse as number
+            const parsedId = parseInt(item.id);
+            if (!isNaN(parsedId)) {
+              itemId = parsedId;
+            }
+          }
+          // For guest users, we don't need a numeric id
 
-          // Skip items with invalid IDs
-          if (isNaN(itemId) || isNaN(variantId)) {
-            console.warn("Skipping item with invalid ID:", item);
-            return null;
+          // Handle variantId if present
+          let variantId: number | undefined;
+          if (item.variantId) {
+            const parsedVariantId = parseInt(item.variantId);
+            if (!isNaN(parsedVariantId)) {
+              variantId = parsedVariantId;
+            }
           }
 
-          return {
-            id: itemId,
+          const cartItem: any = {
             productId: item.productId, // Keep as string (backend will parse it)
-            variantId: variantId, // Always include variantId
             productName: item.name || "Unknown Product",
             productImage: item.url || "",
             quantity: item.quantity || 1,
@@ -182,8 +192,20 @@ export function CheckoutClient() {
               item.totalPrice || (item.price || 0) * (item.quantity || 1),
             inStock: (item.stock || 0) > 0,
             availableStock: item.stock || 0,
-            isVariantBased: true, // Always true since we filter for variantId
+            isVariantBased: !!variantId, // true if variantId exists, false otherwise
           };
+
+          // Only include id for authenticated users
+          if (isAuthenticated && itemId !== undefined) {
+            cartItem.id = itemId;
+          }
+
+          // Only include variantId if it exists
+          if (variantId !== undefined) {
+            cartItem.variantId = variantId;
+          }
+
+          return cartItem;
         })
         .filter((item) => item !== null) as CartItemDTO[]; // Remove null items and type assert
 
@@ -214,7 +236,7 @@ export function CheckoutClient() {
           shippingAddress: address,
           currency: "usd",
           userId: user.id,
-          platform:"web"
+          platform: "web",
         };
 
         console.log("Sending checkout request:", checkoutRequest); // Debug log
@@ -231,6 +253,7 @@ export function CheckoutClient() {
           guestPhone: formData.phoneNumber,
           address: address,
           items: cartItems,
+          platform: "web",
         };
 
         console.log("Sending guest checkout request:", guestCheckoutRequest); // Debug log

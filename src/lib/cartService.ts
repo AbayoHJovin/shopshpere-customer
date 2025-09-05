@@ -30,6 +30,50 @@ export interface CartItemRequest {
   quantity: number;
 }
 
+// Interface for localStorage cart items (simplified)
+interface LocalStorageCartItem {
+  id: string;
+  productId: string;
+  variantId?: string;
+  quantity: number;
+}
+
+// Interface for backend cart products request
+interface CartProductsRequest {
+  items: {
+    productId: string;
+    variantId?: number;
+    quantity: number;
+    itemId: string;
+  }[];
+}
+
+// Interface for backend cart products response
+interface CartProductsResponse {
+  items: {
+    itemId: string;
+    productId: string;
+    variantId?: number;
+    productName: string;
+    productDescription: string;
+    price: number;
+    previousPrice?: number;
+    productImage: string;
+    quantity: number;
+    availableStock: number;
+    totalPrice: number;
+    averageRating?: number;
+    reviewCount?: number;
+    variantSku?: string;
+    variantAttributes?: {
+      attributeTypeName: string;
+      attributeValue: string;
+    }[];
+  }[];
+  subtotal: number;
+  totalItems: number;
+}
+
 // Base API URL
 import { API_ENDPOINTS } from "./api";
 
@@ -58,9 +102,9 @@ export const CartService = {
 
     if (!token) {
       console.warn(
-        "No authentication token found, using localStorage fallback"
+        "No authentication token found, using backend with localStorage data"
       );
-      return getCartFromLocalStorage();
+      return getCartFromBackend();
     }
 
     try {
@@ -77,7 +121,7 @@ export const CartService = {
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
           console.warn("Authentication failed, using localStorage fallback");
-          return getCartFromLocalStorage();
+          return await getCartFromBackend();
         }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -111,7 +155,7 @@ export const CartService = {
       };
     } catch (error) {
       console.error("Error fetching cart:", error);
-      return getCartFromLocalStorage();
+      return getCartFromBackend();
     }
   },
 
@@ -125,10 +169,12 @@ export const CartService = {
       console.warn(
         "No authentication token found, using localStorage fallback"
       );
-      return addToLocalStorageCart(
+      addToLocalStorageCart(
         request.productId || request.variantId || "",
+        request.variantId,
         request.quantity
       );
+      return await getCartFromBackend();
     }
 
     try {
@@ -144,10 +190,12 @@ export const CartService = {
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
           console.warn("Authentication failed, using localStorage fallback");
-          return addToLocalStorageCart(
+          addToLocalStorageCart(
             request.productId || request.variantId || "",
+            request.variantId,
             request.quantity
           );
+          return await getCartFromBackend();
         }
         const errorData = await response.json();
         throw new Error(
@@ -163,10 +211,12 @@ export const CartService = {
       return data.data;
     } catch (error) {
       console.error("Error adding item to cart:", error);
-      return addToLocalStorageCart(
+      addToLocalStorageCart(
         request.productId || request.variantId || "",
+        request.variantId,
         request.quantity
       );
+      return await getCartFromBackend();
     }
   },
 
@@ -183,7 +233,7 @@ export const CartService = {
       console.warn(
         "No authentication token found, using localStorage fallback"
       );
-      return updateLocalStorageCartItem(itemId, request.quantity);
+      return await updateLocalStorageCartItem(itemId, request.quantity);
     }
 
     try {
@@ -219,7 +269,7 @@ export const CartService = {
       return await CartService.getCart();
     } catch (error) {
       console.error("Error updating cart item:", error);
-      return updateLocalStorageCartItem(itemId, request.quantity);
+      return await updateLocalStorageCartItem(itemId, request.quantity);
     }
   },
 
@@ -233,7 +283,7 @@ export const CartService = {
       console.warn(
         "No authentication token found, using localStorage fallback"
       );
-      return removeFromLocalStorageCart(itemId);
+      return await removeFromLocalStorageCart(itemId);
     }
 
     try {
@@ -264,7 +314,7 @@ export const CartService = {
       return await CartService.getCart();
     } catch (error) {
       console.error("Error removing item from cart:", error);
-      return removeFromLocalStorageCart(itemId);
+      return await removeFromLocalStorageCart(itemId);
     }
   },
 
@@ -365,10 +415,38 @@ export const CartService = {
       return JSON.parse(cartItems).length;
     }
   },
+
+  /**
+   * Check if a product or variant is in the cart
+   */
+  isInCart: async (productId: string, variantId?: string): Promise<boolean> => {
+    const token = getAuthToken();
+
+    if (!token) {
+      // Check localStorage
+      const cartItems = localStorage.getItem("cart");
+      if (!cartItems) return false;
+
+      const cart = JSON.parse(cartItems) as LocalStorageCartItem[];
+      return cart.some(
+        (item) => item.productId === productId && item.variantId === variantId
+      );
+    }
+
+    try {
+      const cart = await CartService.getCart();
+      return cart.items.some(
+        (item) => item.productId === productId && item.variantId === variantId
+      );
+    } catch (error) {
+      console.error("Error checking if item is in cart:", error);
+      return false;
+    }
+  },
 };
 
-// Helper functions for localStorage implementation
-function getCartFromLocalStorage(): CartResponse {
+// Helper function to get cart from backend using localStorage data
+async function getCartFromBackend(): Promise<CartResponse> {
   try {
     const cartItems = localStorage.getItem("cart");
     if (!cartItems) {
@@ -383,61 +461,71 @@ function getCartFromLocalStorage(): CartResponse {
       };
     }
 
-    const cartIds = JSON.parse(cartItems) as string[];
+    const localCart = JSON.parse(cartItems) as LocalStorageCartItem[];
+    if (localCart.length === 0) {
+      return {
+        cartId: "local-cart",
+        userId: "local-user",
+        items: [],
+        totalItems: 0,
+        subtotal: 0,
+        totalPages: 1,
+        currentPage: 0,
+      };
+    }
 
-    // Create a simple cart response without requiring product data
-    // In a real implementation, this would fetch product details from the backend
-    const cartItemsWithDetails: CartItemResponse[] = cartIds.reduce(
-      (acc: CartItemResponse[], id) => {
-        const existingItem = acc.find((item) => item.productId === id);
+    // Prepare request for backend
+    const request: CartProductsRequest = {
+      items: localCart.map((item) => ({
+        productId: item.productId,
+        variantId: item.variantId ? parseInt(item.variantId) : undefined,
+        quantity: item.quantity,
+        itemId: item.id,
+      })),
+    };
 
-        if (existingItem) {
-          // If item already exists, increment quantity
-          existingItem.quantity += 1;
-          existingItem.totalPrice = existingItem.quantity * existingItem.price;
-          return acc;
-        } else {
-          // Add new item to cart with placeholder data
-          // In real implementation, this would fetch from backend
-          acc.push({
-            id: `cart-item-${id}`,
-            productId: id,
-            name: `Product ${id}`, // Placeholder name
-            price: 0, // Will be updated when product details are fetched
-            previousPrice: null,
-            url: "", // Will be updated when product details are fetched
-            quantity: 1,
-            stock: 100, // Placeholder stock
-            totalPrice: 0, // Will be calculated when price is known
-            averageRating: 0,
-            ratingCount: 0,
-          });
-          return acc;
-        }
+    // Fetch product details from backend
+    const response = await fetch(API_ENDPOINTS.CART_PRODUCTS, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-      []
-    );
+      body: JSON.stringify(request),
+    });
 
-    // Calculate subtotal
-    const subtotal = cartItemsWithDetails.reduce(
-      (sum, item) => sum + item.totalPrice,
-      0
-    );
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
 
+    const data = await response.json();
+    const cartData = data.data as CartProductsResponse;
+
+    // Transform backend response to match frontend interface
     return {
       cartId: "local-cart",
       userId: "local-user",
-      items: cartItemsWithDetails,
-      totalItems: cartItemsWithDetails.reduce(
-        (sum, item) => sum + item.quantity,
-        0
-      ),
-      subtotal,
+      items: cartData.items.map((item) => ({
+        id: item.itemId,
+        productId: item.productId.toString(),
+        variantId: item.variantId?.toString(),
+        name: item.productName,
+        price: item.price,
+        previousPrice: item.previousPrice || null,
+        url: item.productImage || "",
+        quantity: item.quantity,
+        stock: item.availableStock,
+        totalPrice: item.totalPrice,
+        averageRating: item.averageRating || 0,
+        ratingCount: item.reviewCount || 0,
+      })),
+      totalItems: cartData.totalItems,
+      subtotal: cartData.subtotal,
       totalPages: 1,
       currentPage: 0,
     };
   } catch (error) {
-    console.error("Error getting cart from localStorage:", error);
+    console.error("Error getting cart from backend:", error);
+    // Fallback to empty cart
     return {
       cartId: "local-cart",
       userId: "local-user",
@@ -450,65 +538,88 @@ function getCartFromLocalStorage(): CartResponse {
   }
 }
 
+// Helper functions for localStorage implementation (no longer used, keep for compatibility)
+
 function addToLocalStorageCart(
   productId: string,
+  variantId: string | undefined,
   quantity: number
-): CartResponse {
+): void {
   try {
     const cartItems = localStorage.getItem("cart");
-    const cart = cartItems ? (JSON.parse(cartItems) as string[]) : [];
+    const cart = cartItems
+      ? (JSON.parse(cartItems) as LocalStorageCartItem[])
+      : [];
 
-    // Add the product to the cart 'quantity' times
-    for (let i = 0; i < quantity; i++) {
-      cart.push(productId);
+    // Check if item already exists
+    const existingItemIndex = cart.findIndex(
+      (item) => item.productId === productId && item.variantId === variantId
+    );
+
+    if (existingItemIndex !== -1) {
+      // Update existing item quantity
+      cart[existingItemIndex].quantity += quantity;
+    } else {
+      // Create new cart item with minimal data
+      const newItem: LocalStorageCartItem = {
+        id: `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        productId,
+        variantId,
+        quantity,
+      };
+
+      cart.push(newItem);
     }
 
     localStorage.setItem("cart", JSON.stringify(cart));
-
-    return getCartFromLocalStorage();
+    window.dispatchEvent(new CustomEvent("cartUpdated"));
   } catch (error) {
     console.error("Error adding to localStorage cart:", error);
-    return getCartFromLocalStorage();
   }
 }
 
-function updateLocalStorageCartItem(
-  productId: string,
+async function updateLocalStorageCartItem(
+  itemId: string,
   quantity: number
-): CartResponse {
+): Promise<CartResponse> {
   try {
     const cartItems = localStorage.getItem("cart");
-    const cart = cartItems ? (JSON.parse(cartItems) as string[]) : [];
+    const cart = cartItems
+      ? (JSON.parse(cartItems) as LocalStorageCartItem[])
+      : [];
 
-    // Remove all instances of the product
-    const filteredCart = cart.filter((id) => id !== productId);
-
-    // Add the product back with the new quantity
-    for (let i = 0; i < quantity; i++) {
-      filteredCart.push(productId);
+    // Find and update the item
+    const itemIndex = cart.findIndex((item) => item.id === itemId);
+    if (itemIndex !== -1) {
+      cart[itemIndex].quantity = quantity;
+      localStorage.setItem("cart", JSON.stringify(cart));
+      window.dispatchEvent(new CustomEvent("cartUpdated"));
     }
 
-    localStorage.setItem("cart", JSON.stringify(filteredCart));
-
-    return getCartFromLocalStorage();
+    return getCartFromBackend();
   } catch (error) {
     console.error("Error updating localStorage cart item:", error);
-    return getCartFromLocalStorage();
+    return getCartFromBackend();
   }
 }
 
-function removeFromLocalStorageCart(productId: string): CartResponse {
+async function removeFromLocalStorageCart(
+  itemId: string
+): Promise<CartResponse> {
   try {
     const cartItems = localStorage.getItem("cart");
-    const cart = cartItems ? (JSON.parse(cartItems) as string[]) : [];
+    const cart = cartItems
+      ? (JSON.parse(cartItems) as LocalStorageCartItem[])
+      : [];
 
-    const filteredCart = cart.filter((id) => id !== productId);
+    const filteredCart = cart.filter((item) => item.id !== itemId);
 
     localStorage.setItem("cart", JSON.stringify(filteredCart));
+    window.dispatchEvent(new CustomEvent("cartUpdated"));
 
-    return getCartFromLocalStorage();
+    return getCartFromBackend();
   } catch (error) {
     console.error("Error removing from localStorage cart:", error);
-    return getCartFromLocalStorage();
+    return getCartFromBackend();
   }
 }

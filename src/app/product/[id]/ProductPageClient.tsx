@@ -90,7 +90,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
       } else {
         // Use product images and data
         setDisplayImages(product.images || []);
-        setDisplayPrice(product.finalPrice || product.basePrice || 0);
+        setDisplayPrice(product.discountedPrice || product.basePrice || 0);
         setDisplayStock(product.stockQuantity || 0);
       }
       // Reset selected image when switching between product and variant images
@@ -371,7 +371,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                 </div>
               )}
 
-              {(product.discountPercentage || 0) > 0 && (
+              {product.salePrice && product.salePrice < product.basePrice && (
                 <Badge variant="destructive" className="absolute top-4 left-4">
                   SALE
                 </Badge>
@@ -438,14 +438,14 @@ export function ProductPageClient({ productId }: { productId: string }) {
             {product.videos && product.videos.length > 0 && (
               <div className="space-y-2">
                 <h3 className="text-sm font-medium">Product Videos</h3>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2">
                   {product.videos.map((video, index) => (
                     <div
                       key={video.videoId}
                       className="relative aspect-video rounded-lg overflow-hidden border"
                     >
                       <video
-                        src={video.videoUrl}
+                        src={video.url}
                         controls
                         className="w-full h-full object-cover"
                         poster={
@@ -453,9 +453,15 @@ export function ProductPageClient({ productId }: { productId: string }) {
                             ? displayImages[0].url
                             : undefined
                         }
+                        preload="metadata"
                       >
                         Your browser does not support the video tag.
                       </video>
+                      {video.title && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white p-2 text-sm">
+                          {video.title}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -519,17 +525,24 @@ export function ProductPageClient({ productId }: { productId: string }) {
                 ) : (
                   // Show product price with discount info
                   <>
-                    {(product.discountPercentage || 0) > 0 &&
+                    {product.salePrice &&
+                      product.salePrice < product.basePrice &&
                       product.basePrice && (
                         <span className="text-xl text-muted-foreground line-through">
                           ${product.basePrice.toFixed(2)}
                         </span>
                       )}
-                    {(product.discountPercentage || 0) > 0 && (
-                      <Badge variant="destructive" className="ml-2">
-                        {product.discountPercentage}% OFF
-                      </Badge>
-                    )}
+                    {product.salePrice &&
+                      product.salePrice < product.basePrice && (
+                        <Badge variant="destructive" className="ml-2">
+                          {Math.round(
+                            ((product.basePrice - product.salePrice) /
+                              product.basePrice) *
+                              100
+                          )}
+                          % OFF
+                        </Badge>
+                      )}
                   </>
                 )}
               </div>
@@ -627,7 +640,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                           onClick={() => {
                             setDisplayImages(product.images || []);
                             setDisplayPrice(
-                              product.finalPrice || product.basePrice || 0
+                              product.discountedPrice || product.basePrice || 0
                             );
                             setDisplayStock(product.stockQuantity || 0);
                           }}

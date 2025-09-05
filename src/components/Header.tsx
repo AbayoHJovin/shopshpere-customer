@@ -11,6 +11,7 @@ import {
   Heart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SearchBarWithSuggestions } from "@/components/SearchBarWithSuggestions";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -44,24 +45,21 @@ const Header = () => {
     (state) => state.auth
   );
 
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [mobileSearchTerm, setMobileSearchTerm] = useState("");
   const [cartItemCount, setCartItemCount] = useState(0);
 
-  const handleSearch = (e: FormEvent, term: string) => {
+  const handleSearch = (e: FormEvent, term?: string) => {
     e.preventDefault();
 
-    if (!term.trim()) return;
+    const searchQuery = term || searchTerm;
+    if (!searchQuery.trim()) return;
 
     const searchParams = new URLSearchParams();
-    searchParams.set("searchTerm", term.trim());
+    searchParams.set("searchTerm", searchQuery.trim());
 
     router.push(`/shop?${searchParams.toString()}`);
 
     setSearchTerm("");
-    setMobileSearchTerm("");
-    setIsSearchOpen(false);
   };
 
   const handleLogout = async () => {
@@ -244,42 +242,11 @@ const Header = () => {
                   Discounts
                 </Link>
               </nav>
-              <form
-                onSubmit={(e) => handleSearch(e, searchTerm)}
-                className="relative flex-1"
-              >
-                <Input
-                  placeholder="Search products, brands, and more..."
-                  className="pl-4 pr-12 h-10 rounded-lg border-2 focus:border-primary"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <Button
-                  type="submit"
-                  size="icon"
-                  className="absolute right-1 top-1 h-8 w-8 rounded-md"
-                >
-                  <Search className="h-4 w-4" />
-                </Button>
-              </form>
             </div>
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
             <ThemeToggle />
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-              onClick={() => setIsSearchOpen(!isSearchOpen)}
-            >
-              {isSearchOpen ? (
-                <X className="h-5 w-5" />
-              ) : (
-                <Search className="h-5 w-5" />
-              )}
-            </Button>
 
             <Button
               variant="ghost"
@@ -372,30 +339,6 @@ const Header = () => {
           </div>
         </div>
 
-        {isSearchOpen && (
-          <div className="pb-4 md:hidden">
-            <form
-              onSubmit={(e) => handleSearch(e, mobileSearchTerm)}
-              className="relative"
-            >
-              <Input
-                placeholder="Search products..."
-                className="pl-4 pr-12 h-10 rounded-lg"
-                autoFocus
-                value={mobileSearchTerm}
-                onChange={(e) => setMobileSearchTerm(e.target.value)}
-              />
-              <Button
-                type="submit"
-                size="icon"
-                className="absolute right-1 top-1 h-8 w-8"
-              >
-                <Search className="h-4 w-4" />
-              </Button>
-            </form>
-          </div>
-        )}
-
         <div className="pb-2 border-t pt-2 md:hidden">
           <div className="flex items-center justify-around">
             <Link
@@ -422,6 +365,19 @@ const Header = () => {
             >
               Discounts
             </Link>
+          </div>
+        </div>
+
+        {/* Permanent Search Bar Section - Always Visible */}
+        <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="container mx-auto px-4 py-4">
+            <SearchBarWithSuggestions
+              value={searchTerm}
+              onChange={setSearchTerm}
+              onSubmit={(e, term) => handleSearch(e, term)}
+              placeholder="Search products, brands, and more..."
+              className="max-w-4xl mx-auto"
+            />
           </div>
         </div>
       </div>

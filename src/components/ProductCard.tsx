@@ -55,11 +55,21 @@ const ProductCard = ({
 
   const checkCartStatus = async () => {
     try {
-      const cart = await CartService.getCart();
-      const isProductInCart = cart.items.some((item) => item.productId === id);
-      setIsInCart(isProductInCart);
+      // First check if product has variants
+      const product = await ProductService.getProductById(id);
+
+      if (ProductService.hasVariants(product)) {
+        // For products with variants, don't show "Added to cart"
+        // since only specific variants can be added
+        setIsInCart(false);
+      } else {
+        // For simple products, check if the product itself is in cart
+        const isProductInCart = await CartService.isInCart(id);
+        setIsInCart(isProductInCart);
+      }
     } catch (error) {
       console.error("Error checking cart status:", error);
+      setIsInCart(false);
     }
   };
 
@@ -81,15 +91,6 @@ const ProductCard = ({
     e.preventDefault();
     e.stopPropagation();
 
-    if (!isAuthenticated) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to add items to your cart.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     if (isInCart) {
       // Remove from cart
       try {
@@ -99,7 +100,8 @@ const ProductCard = ({
 
         if (cartItem) {
           await CartService.removeItemFromCart(cartItem.id);
-          setIsInCart(false);
+          // Refresh cart status after removal
+          await checkCartStatus();
           toast({
             title: "Removed from cart",
             description: `${name} has been removed from your cart.`,
@@ -125,11 +127,13 @@ const ProductCard = ({
       setProductDetails(product);
 
       if (ProductService.hasVariants(product)) {
-        // Show variant selection modal
+        // Show variant selection modal - don't update cart status here
         setShowVariantModal(true);
       } else {
         // Add product directly to cart
         await handleAddToCart({ productId: id, quantity: 1 });
+        // Update cart status after adding
+        await checkCartStatus();
       }
     } catch (error) {
       console.error("Error fetching product details:", error);
@@ -148,7 +152,19 @@ const ProductCard = ({
     try {
       setIsLoading(true);
       await CartService.addItemToCart(request);
-      setIsInCart(true);
+
+      // Update cart status based on what was added
+      if (request.variantId) {
+        // If a variant was added, don't update cart status for products with variants
+        // since the "Added to cart" button shouldn't appear for variant products
+        setIsInCart(false);
+      } else {
+        // If product was added, check if product is in cart
+        const isProductInCart = await CartService.isInCart(
+          request.productId || id
+        );
+        setIsInCart(isProductInCart);
+      }
 
       toast({
         title: "Added to cart",

@@ -134,7 +134,7 @@ const ProductGrid = ({
 
     // Add search term
     if (filters.searchTerm && filters.searchTerm.trim() !== "") {
-      searchDTO.searchKeyword = filters.searchTerm.trim();
+      searchDTO.name = filters.searchTerm.trim();
     }
 
     // Add categories with proper ID mapping
@@ -208,7 +208,7 @@ const ProductGrid = ({
 
     // Ensure we have at least one filter criterion to avoid backend validation error
     const hasAnyFilter =
-      searchDTO.searchKeyword ||
+      searchDTO.name ||
       searchDTO.categoryIds?.length > 0 ||
       searchDTO.categoryNames?.length > 0 ||
       searchDTO.brandIds?.length > 0 ||

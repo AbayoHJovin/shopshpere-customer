@@ -159,7 +159,8 @@ export function ShopClient() {
       urlFilters.inStock = inStockParam === "true";
 
       // Parse search term - with better validation
-      const searchParam = searchParams.get("search");
+      const searchParam =
+        searchParams.get("searchTerm") || searchParams.get("search");
       urlFilters.searchTerm =
         searchParam && searchParam !== "undefined" && searchParam !== "null"
           ? searchParam.trim()
