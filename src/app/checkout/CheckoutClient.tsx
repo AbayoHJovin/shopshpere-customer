@@ -36,6 +36,8 @@ import {
 } from "@/components/ui/accordion";
 import { toast } from "sonner";
 import { PaymentIcons } from "@/components/PaymentIcons";
+import { AddressInput } from "@/components/AddressInput";
+import { CountrySelector } from "@/components/CountrySelector";
 
 // Services
 import { CartService, CartResponse } from "@/lib/cartService";
@@ -46,6 +48,10 @@ import {
   CartItemDTO,
   AddressDto,
 } from "@/lib/orderService";
+import {
+  checkoutService,
+  PaymentSummaryDTO,
+} from "@/lib/services/checkout-service";
 import { useAppSelector } from "@/lib/store/hooks";
 
 // Constants
@@ -76,6 +82,9 @@ export function CheckoutClient() {
   const [countries, setCountries] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("credit_card");
   const [orderSuccess, setOrderSuccess] = useState(false);
+  const [paymentSummary, setPaymentSummary] =
+    useState<PaymentSummaryDTO | null>(null);
+  const [loadingSummary, setLoadingSummary] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -131,6 +140,27 @@ export function CheckoutClient() {
     fetchData();
   }, [router, isAuthenticated, user]);
 
+  useEffect(() => {
+    // Only fetch if we have the minimum required fields
+    if (cart && formData.streetAddress && formData.city && formData.country) {
+      const timeoutId = setTimeout(() => {
+        fetchPaymentSummary();
+      }, 500); // Reduced timeout for faster response
+
+      return () => clearTimeout(timeoutId);
+    } else {
+      // Clear payment summary if required fields are missing
+      setPaymentSummary(null);
+    }
+  }, [
+    formData.streetAddress,
+    formData.city,
+    formData.country,
+    cart,
+    isAuthenticated,
+    user,
+  ]);
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -146,6 +176,118 @@ export function CheckoutClient() {
       ...prev,
       country: value,
     }));
+  };
+
+  const handleAddressSelect = (addressComponents: any) => {
+    setFormData((prev) => ({
+      ...prev,
+      streetAddress: addressComponents.streetAddress || prev.streetAddress,
+      city: addressComponents.city || prev.city,
+      stateProvince: addressComponents.state || prev.stateProvince,
+      postalCode: addressComponents.postalCode || prev.postalCode,
+      country: addressComponents.country || prev.country,
+    }));
+  };
+
+  const fetchPaymentSummary = async () => {
+    if (
+      !cart ||
+      !formData.streetAddress ||
+      !formData.city ||
+      !formData.country
+    ) {
+      console.log("Skipping payment summary fetch - missing required fields:", {
+        hasCart: !!cart,
+        hasStreetAddress: !!formData.streetAddress,
+        hasCity: !!formData.city,
+        hasCountry: !!formData.country,
+      });
+      return;
+    }
+
+    console.log("Fetching payment summary for address:", {
+      streetAddress: formData.streetAddress,
+      city: formData.city,
+      country: formData.country,
+    });
+
+    setLoadingSummary(true);
+    try {
+      console.log("Processing cart items:", cart.items);
+
+      const cartItems: CartItemDTO[] = cart.items
+        .filter((item) => {
+          console.log("Filtering cart item:", item);
+          return item.productId; // Only require productId, not id
+        })
+        .map((item) => {
+          let itemId: number | undefined;
+          if (isAuthenticated) {
+            const parsedId = parseInt(item.id);
+            if (!isNaN(parsedId)) {
+              itemId = parsedId;
+            }
+          }
+
+          let variantId: number | undefined;
+          if (item.variantId) {
+            const parsedVariantId = parseInt(item.variantId);
+            if (!isNaN(parsedVariantId)) {
+              variantId = parsedVariantId;
+            }
+          }
+
+          const cartItem: CartItemDTO = {
+            productId: item.productId,
+            quantity: item.quantity || 1,
+            weight: 0, // Default weight - could be enhanced later
+          };
+
+          // Only include variantId if it exists and is valid
+          if (variantId !== undefined) {
+            cartItem.variantId = variantId;
+          }
+
+          console.log("Mapped cart item:", cartItem);
+          return cartItem;
+        })
+        .filter((item) => item !== null) as CartItemDTO[];
+
+      console.log("Final cart items for payment summary:", cartItems);
+
+      const address: AddressDto = {
+        streetAddress: formData.streetAddress,
+        city: formData.city,
+        state: formData.stateProvince,
+        postalCode: formData.postalCode,
+        country: formData.country,
+      };
+
+      console.log("Sending payment summary request:", {
+        deliveryAddress: address,
+        itemsCount: cartItems.length,
+        orderValue: cart.subtotal,
+        userId: isAuthenticated && user ? user.id : undefined,
+      });
+
+      const summary = await checkoutService.getPaymentSummary({
+        deliveryAddress: address,
+        items: cartItems,
+        orderValue: cart.subtotal,
+        userId: isAuthenticated && user ? user.id : undefined,
+      });
+
+      console.log("Payment summary received:", summary);
+      setPaymentSummary(summary);
+    } catch (error) {
+      console.error("Error fetching payment summary:", error);
+      toast.error(
+        "Error calculating shipping and taxes. Please check your address and try again."
+      );
+      setPaymentSummary(null);
+    } finally {
+      setLoadingSummary(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -193,6 +335,7 @@ export function CheckoutClient() {
             inStock: (item.stock || 0) > 0,
             availableStock: item.stock || 0,
             isVariantBased: !!variantId, // true if variantId exists, false otherwise
+            weight: item.weight || 0, // Add weight field for shipping calculation
           };
 
           // Only include id for authenticated users
@@ -316,6 +459,25 @@ export function CheckoutClient() {
     ) {
       isValid = false;
       errors.push("Phone number is not valid");
+    }
+
+    // Address validation
+    if (formData.city && formData.city.length < 2) {
+      isValid = false;
+      errors.push("City name must be at least 2 characters long");
+    }
+
+    if (
+      formData.city &&
+      /^(uk|us|ca|au|de|fr|it|es|nl|be|ch|at|se|no|dk|fi)$/i.test(formData.city)
+    ) {
+      isValid = false;
+      errors.push("Please enter a proper city name, not a country code");
+    }
+
+    if (formData.streetAddress && formData.streetAddress.length < 5) {
+      isValid = false;
+      errors.push("Street address must be at least 5 characters long");
     }
 
     // Show errors if any
@@ -462,17 +624,16 @@ export function CheckoutClient() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6 space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="streetAddress">Street Address*</Label>
-                <Input
-                  id="streetAddress"
-                  name="streetAddress"
-                  value={formData.streetAddress}
-                  onChange={handleInputChange}
-                  placeholder="123 Main St, Apt 4B"
-                  required
-                />
-              </div>
+              <AddressInput
+                value={formData.streetAddress}
+                onChange={(value) =>
+                  setFormData((prev) => ({ ...prev, streetAddress: value }))
+                }
+                onAddressSelect={handleAddressSelect}
+                label="Street Address"
+                placeholder="123 Main St, Apt 4B"
+                required
+              />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="city">City*</Label>
@@ -481,8 +642,12 @@ export function CheckoutClient() {
                     name="city"
                     value={formData.city}
                     onChange={handleInputChange}
+                    placeholder="Washington"
                     required
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Enter the city name (e.g., Washington, New York, London)
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="stateProvince">State/Province*</Label>
@@ -506,25 +671,13 @@ export function CheckoutClient() {
                     required
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="country">Country*</Label>
-                  <Select
-                    value={formData.country}
-                    onValueChange={handleCountryChange}
-                    required
-                  >
-                    <SelectTrigger id="country">
-                      <SelectValue placeholder="Select a country" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {countries.map((country) => (
-                        <SelectItem key={country} value={country}>
-                          {country}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <CountrySelector
+                  value={formData.country}
+                  onChange={handleCountryChange}
+                  label="Country"
+                  required
+                  placeholder="Select a country"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="notes">Order Notes (Optional)</Label>
@@ -605,10 +758,54 @@ export function CheckoutClient() {
           <div className="lg:sticky lg:top-24 space-y-6 animate-slide-in-left">
             <Card>
               <CardHeader className="bg-muted">
-                <CardTitle>Order Summary</CardTitle>
+                <CardTitle className="flex items-center justify-between">
+                  Order Summary
+                  <div className="flex items-center gap-2">
+                    {loadingSummary && (
+                      <div className="flex items-center gap-1 text-xs text-blue-600">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Calculating...
+                      </div>
+                    )}
+                    {formData.streetAddress &&
+                      formData.city &&
+                      formData.country &&
+                      !loadingSummary && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={fetchPaymentSummary}
+                          className="h-6 px-2 text-xs"
+                        >
+                          Refresh
+                        </Button>
+                      )}
+                  </div>
+                </CardTitle>
                 <CardDescription>
                   {cart.items.length}{" "}
                   {cart.items.length === 1 ? "item" : "items"} in your cart
+                  {paymentSummary && (
+                    <span className="block text-green-600 text-xs mt-1">
+                      ✓ Shipping & taxes calculated
+                    </span>
+                  )}
+                  {!paymentSummary &&
+                    formData.streetAddress &&
+                    formData.city &&
+                    formData.country &&
+                    !loadingSummary && (
+                      <span className="block text-orange-600 text-xs mt-1">
+                        ⚠️ Calculating shipping costs...
+                      </span>
+                    )}
+                  {!formData.streetAddress ||
+                  !formData.city ||
+                  !formData.country ? (
+                    <span className="block text-muted-foreground text-xs mt-1">
+                      📍 Enter address to calculate shipping
+                    </span>
+                  ) : null}
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6 space-y-4">
@@ -660,18 +857,152 @@ export function CheckoutClient() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Subtotal</span>
                     <span className="font-medium">
-                      {formatPrice(cart.subtotal)}
+                      {loadingSummary ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : paymentSummary ? (
+                        formatPrice(paymentSummary.subtotal)
+                      ) : (
+                        formatPrice(cart.subtotal)
+                      )}
                     </span>
                   </div>
+
+                  {paymentSummary && paymentSummary.discountAmount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Discount</span>
+                      <span className="font-medium text-green-600">
+                        -{formatPrice(paymentSummary.discountAmount)}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Shipping</span>
-                    <span className="font-medium text-success">Free</span>
+                    <span className="font-medium">
+                      {loadingSummary ? (
+                        <div className="flex items-center gap-1">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span className="text-xs">Calculating...</span>
+                        </div>
+                      ) : paymentSummary ? (
+                        paymentSummary.shippingCost === 0 ? (
+                          <span className="text-green-600">Free</span>
+                        ) : (
+                          formatPrice(paymentSummary.shippingCost)
+                        )
+                      ) : !formData.streetAddress ||
+                        !formData.city ||
+                        !formData.country ? (
+                        <span className="text-xs text-muted-foreground">
+                          Enter address
+                        </span>
+                      ) : (
+                        <span className="text-green-600">Free</span>
+                      )}
+                    </span>
                   </div>
+
+                  {/* Distance and shipping details */}
+                  {paymentSummary &&
+                    paymentSummary.distanceKm &&
+                    paymentSummary.distanceKm > 0 && (
+                      <div className="space-y-1 pl-4 border-l-2 border-muted">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground">
+                            Distance
+                          </span>
+                          <span className="font-medium">
+                            {paymentSummary.distanceKm.toFixed(1)} km
+                          </span>
+                        </div>
+                        {paymentSummary.costPerKm &&
+                          paymentSummary.costPerKm > 0 && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">
+                                Cost per km
+                              </span>
+                              <span className="font-medium">
+                                {formatPrice(paymentSummary.costPerKm)}/km
+                              </span>
+                            </div>
+                          )}
+                        {paymentSummary.selectedWarehouseName && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">
+                              From warehouse
+                            </span>
+                            <span className="font-medium">
+                              {paymentSummary.selectedWarehouseName}
+                              {paymentSummary.selectedWarehouseCountry &&
+                                ` (${paymentSummary.selectedWarehouseCountry})`}
+                            </span>
+                          </div>
+                        )}
+                        {paymentSummary.isInternationalShipping && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">
+                              Shipping type
+                            </span>
+                            <span className="font-medium text-orange-600">
+                              International
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                  {paymentSummary && paymentSummary.taxAmount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Tax</span>
+                      <span className="font-medium">
+                        {formatPrice(paymentSummary.taxAmount)}
+                      </span>
+                    </div>
+                  )}
+
+                  {paymentSummary && paymentSummary.rewardPoints > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        Reward Points
+                      </span>
+                      <span className="font-medium text-blue-600">
+                        +{paymentSummary.rewardPoints} pts
+                      </span>
+                    </div>
+                  )}
+
                   <Separator className="my-2" />
+
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
-                    <span>{formatPrice(cart.subtotal)}</span>
+                    <span>
+                      {loadingSummary ? (
+                        <div className="flex items-center gap-1">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span className="text-sm">Calculating...</span>
+                        </div>
+                      ) : paymentSummary ? (
+                        formatPrice(paymentSummary.totalAmount)
+                      ) : !formData.streetAddress ||
+                        !formData.city ||
+                        !formData.country ? (
+                        <span className="text-sm text-muted-foreground">
+                          Enter address
+                        </span>
+                      ) : (
+                        formatPrice(cart.subtotal)
+                      )}
+                    </span>
                   </div>
+
+                  {paymentSummary && (
+                    <div className="mt-2 p-2 bg-blue-50 rounded-md">
+                      <p className="text-xs text-blue-700">
+                        💡 Shipping calculated based on your address and item
+                        weight
+                      </p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
               <CardFooter className="bg-muted/30 px-6 py-4 flex flex-col gap-4">
@@ -679,12 +1010,36 @@ export function CheckoutClient() {
                   className="w-full"
                   size="lg"
                   onClick={handleSubmit}
-                  disabled={submitting}
+                  disabled={
+                    submitting ||
+                    loadingSummary ||
+                    (!paymentSummary &&
+                      formData.streetAddress &&
+                      formData.city &&
+                      formData.country)
+                  }
                 >
                   {submitting ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       Redirecting to Payment...
+                    </>
+                  ) : loadingSummary ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Calculating Total...
+                    </>
+                  ) : !formData.streetAddress ||
+                    !formData.city ||
+                    !formData.country ? (
+                    <>
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Enter Address to Continue
+                    </>
+                  ) : !paymentSummary ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Calculating...
                     </>
                   ) : (
                     <>

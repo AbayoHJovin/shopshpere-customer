@@ -56,11 +56,13 @@ const VariantSelectionModal = ({
     }
   }, [isOpen]);
 
-  // Get available variants
+  // Get available variants - show all active variants regardless of stock status
   const availableVariants =
-    product.variants?.filter(
-      (variant) => variant.isActive && variant.stockQuantity > 0
-    ) || [];
+    product.variants?.filter((variant) => variant.isActive) || [];
+
+  // Debug logging
+  console.log("Product variants:", product.variants);
+  console.log("Available variants:", availableVariants);
 
   // Handle variant selection
   const handleVariantSelect = (variant: ProductVariantDTO) => {
@@ -70,7 +72,12 @@ const VariantSelectionModal = ({
   // Handle quantity change
   const handleQuantityChange = (newQuantity: number) => {
     if (newQuantity < 1) return;
-    if (selectedVariant && newQuantity > selectedVariant.stockQuantity) return;
+    if (
+      selectedVariant &&
+      selectedVariant.stockQuantity > 0 &&
+      newQuantity > selectedVariant.stockQuantity
+    )
+      return;
     setQuantity(newQuantity);
   };
 
@@ -224,9 +231,17 @@ const VariantSelectionModal = ({
                               </div>
 
                               <div className="flex items-center gap-4 text-xs text-muted-foreground mb-2">
-                                <span className="flex items-center gap-1">
+                                <span
+                                  className={`flex items-center gap-1 ${
+                                    variant.stockQuantity > 0
+                                      ? "text-green-600"
+                                      : "text-red-600"
+                                  }`}
+                                >
                                   <Package className="h-3 w-3" />
-                                  {variant.stockQuantity} in stock
+                                  {variant.stockQuantity > 0
+                                    ? `${variant.stockQuantity} in stock`
+                                    : "Out of stock"}
                                 </span>
                               </div>
 
@@ -240,7 +255,7 @@ const VariantSelectionModal = ({
                                         variant="secondary"
                                         className="text-xs"
                                       >
-                                        {attr.attributeTypeName}:{" "}
+                                        {attr.attributeType}:{" "}
                                         {attr.attributeValue}
                                       </Badge>
                                     ))}
@@ -272,31 +287,49 @@ const VariantSelectionModal = ({
                     variant="outline"
                     size="icon"
                     onClick={() => handleQuantityChange(quantity - 1)}
-                    disabled={quantity <= 1}
+                    disabled={
+                      quantity <= 1 || selectedVariant.stockQuantity === 0
+                    }
                   >
                     <Minus className="h-4 w-4" />
                   </Button>
                   <Input
                     type="number"
                     min="1"
-                    max={selectedVariant.stockQuantity}
+                    max={
+                      selectedVariant.stockQuantity > 0
+                        ? selectedVariant.stockQuantity
+                        : undefined
+                    }
                     value={quantity}
                     onChange={(e) =>
                       handleQuantityChange(parseInt(e.target.value) || 1)
                     }
                     className="w-20 text-center"
+                    disabled={selectedVariant.stockQuantity === 0}
                   />
                   <Button
                     variant="outline"
                     size="icon"
                     onClick={() => handleQuantityChange(quantity + 1)}
-                    disabled={quantity >= selectedVariant.stockQuantity}
+                    disabled={
+                      quantity >= selectedVariant.stockQuantity ||
+                      selectedVariant.stockQuantity === 0
+                    }
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {selectedVariant.stockQuantity} available
+                <p
+                  className={`text-xs ${
+                    selectedVariant.stockQuantity > 0
+                      ? "text-muted-foreground"
+                      : "text-red-600"
+                  }`}
+                >
+                  {selectedVariant.stockQuantity > 0
+                    ? `${selectedVariant.stockQuantity} available`
+                    : "Out of stock"}
                 </p>
               </div>
             )}
@@ -342,13 +375,22 @@ const VariantSelectionModal = ({
             {/* Add to Cart Button */}
             <Button
               onClick={handleAddToCart}
-              disabled={!selectedVariant || isLoading}
+              disabled={
+                !selectedVariant ||
+                isLoading ||
+                selectedVariant.stockQuantity === 0
+              }
               className="w-full"
             >
               {isLoading ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                   Adding to Cart...
+                </>
+              ) : selectedVariant && selectedVariant.stockQuantity === 0 ? (
+                <>
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  Out of Stock
                 </>
               ) : (
                 <>

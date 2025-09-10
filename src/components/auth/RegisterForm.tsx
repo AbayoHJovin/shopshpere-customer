@@ -70,10 +70,7 @@ export default function RegisterForm() {
       errors.confirmPassword = "Passwords do not match";
     }
 
-    if (
-      formData.phoneNumber &&
-      !/^\+?[1-9]\d{1,14}$/.test(formData.phoneNumber)
-    ) {
+    if (formData.phoneNumber) {
       errors.phoneNumber = "Please enter a valid phone number";
     }
 

@@ -19,6 +19,7 @@ import {
   Play,
   Loader2,
   Heart,
+  AlertCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import ProductCard from "@/components/ProductCard";
@@ -580,15 +581,8 @@ export function ProductPageClient({ productId }: { productId: string }) {
                           selectedVariant?.variantId === variant.variantId
                             ? "border-primary bg-primary/5 ring-2 ring-primary/20"
                             : "hover:border-primary/50"
-                        } ${
-                          variant.stockQuantity === 0
-                            ? "opacity-50 cursor-not-allowed"
-                            : ""
-                        }`}
-                        onClick={() =>
-                          variant.stockQuantity > 0 &&
-                          setSelectedVariant(variant)
-                        }
+                        } ${variant.stockQuantity === 0 ? "opacity-50" : ""}`}
+                        onClick={() => setSelectedVariant(variant)}
                       >
                         <div className="text-sm font-medium">
                           {variant.variantSku}
@@ -596,14 +590,31 @@ export function ProductPageClient({ productId }: { productId: string }) {
                         <div className="text-xs text-muted-foreground">
                           ${(variant.price || 0).toFixed(2)}
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          Stock: {variant.stockQuantity || 0}
+                        <div
+                          className={`text-xs ${
+                            variant.stockQuantity > 0
+                              ? "text-green-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {variant.stockQuantity > 0
+                            ? `Stock: ${variant.stockQuantity}`
+                            : "Out of Stock"}
                         </div>
-                        {variant.stockQuantity === 0 && (
-                          <div className="text-xs text-red-500 mt-1">
-                            Out of Stock
-                          </div>
-                        )}
+                        {/* Show variant attributes */}
+                        {variant.attributes &&
+                          variant.attributes.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {variant.attributes.map((attr, index) => (
+                                <span
+                                  key={index}
+                                  className="text-xs bg-gray-100 px-1 py-0.5 rounded"
+                                >
+                                  {attr.attributeType}: {attr.attributeValue}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                       </div>
                     ))}
                   </div>
@@ -713,7 +724,8 @@ export function ProductPageClient({ productId }: { productId: string }) {
                 disabled={
                   (displayStock || 0) === 0 ||
                   isCartLoading ||
-                  (ProductService.hasVariants(product) && !selectedVariant)
+                  (ProductService.hasVariants(product) && !selectedVariant) ||
+                  (selectedVariant && selectedVariant.stockQuantity === 0)
                 }
               >
                 {isCartLoading ? (
@@ -725,6 +737,11 @@ export function ProductPageClient({ productId }: { productId: string }) {
                   <>
                     <Check className="h-5 w-5 mr-2" />
                     Added to Cart
+                  </>
+                ) : selectedVariant && selectedVariant.stockQuantity === 0 ? (
+                  <>
+                    <AlertCircle className="h-5 w-5 mr-2" />
+                    Out of Stock
                   </>
                 ) : ProductService.hasVariants(product) && !selectedVariant ? (
                   <>
