@@ -22,17 +22,17 @@ class AuthService {
 
   private getToken(): string | null {
     if (typeof window === "undefined") return null;
-    return localStorage.getItem("auth_token");
+    return localStorage.getItem("authToken");
   }
 
   private setToken(token: string): void {
     if (typeof window === "undefined") return;
-    localStorage.setItem("auth_token", token);
+    localStorage.setItem("authToken", token);
   }
 
   private removeToken(): void {
     if (typeof window === "undefined") return;
-    localStorage.removeItem("auth_token");
+    localStorage.removeItem("authToken");
   }
 
   async register(
@@ -52,12 +52,12 @@ class AuthService {
       if (!response.ok) {
         return {
           success: false,
-          error: data.message || "Registration failed",
+          error: data.message || data.error || "Registration failed",
         };
       }
 
-      if (data.token) {
-        this.setToken(data.token);
+      if (data.data && data.data.token) {
+        this.setToken(data.data.token);
       }
 
       return {
@@ -66,9 +66,11 @@ class AuthService {
         message: data.message || "Registration successful",
       };
     } catch (error) {
+      console.error("Registration error:", error);
       return {
         success: false,
-        error: "Network error occurred",
+        error:
+          "Network error occurred. Please check your connection and try again.",
       };
     }
   }
@@ -88,12 +90,12 @@ class AuthService {
       if (!response.ok) {
         return {
           success: false,
-          error: data.message || "Login failed",
+          error: data.message || data.error || "Login failed",
         };
       }
 
-      if (data.token) {
-        this.setToken(data.token);
+      if (data.data && data.data.token) {
+        this.setToken(data.data.token);
       }
 
       return {
@@ -102,9 +104,11 @@ class AuthService {
         message: data.message || "Login successful",
       };
     } catch (error) {
+      console.error("Login error:", error);
       return {
         success: false,
-        error: "Network error occurred",
+        error:
+          "Network error occurred. Please check your connection and try again.",
       };
     }
   }

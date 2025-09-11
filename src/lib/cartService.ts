@@ -82,7 +82,7 @@ import { API_ENDPOINTS } from "./api";
  */
 const getAuthToken = (): string | null => {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("auth_token");
+  return localStorage.getItem("authToken");
 };
 
 export interface MessageResponse {
@@ -101,9 +101,7 @@ export const CartService = {
     const token = getAuthToken();
 
     if (!token) {
-      console.warn(
-        "No authentication token found, using backend with localStorage data"
-      );
+      // No token = guest user, use localStorage
       return getCartFromBackend();
     }
 
@@ -120,8 +118,10 @@ export const CartService = {
 
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
-          console.warn("Authentication failed, using localStorage fallback");
-          return await getCartFromBackend();
+          // Token expired or invalid - clear it and treat as guest
+          localStorage.removeItem("authToken");
+          console.warn("Authentication token expired, treating as guest user");
+          return getCartFromBackend();
         }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -155,7 +155,17 @@ export const CartService = {
       };
     } catch (error) {
       console.error("Error fetching cart:", error);
-      return getCartFromBackend();
+      // For authenticated users, don't fallback to localStorage on network errors
+      // Return empty cart instead
+      return {
+        cartId: "error-cart",
+        userId: "error-user",
+        items: [],
+        totalItems: 0,
+        subtotal: 0,
+        totalPages: 1,
+        currentPage: 0,
+      };
     }
   },
 
@@ -164,11 +174,7 @@ export const CartService = {
    */
   addItemToCart: async (request: CartItemRequest): Promise<CartResponse> => {
     const token = getAuthToken();
-
     if (!token) {
-      console.warn(
-        "No authentication token found, using localStorage fallback"
-      );
       addToLocalStorageCart(
         request.productId || request.variantId || "",
         request.variantId,
@@ -189,7 +195,8 @@ export const CartService = {
 
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
-          console.warn("Authentication failed, using localStorage fallback");
+          localStorage.removeItem("authToken");
+          console.warn("Authentication token expired, treating as guest user");
           addToLocalStorageCart(
             request.productId || request.variantId || "",
             request.variantId,
@@ -205,18 +212,20 @@ export const CartService = {
 
       const data = await response.json();
 
-      // Trigger cart update event
       window.dispatchEvent(new CustomEvent("cartUpdated"));
 
       return data.data;
     } catch (error) {
       console.error("Error adding item to cart:", error);
-      addToLocalStorageCart(
-        request.productId || request.variantId || "",
-        request.variantId,
-        request.quantity
-      );
-      return await getCartFromBackend();
+      return {
+        cartId: "error-cart",
+        userId: "error-user",
+        items: [],
+        totalItems: 0,
+        subtotal: 0,
+        totalPages: 1,
+        currentPage: 0,
+      };
     }
   },
 
@@ -230,9 +239,7 @@ export const CartService = {
     const token = getAuthToken();
 
     if (!token) {
-      console.warn(
-        "No authentication token found, using localStorage fallback"
-      );
+      // No token = guest user, use localStorage
       return await updateLocalStorageCartItem(itemId, request.quantity);
     }
 
@@ -251,7 +258,9 @@ export const CartService = {
 
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
-          console.warn("Authentication failed, using localStorage fallback");
+          // Token expired or invalid - clear it and treat as guest
+          localStorage.removeItem("authToken");
+          console.warn("Authentication token expired, treating as guest user");
           return updateLocalStorageCartItem(itemId, request.quantity);
         }
         const errorData = await response.json();
@@ -269,7 +278,17 @@ export const CartService = {
       return await CartService.getCart();
     } catch (error) {
       console.error("Error updating cart item:", error);
-      return await updateLocalStorageCartItem(itemId, request.quantity);
+      // For authenticated users, don't fallback to localStorage on network errors
+      // Return empty cart instead
+      return {
+        cartId: "error-cart",
+        userId: "error-user",
+        items: [],
+        totalItems: 0,
+        subtotal: 0,
+        totalPages: 1,
+        currentPage: 0,
+      };
     }
   },
 
@@ -280,9 +299,7 @@ export const CartService = {
     const token = getAuthToken();
 
     if (!token) {
-      console.warn(
-        "No authentication token found, using localStorage fallback"
-      );
+      // No token = guest user, use localStorage
       return await removeFromLocalStorageCart(itemId);
     }
 
@@ -296,7 +313,9 @@ export const CartService = {
 
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
-          console.warn("Authentication failed, using localStorage fallback");
+          // Token expired or invalid - clear it and treat as guest
+          localStorage.removeItem("authToken");
+          console.warn("Authentication token expired, treating as guest user");
           return removeFromLocalStorageCart(itemId);
         }
         const errorData = await response.json();
@@ -314,7 +333,17 @@ export const CartService = {
       return await CartService.getCart();
     } catch (error) {
       console.error("Error removing item from cart:", error);
-      return await removeFromLocalStorageCart(itemId);
+      // For authenticated users, don't fallback to localStorage on network errors
+      // Return empty cart instead
+      return {
+        cartId: "error-cart",
+        userId: "error-user",
+        items: [],
+        totalItems: 0,
+        subtotal: 0,
+        totalPages: 1,
+        currentPage: 0,
+      };
     }
   },
 
@@ -325,9 +354,7 @@ export const CartService = {
     const token = getAuthToken();
 
     if (!token) {
-      console.warn(
-        "No authentication token found, using localStorage fallback"
-      );
+      // No token = guest user, use localStorage
       localStorage.setItem("cart", JSON.stringify([]));
       return {
         message: "Cart cleared successfully (local only)",
@@ -345,7 +372,9 @@ export const CartService = {
 
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
-          console.warn("Authentication failed, using localStorage fallback");
+          // Token expired or invalid - clear it and treat as guest
+          localStorage.removeItem("authToken");
+          console.warn("Authentication token expired, treating as guest user");
           localStorage.setItem("cart", JSON.stringify([]));
           return {
             message: "Cart cleared successfully (local only)",
@@ -366,10 +395,11 @@ export const CartService = {
       return data;
     } catch (error) {
       console.error("Error clearing cart:", error);
-      localStorage.setItem("cart", JSON.stringify([]));
+      // For authenticated users, don't fallback to localStorage on network errors
+      // Return error response instead
       return {
-        message: "Cart cleared successfully (local only)",
-        success: true,
+        message: "Failed to clear cart. Please try again.",
+        success: false,
       };
     }
   },
@@ -381,9 +411,7 @@ export const CartService = {
     const token = getAuthToken();
 
     if (!token) {
-      console.warn(
-        "No authentication token found, using localStorage fallback"
-      );
+      // No token = guest user, use localStorage
       const cartItems = localStorage.getItem("cart");
       if (!cartItems) return 0;
       return JSON.parse(cartItems).length;
@@ -398,7 +426,9 @@ export const CartService = {
 
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
-          console.warn("Authentication failed, using localStorage fallback");
+          // Token expired or invalid - clear it and treat as guest
+          localStorage.removeItem("authToken");
+          console.warn("Authentication token expired, treating as guest user");
           const cartItems = localStorage.getItem("cart");
           if (!cartItems) return 0;
           return JSON.parse(cartItems).length;
@@ -410,9 +440,9 @@ export const CartService = {
       return data.data.hasItems ? 1 : 0;
     } catch (error) {
       console.error("Error getting cart item count:", error);
-      const cartItems = localStorage.getItem("cart");
-      if (!cartItems) return 0;
-      return JSON.parse(cartItems).length;
+      // For authenticated users, don't fallback to localStorage on network errors
+      // Return 0 instead
+      return 0;
     }
   },
 
@@ -440,7 +470,62 @@ export const CartService = {
       );
     } catch (error) {
       console.error("Error checking if item is in cart:", error);
+      // For authenticated users, don't fallback to localStorage on network errors
+      // Return false instead
       return false;
+    }
+  },
+
+  /**
+   * Migrate localStorage cart to database when user logs in
+   * This should be called after successful authentication
+   */
+  migrateCartToDatabase: async (): Promise<void> => {
+    const token = getAuthToken();
+    if (!token) {
+      console.warn("No authentication token found for cart migration");
+      return;
+    }
+
+    try {
+      const cartItems = localStorage.getItem("cart");
+      if (!cartItems) {
+        console.log("No localStorage cart items to migrate");
+        return;
+      }
+
+      const localCart = JSON.parse(cartItems) as LocalStorageCartItem[];
+      if (localCart.length === 0) {
+        console.log("Empty localStorage cart, nothing to migrate");
+        return;
+      }
+
+      console.log(
+        `Migrating ${localCart.length} items from localStorage to database`
+      );
+
+      // Add each localStorage item to the database cart
+      for (const item of localCart) {
+        try {
+          await CartService.addItemToCart({
+            productId: item.productId,
+            variantId: item.variantId,
+            quantity: item.quantity,
+          });
+        } catch (error) {
+          console.warn(
+            `Failed to migrate item ${item.productId} to database:`,
+            error
+          );
+          // Continue with other items even if one fails
+        }
+      }
+
+      // Clear localStorage cart after successful migration
+      localStorage.removeItem("cart");
+      console.log("Cart migration completed, localStorage cart cleared");
+    } catch (error) {
+      console.error("Error migrating cart to database:", error);
     }
   },
 };

@@ -53,6 +53,7 @@ import {
   PaymentSummaryDTO,
 } from "@/lib/services/checkout-service";
 import { useAppSelector } from "@/lib/store/hooks";
+import { API_ENDPOINTS } from "@/lib/api";
 
 // Constants
 const PAYMENT_METHODS = [
@@ -372,6 +373,12 @@ export function CheckoutClient() {
 
       let sessionUrl: string;
 
+      // Debug authentication state
+      console.log("Authentication state:", {
+        isAuthenticated,
+        user: user ? { id: user.id, email: user.email } : null,
+      });
+
       if (isAuthenticated && user) {
         // Authenticated user checkout
         const checkoutRequest: CheckoutRequest = {
@@ -382,7 +389,11 @@ export function CheckoutClient() {
           platform: "web",
         };
 
-        console.log("Sending checkout request:", checkoutRequest); // Debug log
+        console.log(
+          "Using AUTHENTICATED checkout - sending to:",
+          API_ENDPOINTS.CHECKOUT_CREATE_SESSION
+        );
+        console.log("Sending checkout request:", checkoutRequest);
         const response = await OrderService.createCheckoutSession(
           checkoutRequest
         );
@@ -399,7 +410,11 @@ export function CheckoutClient() {
           platform: "web",
         };
 
-        console.log("Sending guest checkout request:", guestCheckoutRequest); // Debug log
+        console.log(
+          "Using GUEST checkout - sending to:",
+          API_ENDPOINTS.CHECKOUT_GUEST_CREATE_SESSION
+        );
+        console.log("Sending guest checkout request:", guestCheckoutRequest);
         const response = await OrderService.createGuestCheckoutSession(
           guestCheckoutRequest
         );

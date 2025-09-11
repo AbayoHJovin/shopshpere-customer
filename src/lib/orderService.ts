@@ -30,7 +30,7 @@ export interface CheckoutRequest {
   shippingAddress: AddressDto;
   currency?: string;
   userId?: string;
-  platform:string
+  platform: string;
 }
 
 export interface GuestCheckoutRequest {
@@ -40,7 +40,7 @@ export interface GuestCheckoutRequest {
   guestPhone?: string;
   address: AddressDto;
   items: CartItemDTO[];
-  platform:string;
+  platform: string;
 }
 
 export interface CartItemDTO {
@@ -110,7 +110,7 @@ export const OrderService = {
     request: CheckoutRequest
   ): Promise<{ sessionUrl: string }> => {
     try {
-      const token = localStorage.getItem("auth_token");
+      const token = localStorage.getItem("authToken");
       const response = await fetch(`${API_ENDPOINTS.CHECKOUT_CREATE_SESSION}`, {
         method: "POST",
         headers: {
@@ -203,7 +203,7 @@ export const OrderService = {
    */
   createOrder: async (request: CreateOrderRequest): Promise<OrderResponse> => {
     try {
-      const token = localStorage.getItem("auth_token");
+      const token = localStorage.getItem("authToken");
       const response = await fetch(`${API_ENDPOINTS.ORDERS}`, {
         method: "POST",
         headers: {

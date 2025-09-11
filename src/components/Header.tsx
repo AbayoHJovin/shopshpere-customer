@@ -73,9 +73,16 @@ const Header = () => {
 
   const getUserInitials = () => {
     if (!user) return "U";
-    return `${user.firstName.charAt(0)}${user.lastName.charAt(
-      0
-    )}`.toUpperCase();
+
+    const firstName = user.firstName || user.userName || "";
+    const lastName = user.lastName || "";
+
+    if (!firstName && !lastName) return "U";
+
+    const firstInitial = firstName.charAt(0) || "";
+    const lastInitial = lastName.charAt(0) || "";
+
+    return `${firstInitial}${lastInitial}`.toUpperCase() || "U";
   };
 
   useEffect(() => {

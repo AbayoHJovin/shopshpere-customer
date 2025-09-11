@@ -76,7 +76,7 @@ export const API_ENDPOINTS = {
 // HTTP Headers
 export const getAuthHeaders = () => {
   const token =
-    typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+    typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
   return {
     "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),

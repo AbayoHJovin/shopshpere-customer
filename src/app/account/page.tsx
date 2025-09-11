@@ -30,9 +30,16 @@ export default function AccountPage() {
 
   const getUserInitials = () => {
     if (!user) return "U";
-    return `${user.firstName.charAt(0)}${user.lastName.charAt(
-      0
-    )}`.toUpperCase();
+
+    const firstName = user.firstName || user.userName || "";
+    const lastName = user.lastName || "";
+
+    if (!firstName && !lastName) return "U";
+
+    const firstInitial = firstName.charAt(0) || "";
+    const lastInitial = lastName.charAt(0) || "";
+
+    return `${firstInitial}${lastInitial}`.toUpperCase() || "U";
   };
 
   const formatDate = (dateString: string) => {
@@ -63,7 +70,8 @@ export default function AccountPage() {
                     </Avatar>
                   </div>
                   <CardTitle className="text-xl">
-                    {user?.firstName} {user?.lastName}
+                    {user?.firstName || user?.userName || "User"}{" "}
+                    {user?.lastName || ""}
                   </CardTitle>
                   <CardDescription>{user?.email}</CardDescription>
                   <Badge

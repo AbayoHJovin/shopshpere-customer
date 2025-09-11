@@ -37,7 +37,7 @@ class WishlistServices {
     process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 
   private async getAuthHeaders(): Promise<HeadersInit> {
-    const token = localStorage.getItem("auth_token");
+    const token = localStorage.getItem("authToken");
     return {
       "Content-Type": "application/json",
       ...(token && { Authorization: `Bearer ${token}` }),

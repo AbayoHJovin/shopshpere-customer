@@ -70,8 +70,11 @@ export default function RegisterForm() {
       errors.confirmPassword = "Passwords do not match";
     }
 
-    if (formData.phoneNumber) {
-      errors.phoneNumber = "Please enter a valid phone number";
+    if (formData.phoneNumber && formData.phoneNumber.trim()) {
+      const phoneRegex = /^[\+]?[0-9\s\-\(\)]{7,20}$/;
+      if (!phoneRegex.test(formData.phoneNumber)) {
+        errors.phoneNumber = "Please enter a valid phone number";
+      }
     }
 
     setValidationErrors(errors);

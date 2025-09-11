@@ -13,11 +13,9 @@ import { authService } from "@/lib/services/authService";
 const initialState: AuthState = {
   user: null,
   token:
-    typeof window !== "undefined" ? localStorage.getItem("auth_token") : null,
+    typeof window !== "undefined" ? localStorage.getItem("authToken") : null,
   isAuthenticated:
-    typeof window !== "undefined"
-      ? !!localStorage.getItem("auth_token")
-      : false,
+    typeof window !== "undefined" ? !!localStorage.getItem("authToken") : false,
   isLoading: false,
   error: null,
 };
@@ -148,7 +146,7 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
       state.error = null;
       if (typeof window !== "undefined") {
-        localStorage.removeItem("auth_token");
+        localStorage.removeItem("authToken");
       }
     },
   },
