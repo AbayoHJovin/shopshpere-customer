@@ -80,13 +80,79 @@ export interface CheckoutVerificationResult {
 
 export interface OrderResponse {
   id: string;
+  userId: string;
   orderNumber: string;
+  pickupToken: string;
   status: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  totalAmount: number;
+  items: any[] | null;
+  subtotal: number;
+  tax: number;
+  shipping: number;
+  discount: number;
+  total: number;
+  shippingAddress: any | null;
+  billingAddress: any | null;
+  paymentMethod: string | null;
+  paymentStatus: string | null;
+  notes: string | null;
   createdAt: string;
+  updatedAt: string;
+  estimatedDelivery: string | null;
+  trackingNumber: string | null;
+}
+
+export interface OrderItemResponse {
+  id: string;
+  productId: string;
+  variantId?: string;
+  product?: {
+    productId: string;
+    name: string;
+    description?: string;
+    price?: number;
+    images: string[];
+  };
+  variant?: {
+    variantId: string;
+    name: string;
+    price: number;
+    images: string[];
+  };
+  quantity: number;
+  price: number;
+  totalPrice: number;
+}
+
+export interface OrderAddressResponse {
+  id: string;
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+}
+
+export interface OrderDetailsResponse {
+  id: string;
+  userId: string;
+  orderNumber: string;
+  pickupToken: string;
+  status: string;
+  items: OrderItemResponse[] | null;
+  subtotal: number;
+  tax: number;
+  shipping: number;
+  discount: number;
+  total: number;
+  shippingAddress: OrderAddressResponse | null;
+  billingAddress: OrderAddressResponse | null;
+  paymentMethod: string | null;
+  paymentStatus: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  estimatedDelivery: string | null;
+  trackingNumber: string | null;
 }
 
 export interface ErrorResponse {
@@ -222,6 +288,120 @@ export const OrderService = {
       return data.data;
     } catch (error) {
       console.error("Error creating order:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get all orders for the authenticated user
+   */
+  getUserOrders: async (): Promise<OrderResponse[]> => {
+    try {
+      const token = localStorage.getItem("authToken");
+      const response = await fetch(`${API_ENDPOINTS.ORDERS}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Error fetching orders");
+      }
+
+      const data = await response.json();
+      return data.data || [];
+    } catch (error) {
+      console.error("Error fetching user orders:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get order details by order ID for the authenticated user
+   */
+  getOrderDetails: async (orderId: string): Promise<OrderDetailsResponse> => {
+    try {
+      const token = localStorage.getItem("authToken");
+      const response = await fetch(`${API_ENDPOINTS.ORDERS}/${orderId}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Error fetching order details");
+      }
+
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error("Error fetching order details:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Track order by order number (public endpoint)
+   */
+  trackOrderByNumber: async (
+    orderNumber: string
+  ): Promise<OrderDetailsResponse> => {
+    try {
+      const response = await fetch(
+        `${API_ENDPOINTS.ORDERS}/track/${orderNumber}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Error tracking order");
+      }
+
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error("Error tracking order by number:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Track order by pickup token (public endpoint)
+   */
+  trackOrderByToken: async (
+    pickupToken: string
+  ): Promise<OrderDetailsResponse> => {
+    try {
+      const response = await fetch(
+        `${API_ENDPOINTS.ORDERS}/track/token/${pickupToken}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Error tracking order");
+      }
+
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error("Error tracking order by token:", error);
       throw error;
     }
   },
