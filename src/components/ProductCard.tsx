@@ -23,6 +23,13 @@ interface ProductCardProps {
   isNew?: boolean;
   isBestseller?: boolean;
   discountedPrice?: number;
+  category?: string;
+  brand?: string;
+  hasActiveDiscount?: boolean;
+  discountName?: string;
+  discountEndDate?: string;
+  shortDescription?: string;
+  isFeatured?: boolean;
 }
 
 const ProductCard = ({
@@ -37,6 +44,13 @@ const ProductCard = ({
   isNew,
   isBestseller,
   discountedPrice,
+  category,
+  brand,
+  hasActiveDiscount,
+  discountName,
+  discountEndDate,
+  shortDescription,
+  isFeatured,
 }: ProductCardProps) => {
   const [isInCart, setIsInCart] = useState(false);
   const [isInWishlist, setIsInWishlist] = useState(false);
@@ -255,19 +269,30 @@ const ProductCard = ({
 
             {/* Badges */}
             <div className="absolute top-2 left-2 flex flex-col gap-1">
-              {discount && (
+              {hasActiveDiscount && discount && (
                 <Badge variant="destructive" className="text-xs">
-                  -{discount}%
+                  -{discount}% OFF
+                </Badge>
+              )}
+              {discountName && hasActiveDiscount && (
+                <Badge
+                  variant="secondary"
+                  className="text-xs bg-orange-100 text-orange-800"
+                >
+                  {discountName}
                 </Badge>
               )}
               {isNew && (
-                <Badge className="bg-success text-success-foreground text-xs">
-                  New
-                </Badge>
+                <Badge className="bg-green-500 text-white text-xs">New</Badge>
               )}
               {isBestseller && (
-                <Badge className="bg-accent text-accent-foreground text-xs">
+                <Badge className="bg-blue-500 text-white text-xs">
                   Bestseller
+                </Badge>
+              )}
+              {isFeatured && (
+                <Badge className="bg-purple-500 text-white text-xs">
+                  Featured
                 </Badge>
               )}
             </div>
@@ -343,6 +368,27 @@ const ProductCard = ({
             </h3>
           </Link>
 
+          {/* Short Description */}
+          {shortDescription && (
+            <p className="text-xs text-muted-foreground mb-2 line-clamp-2 overflow-hidden text-ellipsis">
+              {shortDescription}
+            </p>
+          )}
+
+          {/* Category and Brand */}
+          <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
+            {category && (
+              <span className="bg-gray-100 px-2 py-1 rounded-full">
+                {category}
+              </span>
+            )}
+            {brand && (
+              <span className="bg-blue-100 px-2 py-1 rounded-full text-blue-700">
+                {brand}
+              </span>
+            )}
+          </div>
+
           {/* Rating */}
           <div className="flex items-center gap-1 mb-2">
             <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
@@ -356,12 +402,29 @@ const ProductCard = ({
             <span className="font-bold text-lg">
               ${discountedPrice ? discountedPrice.toFixed(2) : price.toFixed(2)}
             </span>
-            {originalPrice && originalPrice > price && (
+            {(originalPrice && originalPrice > price) ||
+            (discountedPrice && discountedPrice < price) ? (
               <span className="text-sm text-muted-foreground line-through">
-                ${originalPrice.toFixed(2)}
+                ${originalPrice ? originalPrice.toFixed(2) : price.toFixed(2)}
+              </span>
+            ) : null}
+            {hasActiveDiscount && discount && (
+              <span className="text-xs text-green-600 font-medium">
+                Save $
+                {(
+                  (originalPrice || price) - (discountedPrice || price)
+                ).toFixed(2)}
               </span>
             )}
           </div>
+
+          {/* Discount End Date */}
+          {discountEndDate && hasActiveDiscount && (
+            <div className="mt-2 text-xs text-orange-600">
+              <span className="font-medium">Offer ends: </span>
+              {new Date(discountEndDate).toLocaleDateString()}
+            </div>
+          )}
         </div>
       </CardContent>
 

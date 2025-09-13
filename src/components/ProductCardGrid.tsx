@@ -118,7 +118,15 @@ const ProductCardGrid = ({
         )}
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div
+        className={`grid gap-4 ${
+          maxItems <= 4
+            ? "grid-cols-2 lg:grid-cols-4"
+            : maxItems <= 6
+            ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-6"
+            : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8"
+        }`}
+      >
         {displayedProducts.map((product) => (
           <div key={product.id} className="group relative">
             <Link href={`/product/${product.id}`}>

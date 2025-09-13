@@ -123,10 +123,13 @@ export interface PrimaryImageDto {
 // Backend Discount Info DTO
 export interface DiscountInfoDto {
   discountId: string;
-  discountType: string;
-  discountValue: number;
-  validFrom: string;
-  validTo: string;
+  name: string;
+  percentage: number;
+  startDate: string;
+  endDate: string;
+  active: boolean;
+  isValid: boolean;
+  discountCode: string;
 }
 
 // For product grid display - updated to match backend response
@@ -136,15 +139,18 @@ export interface ManyProductsDto {
   shortDescription?: string;
   price: number;
   compareAtPrice?: number;
+  discountedPrice?: number;
   stockQuantity: number;
   category: CategoryDto;
   brand: BrandDto;
   isBestSeller: boolean;
+  isNew: boolean;
   isFeatured: boolean;
   discountInfo?: DiscountInfoDto;
   primaryImage?: PrimaryImageDto;
   averageRating?: number;
   reviewCount?: number;
+  hasActiveDiscount: boolean;
 }
 
 export interface ProductSearchDTO {
@@ -407,26 +413,41 @@ export const ProductService = {
    * Convert ManyProductsDto to format expected by ProductCard component
    */
   convertToProductCardFormat: (product: ManyProductsDto) => {
-    const discountPercentage = product.discountInfo
-      ? Math.round(
-          (((product.compareAtPrice || product.price) - product.price) /
-            (product.compareAtPrice || product.price)) *
-            100
-        )
+    const discountPercentage = product.discountInfo?.percentage
+      ? Math.round(Number(product.discountInfo.percentage))
       : 0;
+
+    // Calculate discounted price if discount exists
+    const discountedPrice =
+      product.discountInfo && product.discountInfo.percentage
+        ? product.price * (1 - Number(product.discountInfo.percentage) / 100)
+        : product.discountedPrice || undefined;
+
+    // Determine if product has active discount
+    const hasActiveDiscount =
+      product.discountInfo &&
+      product.discountInfo.active &&
+      product.discountInfo.percentage > 0;
 
     return {
       id: product.productId,
       name: product.productName,
       price: product.price,
       originalPrice: product.compareAtPrice || undefined,
-      rating: product.averageRating || 0, // Use actual rating from backend
-      reviewCount: product.reviewCount || 0, // Use actual review count from backend
+      rating: product.averageRating || 0,
+      reviewCount: product.reviewCount || 0,
       image: product.primaryImage?.imageUrl || "/placeholder-product.jpg",
       discount: discountPercentage > 0 ? discountPercentage : undefined,
-      isNew: false, // Could be calculated based on creation date
-      isBestseller: product.isBestSeller,
-      discountedPrice: product.price,
+      isNew: product.isNew === true,
+      isBestseller: product.isBestSeller === true,
+      discountedPrice: discountedPrice,
+      category: product.category?.name || undefined,
+      brand: product.brand?.brandName || undefined,
+      hasActiveDiscount: hasActiveDiscount,
+      discountName: product.discountInfo?.name || undefined,
+      discountEndDate: product.discountInfo?.endDate || undefined,
+      shortDescription: product.shortDescription || undefined,
+      isFeatured: product.isFeatured === true,
     };
   },
 

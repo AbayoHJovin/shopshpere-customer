@@ -24,6 +24,8 @@ import {
   Heart,
   LogOut,
   AlertCircle,
+  Gift,
+  Truck,
 } from "lucide-react";
 import Link from "next/link";
 import { authService } from "@/lib/services/authService";
@@ -386,6 +388,64 @@ export default function AccountPage() {
                     >
                       Sign Out
                     </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Gift className="h-5 w-5" />
+                    Reward System
+                  </CardTitle>
+                  <CardDescription>
+                    Learn about our reward system and earn points
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <Link href="/reward-system">
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                      >
+                        How Rewards Work
+                      </Button>
+                    </Link>
+                    <div className="text-sm text-muted-foreground">
+                      <p>• Earn 1 point per $1 spent</p>
+                      <p>• Redeem 100 points = $1 discount</p>
+                      <p>• Unlock tier benefits</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Truck className="h-5 w-5" />
+                    Shipping Info
+                  </CardTitle>
+                  <CardDescription>
+                    Understand shipping costs and delivery options
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <Link href="/shipping-info">
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                      >
+                        Shipping Calculator
+                      </Button>
+                    </Link>
+                    <div className="text-sm text-muted-foreground">
+                      <p>• Free shipping on orders over $50</p>
+                      <p>• Standard: $2.99 (3-5 days)</p>
+                      <p>• Express: $6.99 (1-2 days)</p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

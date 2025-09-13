@@ -23,6 +23,7 @@ import {
 import { landingPageService, LandingPageData } from "@/lib/landingPageService";
 import { FilterService } from "@/lib/filterService";
 import CountdownTimer from "@/components/CountdownTimer";
+import ActiveDiscounts from "@/components/ActiveDiscounts";
 
 export default function Home() {
   const [landingData, setLandingData] = useState<LandingPageData | null>(null);
@@ -149,7 +150,7 @@ export default function Home() {
       <CategoryNav />
 
       {/* Hero Carousel */}
-      <HeroCarousel />
+      <HeroCarousel landingData={landingData} />
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8 space-y-8">
@@ -170,13 +171,13 @@ export default function Home() {
           />
         </div>
 
-        {/* Second Row - Discounted Products */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Second Row - Discounted Products (Full Width) */}
+        <div className="w-full">
           <ProductCardGrid
             products={landingData.discountedProducts}
             title="Discounted products"
             onSeeMore={() => handleSeeMore("discounted")}
-            maxItems={4}
+            maxItems={8}
           />
         </div>
 
@@ -265,7 +266,7 @@ export default function Home() {
               </Button>
             </div>
 
-            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
               {landingData.popularBrands.slice(0, 6).map((brand) => {
                 const colors = [
                   "#FF6B6B",
@@ -287,7 +288,7 @@ export default function Home() {
                     href={`/shop?brands=${encodeURIComponent(brand.name)}`}
                     className="group"
                   >
-                    <div className="relative bg-gray-100 rounded-lg overflow-hidden aspect-square mb-2">
+                    <div className="relative bg-gray-100 rounded-lg overflow-hidden aspect-[4/3] mb-3">
                       {brand.image && isValidUrl(brand.image) ? (
                         <img
                           src={brand.image}
@@ -296,16 +297,20 @@ export default function Home() {
                         />
                       ) : (
                         <div
-                          className="w-full h-full group-hover:scale-105 transition-transform duration-200"
+                          className="w-full h-full group-hover:scale-105 transition-transform duration-200 flex items-center justify-center"
                           style={{ backgroundColor }}
-                        />
+                        >
+                          <span className="text-white font-bold text-2xl">
+                            {brand.name.charAt(0)}
+                          </span>
+                        </div>
                       )}
                       <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-200" />
-                      <div className="absolute bottom-2 left-2 right-2">
-                        <h3 className="text-white font-medium text-sm truncate">
+                      <div className="absolute bottom-3 left-3 right-3">
+                        <h3 className="text-white font-semibold text-lg truncate">
                           {brand.name}
                         </h3>
-                        <p className="text-white/80 text-xs">
+                        <p className="text-white/80 text-sm">
                           {brand.productCount} products
                         </p>
                       </div>
@@ -317,88 +322,82 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Fourth Row - Active Discounts and Shop by Category */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Fourth Row - Active Discounts, Reward System, and Shop by Category */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Active Discounts */}
+          <ActiveDiscounts />
+
+          {/* Reward System */}
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold text-gray-900">
-                Active discounts
+                Reward System
               </h2>
-              <Button
-                variant="link"
-                onClick={() => handleSeeMore("discounted")}
-                className="text-blue-600 hover:text-blue-800 p-0 h-auto"
-              >
-                See more
-              </Button>
+              <Link href="/reward-system">
+                <Button
+                  variant="link"
+                  className="text-blue-600 hover:text-blue-800 p-0 h-auto"
+                >
+                  Learn more
+                </Button>
+              </Link>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {landingData.discountedProducts
-                .filter(
-                  (product) =>
-                    product.hasActiveDiscount && product.discountEndDate
-                )
-                .slice(0, 8)
-                .map((product) => (
-                  <Link
-                    key={product.id}
-                    href={`/product/${product.id}`}
-                    className="group"
-                  >
-                    <div className="relative bg-gray-100 rounded-lg overflow-hidden aspect-square mb-1">
-                      {product.image &&
-                      product.image !==
-                        "https://via.placeholder.com/400x400" ? (
-                        <img
-                          src={product.image}
-                          alt={product.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-500">
-                          <span className="text-xs font-medium">No Image</span>
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-200" />
-                      <div className="absolute top-1 left-1">
-                        <span className="bg-red-500 text-white px-1 py-0.5 rounded text-[10px] font-bold">
-                          {product.discount}% OFF
-                        </span>
-                      </div>
-                      <div className="absolute bottom-1 left-1 right-1">
-                        <h3 className="text-white font-medium text-xs truncate">
-                          {product.name}
-                        </h3>
-                        <div className="flex items-center justify-between mt-0.5">
-                          <p className="text-white/80 text-[10px]">
-                            {product.brand} • {product.category}
-                          </p>
-                          {product.discountEndDate && (
-                            <CountdownTimer
-                              endDate={product.discountEndDate}
-                              onExpired={() => {
-                                console.log(
-                                  `Discount expired for ${product.name}`
-                                );
-                              }}
-                            />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-
-              {landingData.discountedProducts.filter(
-                (product) =>
-                  product.hasActiveDiscount && product.discountEndDate
-              ).length === 0 && (
-                <div className="col-span-full text-center py-8 text-gray-500">
-                  <p className="text-sm">No active discounts at the moment</p>
+            <div className="space-y-4">
+              <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-4 border border-yellow-200">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="bg-yellow-500 rounded-full p-2">
+                    <Star className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Earn Points</h3>
+                    <p className="text-sm text-gray-600">
+                      1 point per $1 spent
+                    </p>
+                  </div>
                 </div>
-              )}
+                <div className="text-xs text-gray-500">
+                  Shop and automatically earn rewards with every purchase
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 border border-blue-200">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="bg-blue-500 rounded-full p-2">
+                    <Tag className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">
+                      Redeem Rewards
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      100 pts = $1 discount
+                    </p>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-500">
+                  Use your points for discounts on future purchases
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="bg-green-500 rounded-full p-2">
+                    <Sparkles className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">
+                      Tier Benefits
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Bronze, Silver, Gold
+                    </p>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-500">
+                  Unlock exclusive benefits as you earn more points
+                </div>
+              </div>
             </div>
           </div>
 

@@ -16,8 +16,11 @@ import {
   Check,
   AlertCircle,
   Loader2,
+  Heart,
+  Eye,
 } from "lucide-react";
 import ProductCard from "@/components/ProductCard";
+import VariantSelectionModal from "@/components/VariantSelectionModal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,8 +28,14 @@ import {
   ManyProductsDto,
   Page,
   ProductSearchDTO,
+  ProductDTO,
 } from "@/lib/productService";
+import { CartService, CartItemRequest } from "@/lib/cartService";
+import { WishlistService, AddToWishlistRequest } from "@/lib/wishlistService";
+import { useToast } from "@/hooks/use-toast";
+import { useAppSelector } from "@/lib/store/hooks";
 import { filterMappingService } from "@/lib/filterMappingService";
+import Link from "next/link";
 
 interface FilterState {
   priceRange: number[];
@@ -64,62 +73,189 @@ const ProductGrid = ({
   const [products, setProducts] = useState<Page<ManyProductsDto> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cartItems, setCartItems] = useState<string[]>([]);
+  const [wishlistItems, setWishlistItems] = useState<string[]>([]);
+  const [showVariantModal, setShowVariantModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<ProductDTO | null>(
+    null
+  );
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>(
+    {}
+  );
+  const [wishlistLoadingStates, setWishlistLoadingStates] = useState<
+    Record<string, boolean>
+  >({});
+  const { toast } = useToast();
+  const { isAuthenticated } = useAppSelector((state) => state.auth);
 
-  // Load cart items on mount
+  // Load cart and wishlist items on mount
   useEffect(() => {
-    try {
-      const cartData = localStorage.getItem("cart");
-      if (cartData) {
-        setCartItems(JSON.parse(cartData));
-      }
-    } catch (error) {
-      console.error("Error loading cart data:", error);
-    }
-
-    // Add listener for storage events to keep cart in sync
-    const handleStorageChange = () => {
-      try {
-        const cartData = localStorage.getItem("cart");
-        if (cartData) {
-          setCartItems(JSON.parse(cartData));
-        } else {
-          setCartItems([]);
-        }
-      } catch (error) {
-        console.error("Error processing storage event:", error);
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
+    checkCartStatus();
+    checkWishlistStatus();
   }, []);
+
+  const checkCartStatus = async () => {
+    try {
+      const cart = await CartService.getCart();
+      const productIds = cart.items.map((item) => item.productId);
+      setCartItems(productIds);
+    } catch (error) {
+      console.error("Error checking cart status:", error);
+      setCartItems([]);
+    }
+  };
+
+  const checkWishlistStatus = async () => {
+    if (!isAuthenticated) return;
+
+    try {
+      const wishlist = await WishlistService.getWishlist();
+      const productIds = wishlist.items.map((item) => item.productId);
+      setWishlistItems(productIds);
+    } catch (error) {
+      console.error("Error checking wishlist status:", error);
+      setWishlistItems([]);
+    }
+  };
 
   // Helper function to check if a product is in cart
   const isInCart = (productId: string): boolean => {
     return cartItems.includes(productId);
   };
 
-  // Toggle cart status
-  const toggleCart = (productId: string) => {
-    try {
-      const cart = [...cartItems];
+  // Helper function to check if a product is in wishlist
+  const isInWishlist = (productId: string): boolean => {
+    return wishlistItems.includes(productId);
+  };
 
-      if (isInCart(productId)) {
-        // Remove from cart
-        const newCart = cart.filter((id) => id !== productId);
-        localStorage.setItem("cart", JSON.stringify(newCart));
-        setCartItems(newCart);
-      } else {
-        // Add to cart
-        const newCart = [...cart, productId];
-        localStorage.setItem("cart", JSON.stringify(newCart));
-        setCartItems(newCart);
+  // Handle cart toggle with variant support
+  const handleCartToggle = async (productId: string) => {
+    if (isInCart(productId)) {
+      // Remove from cart
+      try {
+        setLoadingStates((prev) => ({ ...prev, [productId]: true }));
+        const cart = await CartService.getCart();
+        const cartItem = cart.items.find(
+          (item) => item.productId === productId
+        );
+
+        if (cartItem) {
+          await CartService.removeItemFromCart(cartItem.id);
+          await checkCartStatus();
+          toast({
+            title: "Removed from cart",
+            description: "Product has been removed from your cart.",
+          });
+        }
+      } catch (error) {
+        console.error("Error removing from cart:", error);
+        toast({
+          title: "Error",
+          description: "Failed to remove item from cart. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingStates((prev) => ({ ...prev, [productId]: false }));
       }
+      return;
+    }
 
-      // Dispatch storage event for other components to detect changes
-      window.dispatchEvent(new Event("storage"));
+    // Check if product has variants
+    setLoadingStates((prev) => ({ ...prev, [productId]: true }));
+    try {
+      const product = await ProductService.getProductById(productId);
+      setSelectedProduct(product);
+
+      if (ProductService.hasVariants(product)) {
+        // Show variant selection modal
+        setShowVariantModal(true);
+      } else {
+        // Add product directly to cart
+        await handleAddToCart({ productId, quantity: 1 });
+        await checkCartStatus();
+      }
     } catch (error) {
-      console.error("Error updating cart:", error);
+      console.error("Error fetching product details:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch product details. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, [productId]: false }));
+    }
+  };
+
+  // Handle adding to cart (for both products and variants)
+  const handleAddToCart = async (request: CartItemRequest) => {
+    try {
+      await CartService.addItemToCart(request);
+      await checkCartStatus();
+      toast({
+        title: "Added to cart",
+        description: "Product has been added to your cart.",
+      });
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add item to cart. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle wishlist toggle
+  const handleWishlistToggle = async (productId: string) => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to add items to your wishlist.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isInWishlist(productId)) {
+      // Remove from wishlist
+      try {
+        setWishlistLoadingStates((prev) => ({ ...prev, [productId]: true }));
+        toast({
+          title: "Remove from wishlist",
+          description: "Please go to your wishlist page to remove items.",
+        });
+      } catch (error) {
+        console.error("Error removing from wishlist:", error);
+        toast({
+          title: "Error",
+          description: "Failed to remove item from wishlist. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setWishlistLoadingStates((prev) => ({ ...prev, [productId]: false }));
+      }
+      return;
+    }
+
+    // Add to wishlist
+    setWishlistLoadingStates((prev) => ({ ...prev, [productId]: true }));
+    try {
+      await WishlistService.addToWishlist({
+        productId,
+      });
+      await checkWishlistStatus();
+      toast({
+        title: "Added to wishlist",
+        description: "Product has been added to your wishlist.",
+      });
+    } catch (error) {
+      console.error("Error adding to wishlist:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add item to wishlist. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setWishlistLoadingStates((prev) => ({ ...prev, [productId]: false }));
     }
   };
 
@@ -467,72 +603,223 @@ const ProductGrid = ({
                     isNew={convertedProduct.isNew}
                     isBestseller={convertedProduct.isBestseller}
                     discountedPrice={convertedProduct.discountedPrice}
+                    category={convertedProduct.category}
+                    brand={convertedProduct.brand}
+                    hasActiveDiscount={convertedProduct.hasActiveDiscount}
+                    discountName={convertedProduct.discountName}
+                    discountEndDate={convertedProduct.discountEndDate}
+                    shortDescription={convertedProduct.shortDescription}
+                    isFeatured={convertedProduct.isFeatured}
                   />
                 ) : (
-                  <div className="flex flex-col sm:flex-row border rounded-md overflow-hidden hover:border-primary/20 hover:shadow-lg transition-all duration-300">
-                    <div className="w-full sm:w-[180px] h-[180px] sm:h-auto">
-                      <img
-                        src={convertedProduct.image}
-                        alt={convertedProduct.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="flex-1 p-4 flex flex-col">
-                      <h3 className="font-medium text-sm mb-2 line-clamp-2 hover:text-primary transition-colors">
-                        {convertedProduct.name}
-                      </h3>
-                      <div className="mb-2 flex items-center gap-1">
-                        <div className="flex items-center">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`h-3 w-3 ${
-                                i < Math.floor(convertedProduct.rating)
-                                  ? "fill-yellow-400 text-yellow-400"
-                                  : "text-gray-300"
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        <span className="text-xs text-gray-500">
-                          ({convertedProduct.reviewCount})
-                        </span>
-                      </div>
-                      <div className="mb-3">
-                        <span className="text-lg font-bold text-primary">
-                          ${convertedProduct.price}
-                        </span>
-                        {convertedProduct.originalPrice && (
-                          <span className="text-sm ml-2 text-gray-500 line-through">
-                            ${convertedProduct.originalPrice}
-                          </span>
+                  <div className="relative border rounded-lg overflow-hidden hover:border-primary/20 hover:shadow-lg transition-all duration-300 group">
+                    {/* Badges */}
+                    <div className="absolute top-3 left-3 z-10 flex flex-col gap-1">
+                      {convertedProduct.hasActiveDiscount &&
+                        convertedProduct.discount && (
+                          <Badge variant="destructive" className="text-xs">
+                            -{convertedProduct.discount}% OFF
+                          </Badge>
                         )}
-                      </div>
-                      <div className="flex items-center gap-3 mt-auto">
-                        <Button
-                          size="sm"
-                          className={
-                            isInCart(convertedProduct.id)
-                              ? "bg-green-600 hover:bg-green-700"
+                      {convertedProduct.discountName &&
+                        convertedProduct.hasActiveDiscount && (
+                          <Badge
+                            variant="secondary"
+                            className="text-xs bg-orange-100 text-orange-800"
+                          >
+                            {convertedProduct.discountName}
+                          </Badge>
+                        )}
+                      {convertedProduct.isNew && (
+                        <Badge className="bg-green-500 text-white text-xs">
+                          New
+                        </Badge>
+                      )}
+                      {convertedProduct.isBestseller && (
+                        <Badge className="bg-blue-500 text-white text-xs">
+                          Bestseller
+                        </Badge>
+                      )}
+                      {convertedProduct.isFeatured && (
+                        <Badge className="bg-purple-500 text-white text-xs">
+                          Featured
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Wishlist Button */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={`absolute top-3 right-3 z-10 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-all ${
+                        isInWishlist(convertedProduct.id)
+                          ? "text-red-500"
+                          : "text-muted-foreground hover:text-red-500"
+                      }`}
+                      onClick={() => handleWishlistToggle(convertedProduct.id)}
+                      disabled={wishlistLoadingStates[convertedProduct.id]}
+                    >
+                      {wishlistLoadingStates[convertedProduct.id] ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Heart
+                          className={`h-4 w-4 ${
+                            isInWishlist(convertedProduct.id)
+                              ? "fill-current"
                               : ""
-                          }
-                          onClick={() => toggleCart(convertedProduct.id)}
-                        >
-                          {isInCart(convertedProduct.id) ? (
-                            <>
-                              <Check className="h-4 w-4 mr-2" />
-                              Added to Cart
-                            </>
-                          ) : (
-                            <>
-                              <ShoppingCart className="h-4 w-4 mr-2" />
-                              Add to Cart
-                            </>
+                          }`}
+                        />
+                      )}
+                    </Button>
+
+                    <div className="flex flex-col lg:flex-row">
+                      {/* Image Section */}
+                      <div className="relative w-full lg:w-64 h-48 lg:h-auto">
+                        <Link href={`/product/${convertedProduct.id}`}>
+                          <img
+                            src={convertedProduct.image}
+                            alt={convertedProduct.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        </Link>
+                      </div>
+
+                      {/* Content Section */}
+                      <div className="flex-1 p-6">
+                        <div className="flex flex-col h-full">
+                          {/* Product Name */}
+                          <Link href={`/product/${convertedProduct.id}`}>
+                            <h3 className="font-semibold text-lg mb-2 line-clamp-2 hover:text-primary transition-colors">
+                              {convertedProduct.name}
+                            </h3>
+                          </Link>
+
+                          {/* Short Description */}
+                          {convertedProduct.shortDescription && (
+                            <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                              {convertedProduct.shortDescription}
+                            </p>
                           )}
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          View Details
-                        </Button>
+
+                          {/* Category and Brand */}
+                          <div className="flex items-center gap-2 mb-3">
+                            {convertedProduct.category && (
+                              <span className="bg-gray-100 px-2 py-1 rounded-full text-xs">
+                                {convertedProduct.category}
+                              </span>
+                            )}
+                            {convertedProduct.brand && (
+                              <span className="bg-blue-100 px-2 py-1 rounded-full text-blue-700 text-xs">
+                                {convertedProduct.brand}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Rating */}
+                          <div className="flex items-center gap-1 mb-3">
+                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                            <span className="text-sm text-muted-foreground">
+                              {convertedProduct.rating.toFixed(1)} (
+                              {convertedProduct.reviewCount} reviews)
+                            </span>
+                          </div>
+
+                          {/* Price Section */}
+                          <div className="mb-4">
+                            <div className="flex items-center gap-3 mb-1">
+                              <span className="font-bold text-xl">
+                                $
+                                {convertedProduct.discountedPrice
+                                  ? convertedProduct.discountedPrice.toFixed(2)
+                                  : convertedProduct.price.toFixed(2)}
+                              </span>
+                              {(convertedProduct.originalPrice &&
+                                convertedProduct.originalPrice >
+                                  convertedProduct.price) ||
+                              (convertedProduct.discountedPrice &&
+                                convertedProduct.discountedPrice <
+                                  convertedProduct.price) ? (
+                                <span className="text-sm text-muted-foreground line-through">
+                                  $
+                                  {convertedProduct.originalPrice
+                                    ? convertedProduct.originalPrice.toFixed(2)
+                                    : convertedProduct.price.toFixed(2)}
+                                </span>
+                              ) : null}
+                            </div>
+                            {convertedProduct.hasActiveDiscount &&
+                              convertedProduct.discount && (
+                                <span className="text-sm text-green-600 font-medium">
+                                  Save $
+                                  {(
+                                    (convertedProduct.originalPrice ||
+                                      convertedProduct.price) -
+                                    (convertedProduct.discountedPrice ||
+                                      convertedProduct.price)
+                                  ).toFixed(2)}
+                                </span>
+                              )}
+                          </div>
+
+                          {/* Discount End Date */}
+                          {convertedProduct.discountEndDate &&
+                            convertedProduct.hasActiveDiscount && (
+                              <div className="mb-4 text-sm text-orange-600">
+                                <span className="font-medium">
+                                  Offer ends:{" "}
+                                </span>
+                                {new Date(
+                                  convertedProduct.discountEndDate
+                                ).toLocaleDateString()}
+                              </div>
+                            )}
+
+                          {/* Action Buttons */}
+                          <div className="flex items-center gap-3 mt-auto">
+                            <Button
+                              size="sm"
+                              className={`flex-1 ${
+                                isInCart(convertedProduct.id)
+                                  ? "bg-green-600 hover:bg-green-700"
+                                  : ""
+                              }`}
+                              onClick={() =>
+                                handleCartToggle(convertedProduct.id)
+                              }
+                              disabled={loadingStates[convertedProduct.id]}
+                            >
+                              {loadingStates[convertedProduct.id] ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  Loading...
+                                </>
+                              ) : isInCart(convertedProduct.id) ? (
+                                <>
+                                  <Check className="h-4 w-4 mr-2" />
+                                  Added to Cart
+                                </>
+                              ) : (
+                                <>
+                                  <ShoppingCart className="h-4 w-4 mr-2" />
+                                  Add to Cart
+                                </>
+                              )}
+                            </Button>
+                            <Link
+                              href={`/product/${convertedProduct.id}`}
+                              className="flex-1"
+                            >
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full"
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Details
+                              </Button>
+                            </Link>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -541,6 +828,19 @@ const ProductGrid = ({
             );
           })}
         </div>
+      )}
+
+      {/* Variant Selection Modal */}
+      {showVariantModal && selectedProduct && (
+        <VariantSelectionModal
+          product={selectedProduct}
+          isOpen={showVariantModal}
+          onClose={() => {
+            setShowVariantModal(false);
+            setSelectedProduct(null);
+          }}
+          onAddToCart={handleAddToCart}
+        />
       )}
     </div>
   );

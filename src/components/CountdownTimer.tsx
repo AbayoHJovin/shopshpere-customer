@@ -41,24 +41,24 @@ const CountdownTimer = ({ endDate, onExpired }: CountdownTimerProps) => {
   }, [endDate, onExpired]);
 
   return (
-    <div className="flex items-center gap-1 text-xs font-medium">
-      <div className="flex items-center gap-0.5">
-        <span className="bg-red-500 text-white px-1 py-0.5 rounded text-[10px] font-bold">
+    <div className="flex items-center justify-center gap-2 text-base font-medium">
+      <div className="flex items-center gap-1">
+        <span className="bg-red-500 text-white px-2 py-1.5 rounded-md text-sm font-bold min-w-[2rem] text-center">
           {timeLeft.hours.toString().padStart(2, "0")}
         </span>
-        <span className="text-gray-600 text-[10px]">h</span>
+        <span className="text-red-600 text-sm font-semibold">h</span>
       </div>
-      <div className="flex items-center gap-0.5">
-        <span className="bg-red-500 text-white px-1 py-0.5 rounded text-[10px] font-bold">
+      <div className="flex items-center gap-1">
+        <span className="bg-red-500 text-white px-2 py-1.5 rounded-md text-sm font-bold min-w-[2rem] text-center">
           {timeLeft.minutes.toString().padStart(2, "0")}
         </span>
-        <span className="text-gray-600 text-[10px]">m</span>
+        <span className="text-red-600 text-sm font-semibold">m</span>
       </div>
-      <div className="flex items-center gap-0.5">
-        <span className="bg-red-500 text-white px-1 py-0.5 rounded text-[10px] font-bold">
+      <div className="flex items-center gap-1">
+        <span className="bg-red-500 text-white px-2 py-1.5 rounded-md text-sm font-bold min-w-[2rem] text-center">
           {timeLeft.seconds.toString().padStart(2, "0")}
         </span>
-        <span className="text-gray-600 text-[10px]">s</span>
+        <span className="text-red-600 text-sm font-semibold">s</span>
       </div>
     </div>
   );

@@ -71,6 +71,11 @@ export const API_ENDPOINTS = {
   LANDING_DISCOUNTED: `${API_BASE_URL}/landing/discounted`,
   LANDING_CATEGORIES: `${API_BASE_URL}/landing/categories`,
   LANDING_BRANDS: `${API_BASE_URL}/landing/brands`,
+
+  // Discount endpoints
+  DISCOUNTS: `${API_BASE_URL}/discounts`,
+  DISCOUNTS_ACTIVE: `${API_BASE_URL}/discounts/active`,
+  DISCOUNT_BY_ID: (id: string) => `${API_BASE_URL}/discounts/${id}`,
 } as const;
 
 // HTTP Headers
