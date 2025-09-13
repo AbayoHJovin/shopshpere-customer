@@ -262,7 +262,7 @@ const ProductGrid = ({
   // Convert filters to backend search DTO (async now due to ID mapping)
   const createSearchDTO = async (): Promise<ProductSearchDTO> => {
     const searchDTO: ProductSearchDTO = {
-      page: currentPage - 1, // Backend uses 0-based indexing
+      page: currentPage - 1,
       size: productsPerPage,
       sortBy,
       sortDirection,
@@ -283,12 +283,10 @@ const ProductGrid = ({
           searchDTO.categoryIds = categoryIds;
         } else {
           console.warn("No valid category IDs found for:", filters.categories);
-          // Fallback: use category names directly if mapping fails
           searchDTO.categoryNames = filters.categories;
         }
       } catch (error) {
         console.error("Error mapping category names to IDs:", error);
-        // Fallback: use category names directly
         searchDTO.categoryNames = filters.categories;
       }
     }
@@ -303,29 +301,38 @@ const ProductGrid = ({
           searchDTO.brandIds = brandIds;
         } else {
           console.warn("No valid brand IDs found for:", filters.brands);
-          // Fallback: use brand names directly if mapping fails
           searchDTO.brandNames = filters.brands;
         }
       } catch (error) {
         console.error("Error mapping brand names to IDs:", error);
-        // Fallback: use brand names directly
         searchDTO.brandNames = filters.brands;
       }
     }
 
-    // Add price range (use basePriceMin/Max as per backend)
-    if (filters.priceRange[0] > 0 || filters.priceRange[1] < 1000) {
-      searchDTO.basePriceMin = filters.priceRange[0];
-      searchDTO.basePriceMax = filters.priceRange[1];
+    // Add price range (only if values are valid numbers)
+    if (filters.priceRange && filters.priceRange.length >= 2) {
+      const minPrice = filters.priceRange[0];
+      const maxPrice = filters.priceRange[1];
+
+      if (typeof minPrice === "number" && minPrice > 0) {
+        searchDTO.basePriceMin = minPrice;
+      }
+      if (typeof maxPrice === "number" && maxPrice < 1000) {
+        searchDTO.basePriceMax = maxPrice;
+      }
     }
 
-    // Add rating filter (use averageRatingMin as per backend)
-    if (filters.rating !== null) {
+    // Add rating filter (only if value is valid)
+    if (
+      filters.rating !== null &&
+      typeof filters.rating === "number" &&
+      filters.rating > 0
+    ) {
       searchDTO.averageRatingMin = filters.rating;
     }
 
     // Add in stock filter
-    if (filters.inStock) {
+    if (filters.inStock === true) {
       searchDTO.inStock = true;
     }
 
@@ -342,18 +349,30 @@ const ProductGrid = ({
       }
     }
 
-    // Ensure we have at least one filter criterion to avoid backend validation error
+    // Clean up undefined values before sending
+    const cleanSearchDTO: ProductSearchDTO = {};
+    Object.entries(searchDTO).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        if (Array.isArray(value) && value.length > 0) {
+          cleanSearchDTO[key as keyof ProductSearchDTO] = value;
+        } else if (!Array.isArray(value)) {
+          cleanSearchDTO[key as keyof ProductSearchDTO] = value;
+        }
+      }
+    });
+
+    // Ensure we have at least one filter criterion
     const hasAnyFilter =
-      searchDTO.name ||
-      searchDTO.categoryIds?.length > 0 ||
-      searchDTO.categoryNames?.length > 0 ||
-      searchDTO.brandIds?.length > 0 ||
-      searchDTO.brandNames?.length > 0 ||
-      searchDTO.basePriceMin !== undefined ||
-      searchDTO.basePriceMax !== undefined ||
-      searchDTO.averageRatingMin !== undefined ||
-      searchDTO.inStock !== undefined ||
-      searchDTO.variantAttributes?.length > 0;
+      cleanSearchDTO.name ||
+      cleanSearchDTO.categoryIds?.length > 0 ||
+      cleanSearchDTO.categoryNames?.length > 0 ||
+      cleanSearchDTO.brandIds?.length > 0 ||
+      cleanSearchDTO.brandNames?.length > 0 ||
+      cleanSearchDTO.basePriceMin !== undefined ||
+      cleanSearchDTO.basePriceMax !== undefined ||
+      cleanSearchDTO.averageRatingMin !== undefined ||
+      cleanSearchDTO.inStock !== undefined ||
+      cleanSearchDTO.variantAttributes?.length > 0;
 
     if (!hasAnyFilter) {
       console.warn(
@@ -362,8 +381,8 @@ const ProductGrid = ({
       throw new Error("No valid filter criteria");
     }
 
-    console.log("Search DTO created:", searchDTO);
-    return searchDTO;
+    console.log("Search DTO created:", cleanSearchDTO);
+    return cleanSearchDTO;
   };
 
   // Check if we need to use search vs getAllProducts

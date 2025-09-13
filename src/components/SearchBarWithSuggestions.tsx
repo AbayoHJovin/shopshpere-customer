@@ -9,10 +9,11 @@ import { cn } from "@/lib/utils";
 interface SearchSuggestion {
   id: string;
   text: string;
-  type: "product" | "category" | "brand" | "keyword";
-  productId?: string;
+  type: "suggestion" | "category" | "brand" | "keyword";
+  searchTerm?: string;
   categoryId?: string;
   brandId?: string;
+  slug?: string;
 }
 
 interface SearchBarWithSuggestionsProps {
@@ -60,47 +61,62 @@ export function SearchBarWithSuggestions({
       if (!value.trim() || value.length < 2) {
         setSuggestions([]);
         setShowSuggestions(false);
+        setIsLoading(false);
         return;
       }
 
       setIsLoading(true);
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
         const response = await fetch(
-          `/api/search/suggestions?q=${encodeURIComponent(value)}`,
+          `${
+            process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
+          }/api/v1/products/search/suggestions?q=${encodeURIComponent(value)}`,
           {
             method: "GET",
             headers: {
               "Content-Type": "application/json",
             },
+            signal: controller.signal,
           }
         );
+
+        clearTimeout(timeoutId);
 
         if (response.ok) {
           const data = await response.json();
           setSuggestions(data.suggestions || []);
           setShowSuggestions(true);
+        } else {
+          console.warn("Failed to fetch suggestions:", response.status);
+          setSuggestions([]);
         }
       } catch (error) {
-        console.error("Error fetching suggestions:", error);
+        if (error instanceof Error && error.name !== "AbortError") {
+          console.error("Error fetching suggestions:", error);
+        }
         setSuggestions([]);
       } finally {
         setIsLoading(false);
       }
     };
 
-    const debounceTimer = setTimeout(fetchSuggestions, 300);
+    // Reduced debounce time for faster response
+    const debounceTimer = setTimeout(fetchSuggestions, 150);
     return () => clearTimeout(debounceTimer);
   }, [value]);
 
   const handleSuggestionClick = (suggestion: SearchSuggestion) => {
-    if (suggestion.type === "product" && suggestion.productId) {
-      router.push(`/products/${suggestion.productId}`);
-    } else if (suggestion.type === "category" && suggestion.categoryId) {
-      router.push(`/shop?categories=${suggestion.categoryId}`);
+    const searchTerm = suggestion.searchTerm || suggestion.text;
+
+    if (suggestion.type === "category" && suggestion.categoryId) {
+      router.push(`/shop?categories=${encodeURIComponent(suggestion.text)}`);
     } else if (suggestion.type === "brand" && suggestion.brandId) {
-      router.push(`/shop?brands=${suggestion.brandId}`);
+      router.push(`/shop?brands=${encodeURIComponent(suggestion.text)}`);
     } else {
-      onSubmit(new Event("submit") as any, suggestion.text);
+      router.push(`/shop?searchTerm=${encodeURIComponent(searchTerm)}`);
     }
     setShowSuggestions(false);
     setSelectedIndex(-1);
@@ -137,17 +153,8 @@ export function SearchBarWithSuggestions({
     }
   };
 
-  const getSuggestionIcon = (type: SearchSuggestion["type"]) => {
-    switch (type) {
-      case "product":
-        return "🔍";
-      case "category":
-        return "📂";
-      case "brand":
-        return "🏷️";
-      default:
-        return "💡";
-    }
+  const getSuggestionIcon = () => {
+    return <Search className="h-4 w-4 text-blue-500" />;
   };
 
   return (
@@ -161,7 +168,7 @@ export function SearchBarWithSuggestions({
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
             onFocus={() => {
-              if (value.length >= 2 && suggestions.length > 0) {
+              if (value.length >= 2) {
                 setShowSuggestions(true);
               }
             }}
@@ -182,30 +189,39 @@ export function SearchBarWithSuggestions({
       </form>
 
       {/* Search suggestions dropdown */}
-      {showSuggestions && suggestions.length > 0 && (
+      {showSuggestions && (
         <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-xl shadow-xl z-50 max-h-80 overflow-y-auto">
-          {suggestions.map((suggestion, index) => (
-            <button
-              key={suggestion.id}
-              onClick={() => handleSuggestionClick(suggestion)}
-              className={cn(
-                "w-full px-4 py-3 text-left hover:bg-accent transition-colors flex items-center gap-3",
-                selectedIndex === index && "bg-accent",
-                index === 0 && "rounded-t-xl",
-                index === suggestions.length - 1 && "rounded-b-xl"
-              )}
-            >
-              <span className="text-lg">
-                {getSuggestionIcon(suggestion.type)}
-              </span>
-              <div className="flex-1">
-                <div className="font-medium text-sm">{suggestion.text}</div>
-                <div className="text-xs text-muted-foreground capitalize">
-                  {suggestion.type}
+          {isLoading ? (
+            <div className="px-4 py-6 text-center text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+              <div className="text-sm">Searching...</div>
+            </div>
+          ) : suggestions.length > 0 ? (
+            suggestions.map((suggestion, index) => (
+              <button
+                key={suggestion.id}
+                onClick={() => handleSuggestionClick(suggestion)}
+                className={cn(
+                  "w-full px-4 py-3 text-left hover:bg-accent transition-colors flex items-center gap-3",
+                  selectedIndex === index && "bg-accent",
+                  index === 0 && "rounded-t-xl",
+                  index === suggestions.length - 1 && "rounded-b-xl"
+                )}
+              >
+                <div className="flex-shrink-0">{getSuggestionIcon()}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm truncate">
+                    {suggestion.text}
+                  </div>
                 </div>
-              </div>
-            </button>
-          ))}
+              </button>
+            ))
+          ) : (
+            <div className="px-4 py-6 text-center text-muted-foreground">
+              <div className="text-sm">No suggestions found</div>
+              <div className="text-xs mt-1">Try a different search term</div>
+            </div>
+          )}
         </div>
       )}
     </div>
