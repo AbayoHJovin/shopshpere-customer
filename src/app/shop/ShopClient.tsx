@@ -23,9 +23,10 @@ interface FilterState {
   brands: string[];
   attributes: Record<string, string[]>;
   discountRanges: string[];
-  gender: string | null;
   rating: number | null;
   inStock: boolean;
+  isBestseller: boolean;
+  isFeatured: boolean;
   searchTerm: string | null;
 }
 
@@ -40,9 +41,10 @@ export function ShopClient() {
     brands: [],
     attributes: {},
     discountRanges: [],
-    gender: null,
     rating: null,
-    inStock: false,
+    inStock: true,
+    isBestseller: false,
+    isFeatured: false,
     searchTerm: "",
   });
   const [isInitialized, setIsInitialized] = useState(false);
@@ -60,9 +62,10 @@ export function ShopClient() {
         brands: [],
         attributes: {},
         discountRanges: [],
-        gender: null,
         rating: null,
-        inStock: false,
+        inStock: true,
+        isBestseller: false,
+        isFeatured: false,
         searchTerm: "",
       };
 
@@ -156,7 +159,13 @@ export function ShopClient() {
 
       // Parse boolean values
       const inStockParam = searchParams.get("inStock");
-      urlFilters.inStock = inStockParam === "true";
+      urlFilters.inStock = inStockParam !== "false";
+
+      const isBestsellerParam = searchParams.get("isBestseller");
+      urlFilters.isBestseller = isBestsellerParam === "true";
+
+      const isFeaturedParam = searchParams.get("isFeatured");
+      urlFilters.isFeatured = isFeaturedParam === "true";
 
       // Parse search term - with better validation
       const searchParam =
@@ -232,8 +241,16 @@ export function ShopClient() {
       }
 
       // Add boolean values
-      if (newFilters.inStock === true) {
-        urlParams.set("inStock", "true");
+      if (newFilters.inStock === false) {
+        urlParams.set("inStock", "false");
+      }
+
+      if (newFilters.isBestseller === true) {
+        urlParams.set("isBestseller", "true");
+      }
+
+      if (newFilters.isFeatured === true) {
+        urlParams.set("isFeatured", "true");
       }
 
       // Add search term - only if it's a valid string

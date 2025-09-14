@@ -103,10 +103,9 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
 
   const updateFilters = useCallback(
     (key: string, value: any) => {
-      const newFilters = { ...filters, [key]: value };
-      onFiltersChange(newFilters);
+      onFiltersChange((prevFilters: any) => ({ ...prevFilters, [key]: value }));
     },
-    [filters, onFiltersChange]
+    [onFiltersChange]
   );
 
   // Debounced price range update
@@ -122,7 +121,7 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
       // Set new timeout
       priceRangeTimeoutRef.current = setTimeout(() => {
         updateFilters("priceRange", value);
-      }, 300); // 300ms debounce
+      }, 500); // Increased debounce to 500ms
     },
     [updateFilters]
   );
@@ -159,9 +158,10 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
       brands: [],
       attributes: {},
       discountRanges: [],
-      gender: null,
       rating: null,
-      inStock: false,
+      inStock: true,
+      isBestseller: false,
+      isFeatured: false,
     });
   }, [onFiltersChange]);
 
@@ -172,9 +172,10 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
     filters.brands?.length > 0 ||
     filters.discountRanges?.length > 0 ||
     (filters.attributes && Object.keys(filters.attributes).length > 0) ||
-    filters.gender ||
     filters.rating !== null ||
-    filters.inStock;
+    filters.inStock === false ||
+    filters.isBestseller === true ||
+    filters.isFeatured === true;
 
   const renderCategory = (category: any, level: number = 0) => {
     const isExpanded = expandedCategories.includes(category.name);
@@ -416,16 +417,34 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
                   />
                 </Badge>
               ))}
-              {filters.gender && (
-                <Badge key="gender" variant="secondary" className="text-xs">
-                  {filters.gender === "MALE"
-                    ? "Men"
-                    : filters.gender === "FEMALE"
-                    ? "Women"
-                    : "Unisex"}
+              {filters.inStock === false && (
+                <Badge key="inStock" variant="secondary" className="text-xs">
+                  Include Out of Stock
                   <X
                     className="ml-1 h-3 w-3 cursor-pointer"
-                    onClick={() => updateFilters("gender", null)}
+                    onClick={() => updateFilters("inStock", true)}
+                  />
+                </Badge>
+              )}
+              {filters.isBestseller && (
+                <Badge
+                  key="isBestseller"
+                  variant="secondary"
+                  className="text-xs"
+                >
+                  Bestseller
+                  <X
+                    className="ml-1 h-3 w-3 cursor-pointer"
+                    onClick={() => updateFilters("isBestseller", false)}
+                  />
+                </Badge>
+              )}
+              {filters.isFeatured && (
+                <Badge key="isFeatured" variant="secondary" className="text-xs">
+                  Featured
+                  <X
+                    className="ml-1 h-3 w-3 cursor-pointer"
+                    onClick={() => updateFilters("isFeatured", false)}
                   />
                 </Badge>
               )}
@@ -435,15 +454,6 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
                   <X
                     className="ml-1 h-3 w-3 cursor-pointer"
                     onClick={() => updateFilters("rating", null)}
-                  />
-                </Badge>
-              )}
-              {filters.inStock && (
-                <Badge key="inStock" variant="secondary" className="text-xs">
-                  In Stock
-                  <X
-                    className="ml-1 h-3 w-3 cursor-pointer"
-                    onClick={() => updateFilters("inStock", false)}
                   />
                 </Badge>
               )}
@@ -613,27 +623,6 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
         </div>
       )}
 
-      {/* Gender Filter */}
-      {renderFilterSection(
-        "Gender",
-        <Select
-          value={filters.gender || "all"}
-          onValueChange={(value) =>
-            updateFilters("gender", value === "all" ? null : value)
-          }
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select gender" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="MALE">Men</SelectItem>
-            <SelectItem value="FEMALE">Women</SelectItem>
-            <SelectItem value="UNISEX">Unisex</SelectItem>
-          </SelectContent>
-        </Select>
-      )}
-
       {/* Discount Filter */}
       {renderFilterSection(
         "Discount",
@@ -703,22 +692,55 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
         </div>
       )}
 
-      {/* In Stock Filter */}
-      <div className="px-1">
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="inStock"
-            checked={filters.inStock}
-            onCheckedChange={(checked) => updateFilters("inStock", checked)}
-          />
-          <label
-            htmlFor="inStock"
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-          >
-            In Stock Only
-          </label>
+      {/* Product Status Filters */}
+      {renderFilterSection(
+        "Product Status",
+        <div className="space-y-3">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="inStock"
+              checked={filters.inStock !== false}
+              onCheckedChange={(checked) => updateFilters("inStock", checked)}
+            />
+            <label
+              htmlFor="inStock"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+            >
+              In Stock Only
+            </label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="isBestseller"
+              checked={filters.isBestseller || false}
+              onCheckedChange={(checked) =>
+                updateFilters("isBestseller", checked)
+              }
+            />
+            <label
+              htmlFor="isBestseller"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+            >
+              Bestseller
+            </label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="isFeatured"
+              checked={filters.isFeatured || false}
+              onCheckedChange={(checked) =>
+                updateFilters("isFeatured", checked)
+              }
+            />
+            <label
+              htmlFor="isFeatured"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+            >
+              Featured
+            </label>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

@@ -43,9 +43,10 @@ interface FilterState {
   brands: string[];
   attributes: Record<string, string[]>;
   discountRanges: string[];
-  gender: string | null;
   rating: number | null;
   inStock: boolean;
+  isBestseller: boolean;
+  isFeatured: boolean;
   searchTerm: string | null;
 }
 
@@ -332,8 +333,18 @@ const ProductGrid = ({
     }
 
     // Add in stock filter
-    if (filters.inStock === true) {
-      searchDTO.inStock = true;
+    if (filters.inStock === false) {
+      searchDTO.inStock = false;
+    }
+
+    // Add bestseller filter
+    if (filters.isBestseller === true) {
+      searchDTO.isBestseller = true;
+    }
+
+    // Add featured filter
+    if (filters.isFeatured === true) {
+      searchDTO.isFeatured = true;
     }
 
     // Add attributes as variant attributes
@@ -372,6 +383,8 @@ const ProductGrid = ({
       cleanSearchDTO.basePriceMax !== undefined ||
       cleanSearchDTO.averageRatingMin !== undefined ||
       cleanSearchDTO.inStock !== undefined ||
+      cleanSearchDTO.isBestseller !== undefined ||
+      cleanSearchDTO.isFeatured !== undefined ||
       cleanSearchDTO.variantAttributes?.length > 0;
 
     if (!hasAnyFilter) {
@@ -395,9 +408,10 @@ const ProductGrid = ({
       filters.brands?.length > 0 ||
       filters.discountRanges?.length > 0 ||
       (filters.attributes && Object.keys(filters.attributes).length > 0) ||
-      !!filters.gender ||
       filters.rating !== null ||
-      filters.inStock
+      filters.inStock === false ||
+      filters.isBestseller === true ||
+      filters.isFeatured === true
     );
   };
 
