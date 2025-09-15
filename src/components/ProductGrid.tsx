@@ -42,7 +42,7 @@ interface FilterState {
   categories: string[];
   brands: string[];
   attributes: Record<string, string[]>;
-  discountRanges: string[];
+  selectedDiscounts: string[];
   rating: number | null;
   inStock: boolean;
   isBestseller: boolean;
@@ -56,6 +56,7 @@ interface ProductGridProps {
   productsPerPage: number;
   showFilters: boolean;
   onToggleFilters: () => void;
+  onClearAllFilters: () => void;
   onPageChange?: (page: number) => void;
 }
 
@@ -65,6 +66,7 @@ const ProductGrid = ({
   productsPerPage,
   showFilters,
   onToggleFilters,
+  onClearAllFilters,
   onPageChange,
 }: ProductGridProps) => {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -85,6 +87,9 @@ const ProductGrid = ({
   const [wishlistLoadingStates, setWishlistLoadingStates] = useState<
     Record<string, boolean>
   >({});
+  const [productsWithVariants, setProductsWithVariants] = useState<Set<string>>(
+    new Set()
+  );
   const { toast } = useToast();
   const { isAuthenticated } = useAppSelector((state) => state.auth);
 
@@ -105,12 +110,35 @@ const ProductGrid = ({
     }
   };
 
+  // Enhanced cart status check for individual products (like ProductCard)
+  const checkIndividualProductCartStatus = async (
+    productId: string
+  ): Promise<boolean> => {
+    try {
+      // First check if product has variants
+      const product = await ProductService.getProductById(productId);
+
+      if (ProductService.hasVariants(product)) {
+        // For products with variants, don't show "Added to cart"
+        // since only specific variants can be added
+        return false;
+      } else {
+        // For simple products, check if the product itself is in cart
+        const isProductInCart = await CartService.isInCart(productId);
+        return isProductInCart;
+      }
+    } catch (error) {
+      console.error("Error checking individual product cart status:", error);
+      return false;
+    }
+  };
+
   const checkWishlistStatus = async () => {
     if (!isAuthenticated) return;
 
     try {
       const wishlist = await WishlistService.getWishlist();
-      const productIds = wishlist.items.map((item) => item.productId);
+      const productIds = wishlist.products.map((item: any) => item.productId);
       setWishlistItems(productIds);
     } catch (error) {
       console.error("Error checking wishlist status:", error);
@@ -120,7 +148,16 @@ const ProductGrid = ({
 
   // Helper function to check if a product is in cart
   const isInCart = (productId: string): boolean => {
+    // For products with variants, never show "Added to Cart"
+    if (productsWithVariants.has(productId)) {
+      return false;
+    }
     return cartItems.includes(productId);
+  };
+
+  // Enhanced helper function to check if a product should show "Added to Cart"
+  const shouldShowAddedToCart = async (productId: string): Promise<boolean> => {
+    return await checkIndividualProductCartStatus(productId);
   };
 
   // Helper function to check if a product is in wishlist
@@ -167,6 +204,8 @@ const ProductGrid = ({
       setSelectedProduct(product);
 
       if (ProductService.hasVariants(product)) {
+        // Mark this product as having variants
+        setProductsWithVariants((prev) => new Set(prev).add(productId));
         // Show variant selection modal
         setShowVariantModal(true);
       } else {
@@ -190,7 +229,23 @@ const ProductGrid = ({
   const handleAddToCart = async (request: CartItemRequest) => {
     try {
       await CartService.addItemToCart(request);
-      await checkCartStatus();
+
+      // Update cart status based on what was added
+      if (request.variantId) {
+        // If a variant was added, don't update cart status for products with variants
+        // since the "Added to cart" button shouldn't appear for variant products
+        // Just refresh the general cart status
+        await checkCartStatus();
+      } else {
+        // If product was added, check if product is in cart
+        const isProductInCart = await CartService.isInCart(
+          request.productId || ""
+        );
+        if (isProductInCart) {
+          setCartItems((prev) => [...prev, request.productId || ""]);
+        }
+      }
+
       toast({
         title: "Added to cart",
         description: "Product has been added to your cart.",
@@ -282,12 +337,18 @@ const ProductGrid = ({
         );
         if (categoryIds.length > 0) {
           searchDTO.categoryIds = categoryIds;
+          console.log("Using category IDs:", categoryIds);
         } else {
           console.warn("No valid category IDs found for:", filters.categories);
+          console.log("Falling back to category names:", filters.categories);
           searchDTO.categoryNames = filters.categories;
         }
       } catch (error) {
         console.error("Error mapping category names to IDs:", error);
+        console.log(
+          "Falling back to category names due to error:",
+          filters.categories
+        );
         searchDTO.categoryNames = filters.categories;
       }
     }
@@ -300,12 +361,18 @@ const ProductGrid = ({
         );
         if (brandIds.length > 0) {
           searchDTO.brandIds = brandIds;
+          console.log("Using brand IDs:", brandIds);
         } else {
           console.warn("No valid brand IDs found for:", filters.brands);
+          console.log("Falling back to brand names:", filters.brands);
           searchDTO.brandNames = filters.brands;
         }
       } catch (error) {
         console.error("Error mapping brand names to IDs:", error);
+        console.log(
+          "Falling back to brand names due to error:",
+          filters.brands
+        );
         searchDTO.brandNames = filters.brands;
       }
     }
@@ -360,14 +427,34 @@ const ProductGrid = ({
       }
     }
 
+    // Add selected discounts
+    if (filters.selectedDiscounts && filters.selectedDiscounts.length > 0) {
+      // Convert discount IDs to UUIDs for backend
+      const discountIds = filters.selectedDiscounts
+        .map((id) => {
+          try {
+            // Validate UUID format
+            return id;
+          } catch (error) {
+            console.warn("Invalid discount ID format:", id);
+            return null;
+          }
+        })
+        .filter((id) => id !== null);
+
+      if (discountIds.length > 0) {
+        searchDTO.discountIds = discountIds;
+      }
+    }
+
     // Clean up undefined values before sending
     const cleanSearchDTO: ProductSearchDTO = {};
     Object.entries(searchDTO).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
         if (Array.isArray(value) && value.length > 0) {
-          cleanSearchDTO[key as keyof ProductSearchDTO] = value;
+          (cleanSearchDTO as any)[key] = value;
         } else if (!Array.isArray(value)) {
-          cleanSearchDTO[key as keyof ProductSearchDTO] = value;
+          (cleanSearchDTO as any)[key] = value;
         }
       }
     });
@@ -375,17 +462,20 @@ const ProductGrid = ({
     // Ensure we have at least one filter criterion
     const hasAnyFilter =
       cleanSearchDTO.name ||
-      cleanSearchDTO.categoryIds?.length > 0 ||
-      cleanSearchDTO.categoryNames?.length > 0 ||
-      cleanSearchDTO.brandIds?.length > 0 ||
-      cleanSearchDTO.brandNames?.length > 0 ||
+      (cleanSearchDTO.categoryIds && cleanSearchDTO.categoryIds.length > 0) ||
+      (cleanSearchDTO.categoryNames &&
+        cleanSearchDTO.categoryNames.length > 0) ||
+      (cleanSearchDTO.brandIds && cleanSearchDTO.brandIds.length > 0) ||
+      (cleanSearchDTO.brandNames && cleanSearchDTO.brandNames.length > 0) ||
       cleanSearchDTO.basePriceMin !== undefined ||
       cleanSearchDTO.basePriceMax !== undefined ||
       cleanSearchDTO.averageRatingMin !== undefined ||
       cleanSearchDTO.inStock !== undefined ||
       cleanSearchDTO.isBestseller !== undefined ||
       cleanSearchDTO.isFeatured !== undefined ||
-      cleanSearchDTO.variantAttributes?.length > 0;
+      (cleanSearchDTO.variantAttributes &&
+        cleanSearchDTO.variantAttributes.length > 0) ||
+      (cleanSearchDTO.discountIds && cleanSearchDTO.discountIds.length > 0);
 
     if (!hasAnyFilter) {
       console.warn(
@@ -406,7 +496,7 @@ const ProductGrid = ({
       filters.priceRange[1] < 1000 ||
       filters.categories.length > 0 ||
       filters.brands?.length > 0 ||
-      filters.discountRanges?.length > 0 ||
+      filters.selectedDiscounts?.length > 0 ||
       (filters.attributes && Object.keys(filters.attributes).length > 0) ||
       filters.rating !== null ||
       filters.inStock === false ||
@@ -446,10 +536,34 @@ const ProductGrid = ({
     }
   };
 
-  // Fetch products when filters, pagination, or sorting changes
   useEffect(() => {
     fetchProducts();
   }, [filters, currentPage, productsPerPage, sortBy, sortDirection]);
+
+  useEffect(() => {
+    if (products?.content) {
+      const checkVariants = async () => {
+        const variantProducts = new Set<string>();
+        for (const product of products.content) {
+          try {
+            const productDetails = await ProductService.getProductById(
+              product.productId
+            );
+            if (ProductService.hasVariants(productDetails)) {
+              variantProducts.add(product.productId);
+            }
+          } catch (error) {
+            console.error(
+              `Error checking variants for product ${product.productId}:`,
+              error
+            );
+          }
+        }
+        setProductsWithVariants(variantProducts);
+      };
+      checkVariants();
+    }
+  }, [products]);
 
   const handleSortChange = (value: string) => {
     const [newSortBy, newSortDirection] = value.split("-");
@@ -462,8 +576,7 @@ const ProductGrid = ({
   };
 
   const clearAllFilters = () => {
-    // This would need to be passed from parent component
-    onToggleFilters();
+    onClearAllFilters();
   };
 
   // Loading state
@@ -654,15 +767,9 @@ const ProductGrid = ({
                             -{convertedProduct.discount}% OFF
                           </Badge>
                         )}
-                      {convertedProduct.discountName &&
-                        convertedProduct.hasActiveDiscount && (
-                          <Badge
-                            variant="secondary"
-                            className="text-xs bg-orange-100 text-orange-800"
-                          >
-                            {convertedProduct.discountName}
-                          </Badge>
-                        )}
+
+                      {/* Note: Variant discount indicators will be handled by ProductCard component */}
+
                       {convertedProduct.isNew && (
                         <Badge className="bg-green-500 text-white text-xs">
                           New
@@ -793,19 +900,6 @@ const ProductGrid = ({
                                 </span>
                               )}
                           </div>
-
-                          {/* Discount End Date */}
-                          {convertedProduct.discountEndDate &&
-                            convertedProduct.hasActiveDiscount && (
-                              <div className="mb-4 text-sm text-orange-600">
-                                <span className="font-medium">
-                                  Offer ends:{" "}
-                                </span>
-                                {new Date(
-                                  convertedProduct.discountEndDate
-                                ).toLocaleDateString()}
-                              </div>
-                            )}
 
                           {/* Action Buttons */}
                           <div className="flex items-center gap-3 mt-auto">

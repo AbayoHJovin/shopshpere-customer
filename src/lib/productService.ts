@@ -72,6 +72,11 @@ export interface ProductVariantDTO {
   updatedAt: string;
   images: VariantImageDTO[];
   attributes: VariantAttributeDTO[];
+
+  // Discount information
+  discount?: DiscountDTO;
+  discountedPrice?: number;
+  hasActiveDiscount?: boolean;
 }
 
 export interface VariantImageDTO {
@@ -121,6 +126,23 @@ export interface PrimaryImageDto {
 }
 
 // Backend Discount Info DTO
+export interface DiscountDTO {
+  discountId: string;
+  name: string;
+  description?: string;
+  percentage: number;
+  discountCode?: string;
+  startDate: string;
+  endDate: string;
+  active: boolean;
+  usageLimit?: number;
+  usedCount?: number;
+  discountType?: string;
+  createdAt: string;
+  updatedAt: string;
+  valid: boolean;
+}
+
 export interface DiscountInfoDto {
   discountId: string;
   name: string;
@@ -190,6 +212,7 @@ export interface ProductSearchDTO {
   // Discount filters
   hasDiscount?: boolean;
   isOnSale?: boolean;
+  discountIds?: string[];
 
   // Pagination and sorting
   page?: number;
@@ -410,24 +433,76 @@ export const ProductService = {
   },
 
   /**
+   * Check if a product has any variants with active discounts
+   */
+  hasVariantDiscounts: (product: ProductDTO): boolean => {
+    return (
+      product.variants?.some((variant) => variant.hasActiveDiscount) || false
+    );
+  },
+
+  /**
+   * Get the maximum discount percentage among all variants
+   */
+  getMaxVariantDiscount: (product: ProductDTO): number => {
+    if (!product.variants) return 0;
+
+    const discounts = product.variants
+      .filter((variant) => variant.hasActiveDiscount && variant.discount)
+      .map((variant) => variant.discount!.percentage);
+
+    return discounts.length > 0 ? Math.max(...discounts) : 0;
+  },
+
+  /**
+   * Check if a discount is currently active based on its date range
+   */
+  isDiscountActive: (discountInfo: any): boolean => {
+    if (!discountInfo || !discountInfo.active || !discountInfo.percentage) {
+      return false;
+    }
+
+    const now = new Date();
+    const startDate = discountInfo.startDate
+      ? new Date(discountInfo.startDate)
+      : null;
+    const endDate = discountInfo.endDate
+      ? new Date(discountInfo.endDate)
+      : null;
+
+    // If start date exists and is in the future, discount is not active yet
+    if (startDate && startDate > now) {
+      return false;
+    }
+
+    // If end date exists and is in the past, discount has expired
+    if (endDate && endDate < now) {
+      return false;
+    }
+
+    return true;
+  },
+
+  /**
    * Convert ManyProductsDto to format expected by ProductCard component
    */
   convertToProductCardFormat: (product: ManyProductsDto) => {
-    const discountPercentage = product.discountInfo?.percentage
-      ? Math.round(Number(product.discountInfo.percentage))
-      : 0;
+    // Check if discount is currently active
+    const hasActiveDiscount = ProductService.isDiscountActive(
+      product.discountInfo
+    );
 
-    // Calculate discounted price if discount exists
+    // Calculate discount percentage only if discount is active
+    const discountPercentage =
+      hasActiveDiscount && product.discountInfo?.percentage
+        ? Math.round(Number(product.discountInfo.percentage))
+        : 0;
+
+    // Calculate discounted price only if discount is active
     const discountedPrice =
-      product.discountInfo && product.discountInfo.percentage
+      hasActiveDiscount && product.discountInfo?.percentage
         ? product.price * (1 - Number(product.discountInfo.percentage) / 100)
         : product.discountedPrice || undefined;
-
-    // Determine if product has active discount
-    const hasActiveDiscount =
-      product.discountInfo &&
-      product.discountInfo.active &&
-      product.discountInfo.percentage > 0;
 
     return {
       id: product.productId,
@@ -448,6 +523,8 @@ export const ProductService = {
       discountEndDate: product.discountInfo?.endDate || undefined,
       shortDescription: product.shortDescription || undefined,
       isFeatured: product.isFeatured === true,
+      hasVariantDiscounts: false, // This will be updated when we have product details
+      maxVariantDiscount: 0, // This will be updated when we have product details
     };
   },
 

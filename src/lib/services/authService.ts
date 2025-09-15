@@ -3,6 +3,7 @@ import {
   UserRegistrationDTO,
   LoginDto,
   LoginResponseDto,
+  SignupResponseDTO,
   PasswordResetRequest,
   VerifyResetCodeRequest,
   ResetPasswordRequest,
@@ -37,7 +38,7 @@ class AuthService {
 
   async register(
     userData: UserRegistrationDTO
-  ): Promise<ApiResponse<LoginResponseDto>> {
+  ): Promise<ApiResponse<SignupResponseDTO>> {
     try {
       const response = await fetch(`${API_ENDPOINTS.AUTH_REGISTER}`, {
         method: "POST",
@@ -56,13 +57,9 @@ class AuthService {
         };
       }
 
-      if (data.data && data.data.token) {
-        this.setToken(data.data.token);
-      }
-
       return {
         success: true,
-        data: data,
+        data: data.data,
         message: data.message || "Registration successful",
       };
     } catch (error) {
@@ -134,7 +131,7 @@ class AuthService {
 
       return {
         success: true,
-        data: data,
+        data: data.data,
       };
     } catch (error) {
       return {

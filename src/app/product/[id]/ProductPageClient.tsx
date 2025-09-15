@@ -29,6 +29,7 @@ import { WishlistService, AddToWishlistRequest } from "@/lib/wishlistService";
 import { useToast } from "@/hooks/use-toast";
 import { useAppSelector } from "@/lib/store/hooks";
 import VariantSelectionModal from "@/components/VariantSelectionModal";
+import SimilarProducts from "@/components/SimilarProducts";
 
 // Define a proper review interface
 interface ProductReview {
@@ -63,6 +64,74 @@ export function ProductPageClient({ productId }: { productId: string }) {
   const { toast } = useToast();
   const { isAuthenticated } = useAppSelector((state) => state.auth);
 
+  // Helper functions for discount calculations
+  const hasProductDiscount = (product: ProductDTO) => {
+    return (
+      product.discountedPrice && product.discountedPrice < product.basePrice
+    );
+  };
+
+  const getEffectiveDiscount = (variant: any) => {
+    if (!variant) return null;
+
+    // If variant has its own discount, use that
+    if (variant.hasActiveDiscount && variant.discount) {
+      return {
+        percentage: variant.discount.percentage,
+        discountedPrice: variant.discountedPrice || variant.price,
+        isVariantSpecific: true,
+        discount: variant.discount,
+      };
+    }
+
+    // If product has discount, apply it to variant
+    if (product && hasProductDiscount(product)) {
+      const discountPercentage =
+        ((product.basePrice - product.discountedPrice!) / product.basePrice) *
+        100;
+      const variantDiscountedPrice =
+        variant.price * (1 - discountPercentage / 100);
+      return {
+        percentage: discountPercentage,
+        discountedPrice: variantDiscountedPrice,
+        isVariantSpecific: false,
+        discount: null,
+      };
+    }
+
+    return null;
+  };
+
+  const formatPrice = (price: number, variant?: any) => {
+    const basePrice = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(price);
+
+    if (variant) {
+      const effectiveDiscount = getEffectiveDiscount(variant);
+      if (effectiveDiscount) {
+        const discountedPrice = new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+        }).format(effectiveDiscount.discountedPrice);
+
+        return (
+          <div className="flex flex-col">
+            <span className="font-semibold text-green-600">
+              {discountedPrice}
+            </span>
+            <span className="text-xs text-muted-foreground line-through">
+              {basePrice}
+            </span>
+          </div>
+        );
+      }
+    }
+
+    return <span className="font-semibold">{basePrice}</span>;
+  };
+
   // Fetch product data on component mount
   useEffect(() => {
     fetchProductData();
@@ -86,7 +155,12 @@ export function ProductPageClient({ productId }: { productId: string }) {
       ) {
         // Use variant images if available
         setDisplayImages(selectedVariant.images);
-        setDisplayPrice(selectedVariant.price || 0);
+        const effectiveDiscount = getEffectiveDiscount(selectedVariant);
+        setDisplayPrice(
+          effectiveDiscount
+            ? effectiveDiscount.discountedPrice
+            : selectedVariant.price || 0
+        );
         setDisplayStock(selectedVariant.stockQuantity || 0);
       } else {
         // Use product images and data
@@ -519,10 +593,44 @@ export function ProductPageClient({ productId }: { productId: string }) {
                   ${displayPrice.toFixed(2)}
                 </span>
                 {selectedVariant ? (
-                  // Show variant price without discount info
-                  <span className="text-sm text-muted-foreground">
-                    Variant Price
-                  </span>
+                  // Show variant price with discount info
+                  <>
+                    {(() => {
+                      const effectiveDiscount =
+                        getEffectiveDiscount(selectedVariant);
+                      if (effectiveDiscount) {
+                        return (
+                          <>
+                            <span className="text-xl text-muted-foreground line-through">
+                              ${selectedVariant.price.toFixed(2)}
+                            </span>
+                            <Badge
+                              variant={
+                                effectiveDiscount.isVariantSpecific
+                                  ? "destructive"
+                                  : "secondary"
+                              }
+                              className={`ml-2 ${
+                                effectiveDiscount.isVariantSpecific
+                                  ? ""
+                                  : "bg-orange-500 text-white"
+                              }`}
+                            >
+                              -{Math.round(effectiveDiscount.percentage)}% OFF
+                              {effectiveDiscount.isVariantSpecific
+                                ? ""
+                                : " (Product)"}
+                            </Badge>
+                          </>
+                        );
+                      }
+                      return (
+                        <span className="text-sm text-muted-foreground">
+                          Variant Price
+                        </span>
+                      );
+                    })()}
+                  </>
                 ) : (
                   // Show product price with discount info
                   <>
@@ -574,49 +682,83 @@ export function ProductPageClient({ productId }: { productId: string }) {
                     )}
                   </h3>
                   <div className="grid grid-cols-2 gap-2">
-                    {product.variants.map((variant) => (
-                      <div
-                        key={variant.variantId}
-                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                          selectedVariant?.variantId === variant.variantId
-                            ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                            : "hover:border-primary/50"
-                        } ${variant.stockQuantity === 0 ? "opacity-50" : ""}`}
-                        onClick={() => setSelectedVariant(variant)}
-                      >
-                        <div className="text-sm font-medium">
-                          {variant.variantSku}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          ${(variant.price || 0).toFixed(2)}
-                        </div>
+                    {product.variants.map((variant) => {
+                      const effectiveDiscount = getEffectiveDiscount(variant);
+                      return (
                         <div
-                          className={`text-xs ${
-                            variant.stockQuantity > 0
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }`}
+                          key={variant.variantId}
+                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                            selectedVariant?.variantId === variant.variantId
+                              ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                              : "hover:border-primary/50"
+                          } ${variant.stockQuantity === 0 ? "opacity-50" : ""}`}
+                          onClick={() => setSelectedVariant(variant)}
                         >
-                          {variant.stockQuantity > 0
-                            ? `Stock: ${variant.stockQuantity}`
-                            : "Out of Stock"}
-                        </div>
-                        {/* Show variant attributes */}
-                        {variant.attributes &&
-                          variant.attributes.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {variant.attributes.map((attr, index) => (
-                                <span
-                                  key={index}
-                                  className="text-xs bg-gray-100 px-1 py-0.5 rounded"
-                                >
-                                  {attr.attributeType}: {attr.attributeValue}
+                          <div className="text-sm font-medium">
+                            {variant.variantSku}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {effectiveDiscount ? (
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-green-600">
+                                  $
+                                  {effectiveDiscount.discountedPrice.toFixed(2)}
                                 </span>
-                              ))}
-                            </div>
+                                <span className="line-through">
+                                  ${(variant.price || 0).toFixed(2)}
+                                </span>
+                              </div>
+                            ) : (
+                              `$${(variant.price || 0).toFixed(2)}`
+                            )}
+                          </div>
+                          {effectiveDiscount && (
+                            <Badge
+                              variant={
+                                effectiveDiscount.isVariantSpecific
+                                  ? "destructive"
+                                  : "secondary"
+                              }
+                              className={`text-xs mt-1 ${
+                                effectiveDiscount.isVariantSpecific
+                                  ? ""
+                                  : "bg-orange-500 text-white"
+                              }`}
+                            >
+                              -{Math.round(effectiveDiscount.percentage)}% OFF
+                              {effectiveDiscount.isVariantSpecific
+                                ? ""
+                                : " (Product)"}
+                            </Badge>
                           )}
-                      </div>
-                    ))}
+                          <div
+                            className={`text-xs ${
+                              variant.stockQuantity > 0
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }`}
+                          >
+                            {variant.stockQuantity > 0
+                              ? `Stock: ${variant.stockQuantity}`
+                              : "Out of Stock"}
+                          </div>
+                          {/* Show variant attributes */}
+                          {variant.attributes &&
+                            variant.attributes.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {variant.attributes.map((attr, index) => (
+                                  <span
+                                    key={index}
+                                    className="text-xs bg-gray-100 px-1 py-0.5 rounded"
+                                  >
+                                    {attr.attributeType}: {attr.attributeValue}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                        </div>
+                      );
+                    })}
                   </div>
                   {selectedVariant && (
                     <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
@@ -624,8 +766,37 @@ export function ProductPageClient({ productId }: { productId: string }) {
                         Selected: {selectedVariant.variantSku}
                       </div>
                       <div className="text-xs text-green-600">
-                        Price: ${(selectedVariant.price || 0).toFixed(2)} |
-                        Stock: {selectedVariant.stockQuantity || 0}
+                        {(() => {
+                          const effectiveDiscount =
+                            getEffectiveDiscount(selectedVariant);
+                          if (effectiveDiscount) {
+                            return (
+                              <div className="flex flex-col">
+                                <span className="font-semibold">
+                                  Price: $
+                                  {effectiveDiscount.discountedPrice.toFixed(2)}
+                                </span>
+                                <span className="line-through">
+                                  Original: ${selectedVariant.price.toFixed(2)}
+                                </span>
+                                <span className="text-orange-600 font-medium">
+                                  -{Math.round(effectiveDiscount.percentage)}%
+                                  OFF
+                                  {effectiveDiscount.isVariantSpecific
+                                    ? ""
+                                    : " (Product Discount)"}
+                                </span>
+                              </div>
+                            );
+                          }
+                          return `Price: $${(
+                            selectedVariant.price || 0
+                          ).toFixed(2)}`;
+                        })()}
+                        <span className="ml-2">|</span>
+                        <span className="ml-2">
+                          Stock: {selectedVariant.stockQuantity || 0}
+                        </span>
                       </div>
                       <div className="mt-2 flex gap-2">
                         <Button
@@ -638,7 +809,13 @@ export function ProductPageClient({ productId }: { productId: string }) {
                                 ? selectedVariant.images
                                 : product.images || []
                             );
-                            setDisplayPrice(selectedVariant.price || 0);
+                            const effectiveDiscount =
+                              getEffectiveDiscount(selectedVariant);
+                            setDisplayPrice(
+                              effectiveDiscount
+                                ? effectiveDiscount.discountedPrice
+                                : selectedVariant.price || 0
+                            );
                             setDisplayStock(selectedVariant.stockQuantity || 0);
                           }}
                           className="text-xs"
@@ -999,6 +1176,38 @@ export function ProductPageClient({ productId }: { productId: string }) {
             </div>
           </TabsContent>
         </Tabs>
+      </section>
+
+      {/* Similar Products Section */}
+      <section className="container mx-auto px-4 py-8 border-t">
+        <SimilarProducts
+          productId={product.productId}
+          title="You Might Also Like"
+          algorithm="mixed"
+          maxProducts={8}
+          showAlgorithmSelector={true}
+        />
+      </section>
+
+      {/* Additional Similar Products Sections */}
+      <section className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <SimilarProducts
+            productId={product.productId}
+            title="People Also Bought"
+            algorithm="popular"
+            maxProducts={4}
+            showAlgorithmSelector={false}
+          />
+
+          <SimilarProducts
+            productId={product.productId}
+            title="From Same Brand"
+            algorithm="brand"
+            maxProducts={4}
+            showAlgorithmSelector={false}
+          />
+        </div>
       </section>
 
       {/* Variant Selection Modal */}

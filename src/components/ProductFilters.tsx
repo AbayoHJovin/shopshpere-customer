@@ -19,13 +19,16 @@ import {
   PercentIcon,
   AlertCircle,
   Loader2,
+  Clock,
 } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { FilterService, FilterOptions, FilterError } from "@/lib/filterService";
+import { discountService, DiscountInfo } from "@/lib/discountService";
+import CountdownTimer from "@/components/CountdownTimer";
 
 interface ProductFiltersProps {
   filters: any;
-  onFiltersChange: (filters: any) => void;
+  onFiltersChange: (filters: any | ((prevFilters: any) => any)) => void;
 }
 
 const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
@@ -40,9 +43,15 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
   const [localPriceRange, setLocalPriceRange] = useState(filters.priceRange);
   const priceRangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Discount state
+  const [activeDiscounts, setActiveDiscounts] = useState<DiscountInfo[]>([]);
+  const [discountsLoading, setDiscountsLoading] = useState(true);
+  const [discountsError, setDiscountsError] = useState<string | null>(null);
+
   // Load filter options from backend
   useEffect(() => {
     loadFilterOptions();
+    loadActiveDiscounts();
   }, []);
 
   // Sync local price range with filters
@@ -74,10 +83,26 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
     }
   };
 
+  const loadActiveDiscounts = async () => {
+    setDiscountsLoading(true);
+    setDiscountsError(null);
+    try {
+      const discounts = await discountService.getActiveDiscounts();
+      setActiveDiscounts(discounts);
+    } catch (error) {
+      console.error("Error loading active discounts:", error);
+      setDiscountsError("Failed to load active discounts");
+      setActiveDiscounts([]);
+    } finally {
+      setDiscountsLoading(false);
+    }
+  };
+
   const handleRetry = () => {
     setRetryCount((prev) => prev + 1);
     setFilterErrors([]);
     loadFilterOptions();
+    loadActiveDiscounts();
   };
 
   // Fallback data for when backend fails
@@ -93,17 +118,24 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
 
   // Colors and sizes are now handled through backend attributes
 
-  // Discount ranges (these can remain static as they're calculation-based)
-  const discountRanges = [
-    { range: "1% - 20%", min: 1, max: 20, count: 56 },
-    { range: "21% - 40%", min: 21, max: 40, count: 34 },
-    { range: "41% - 60%", min: 41, max: 60, count: 12 },
-    { range: "Over 60%", min: 61, max: 100, count: 8 },
-  ];
-
   const updateFilters = useCallback(
     (key: string, value: any) => {
-      onFiltersChange((prevFilters: any) => ({ ...prevFilters, [key]: value }));
+      onFiltersChange((prevFilters: any) => {
+        // Ensure prevFilters is not undefined and has proper structure
+        const safePrevFilters = prevFilters || {
+          priceRange: [0, 1000],
+          categories: [],
+          brands: [],
+          attributes: {},
+          selectedDiscounts: [],
+          rating: null,
+          inStock: true,
+          isBestseller: false,
+          isFeatured: false,
+          searchTerm: "",
+        };
+        return { ...safePrevFilters, [key]: value };
+      });
     },
     [onFiltersChange]
   );
@@ -157,11 +189,12 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
       categories: [],
       brands: [],
       attributes: {},
-      discountRanges: [],
+      selectedDiscounts: [],
       rating: null,
       inStock: true,
       isBestseller: false,
       isFeatured: false,
+      searchTerm: "",
     });
   }, [onFiltersChange]);
 
@@ -170,12 +203,13 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
     filters.priceRange[1] < 1000 ||
     filters.categories.length > 0 ||
     filters.brands?.length > 0 ||
-    filters.discountRanges?.length > 0 ||
+    filters.selectedDiscounts?.length > 0 ||
     (filters.attributes && Object.keys(filters.attributes).length > 0) ||
     filters.rating !== null ||
     filters.inStock === false ||
     filters.isBestseller === true ||
-    filters.isFeatured === true;
+    filters.isFeatured === true ||
+    (filters.searchTerm && filters.searchTerm.trim() !== "");
 
   const renderCategory = (category: any, level: number = 0) => {
     const isExpanded = expandedCategories.includes(category.name);
@@ -397,26 +431,31 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
                     </Badge>
                   ))
                 )}
-              {filters.discountRanges?.map((range: string) => (
-                <Badge
-                  key={`discount-${range}`}
-                  variant="secondary"
-                  className="text-xs"
-                >
-                  {range}
-                  <X
-                    className="ml-1 h-3 w-3 cursor-pointer"
-                    onClick={() =>
-                      updateFilters(
-                        "discountRanges",
-                        filters.discountRanges.filter(
-                          (d: string) => d !== range
+              {filters.selectedDiscounts?.map((discountId: string) => {
+                const discount = activeDiscounts.find(
+                  (d) => d.discountId === discountId
+                );
+                return (
+                  <Badge
+                    key={`discount-${discountId}`}
+                    variant="secondary"
+                    className="text-xs"
+                  >
+                    {discount?.name || discountId}
+                    <X
+                      className="ml-1 h-3 w-3 cursor-pointer"
+                      onClick={() =>
+                        updateFilters(
+                          "selectedDiscounts",
+                          filters.selectedDiscounts.filter(
+                            (d: string) => d !== discountId
+                          )
                         )
-                      )
-                    }
-                  />
-                </Badge>
-              ))}
+                      }
+                    />
+                  </Badge>
+                );
+              })}
               {filters.inStock === false && (
                 <Badge key="inStock" variant="secondary" className="text-xs">
                   Include Out of Stock
@@ -623,36 +662,126 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
         </div>
       )}
 
-      {/* Discount Filter */}
-      {renderFilterSection(
-        "Discount",
-        <div className="space-y-3">
-          {discountRanges.map((discount) => (
-            <div key={discount.range} className="flex items-center space-x-2">
-              <Checkbox
-                id={`discount-${discount.range}`}
-                checked={filters.discountRanges?.includes(discount.range)}
-                onCheckedChange={(checked) => {
-                  const newDiscountRanges = checked
-                    ? [...(filters.discountRanges || []), discount.range]
-                    : (filters.discountRanges || []).filter(
-                        (d: string) => d !== discount.range
-                      );
-                  updateFilters("discountRanges", newDiscountRanges);
-                }}
-              />
-              <label
-                htmlFor={`discount-${discount.range}`}
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-1 cursor-pointer flex items-center"
-              >
-                <PercentIcon className="h-3 w-3 mr-2 text-destructive" />
-                {discount.range}
-              </label>
-              <span className="text-xs text-gray-500">({discount.count})</span>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Active Discounts Filter */}
+      {activeDiscounts.length > 0 &&
+        renderFilterSection(
+          "Active Discounts",
+          <div className="space-y-4">
+            {discountsLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span className="ml-2 text-sm text-gray-600">
+                  Loading discounts...
+                </span>
+              </div>
+            ) : discountsError ? (
+              <div className="text-center py-4 text-red-500">
+                <p className="text-sm">{discountsError}</p>
+                <Button
+                  onClick={loadActiveDiscounts}
+                  size="sm"
+                  variant="outline"
+                  className="mt-2"
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Retry
+                </Button>
+              </div>
+            ) : (
+              activeDiscounts.map((discount) => (
+                <div
+                  key={discount.discountId}
+                  className="border rounded-lg p-3 space-y-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`discount-${discount.discountId}`}
+                      checked={
+                        filters.selectedDiscounts?.includes(
+                          discount.discountId
+                        ) || false
+                      }
+                      onCheckedChange={(checked) => {
+                        const newSelectedDiscounts = checked
+                          ? [
+                              ...(filters.selectedDiscounts || []),
+                              discount.discountId,
+                            ]
+                          : (filters.selectedDiscounts || []).filter(
+                              (d: string) => d !== discount.discountId
+                            );
+                        updateFilters(
+                          "selectedDiscounts",
+                          newSelectedDiscounts
+                        );
+                      }}
+                    />
+                    <label
+                      htmlFor={`discount-${discount.discountId}`}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-1 cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <PercentIcon className="h-3 w-3 text-red-500" />
+                        <span className="font-semibold">{discount.name}</span>
+                        <Badge variant="destructive" className="text-xs">
+                          {discount.percentage}% OFF
+                        </Badge>
+                      </div>
+                    </label>
+                  </div>
+
+                  {discount.description && (
+                    <p className="text-xs text-gray-600 ml-6">
+                      {discount.description}
+                    </p>
+                  )}
+
+                  <div className="ml-6 space-y-2">
+                    {/* Countdown Timer */}
+                    <div className="bg-red-50 border border-red-200 rounded p-2">
+                      <div className="flex items-center justify-center gap-2">
+                        <Clock className="h-3 w-3 text-red-500" />
+                        <div className="text-center">
+                          <p className="text-red-600 text-xs font-medium mb-1">
+                            Ends in
+                          </p>
+                          <CountdownTimer
+                            endDate={discount.endDate}
+                            onExpired={() => {
+                              console.log(`Discount ${discount.name} expired`);
+                              // Optionally refresh discounts when one expires
+                              loadActiveDiscounts();
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Discount Info */}
+                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
+                      <div>
+                        <span className="font-medium">Products:</span>{" "}
+                        {discount.productCount}
+                      </div>
+                      <div>
+                        <span className="font-medium">Code:</span>{" "}
+                        {discount.discountCode}
+                      </div>
+                      <div>
+                        <span className="font-medium">Used:</span>{" "}
+                        {discount.usedCount}/{discount.usageLimit}
+                      </div>
+                      <div>
+                        <span className="font-medium">Remaining:</span>{" "}
+                        {discount.remainingCount}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
 
       {/* Colors and Sizes are now handled through Product Attributes above */}
 

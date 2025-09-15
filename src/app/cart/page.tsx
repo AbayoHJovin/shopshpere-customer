@@ -404,10 +404,16 @@ export default function CartPage() {
                         <span className="font-medium">
                           {formatPrice(item.price)}
                         </span>
-                        {item.previousPrice && (
-                          <span className="text-sm text-muted-foreground line-through">
-                            {formatPrice(item.previousPrice)}
-                          </span>
+                        {item.originalPrice &&
+                          item.originalPrice > item.price && (
+                            <span className="text-sm text-muted-foreground line-through">
+                              {formatPrice(item.originalPrice)}
+                            </span>
+                          )}
+                        {item.hasDiscount && item.discountPercentage && (
+                          <Badge variant="destructive" className="text-xs mt-1">
+                            -{Math.round(item.discountPercentage)}% OFF
+                          </Badge>
                         )}
                       </div>
                     </TableCell>
@@ -550,10 +556,19 @@ export default function CartPage() {
                           <span className="font-medium">
                             {formatPrice(item.price)}
                           </span>
-                          {item.previousPrice && (
-                            <span className="text-xs text-muted-foreground line-through">
-                              {formatPrice(item.previousPrice)}
-                            </span>
+                          {item.originalPrice &&
+                            item.originalPrice > item.price && (
+                              <span className="text-xs text-muted-foreground line-through">
+                                {formatPrice(item.originalPrice)}
+                              </span>
+                            )}
+                          {item.hasDiscount && item.discountPercentage && (
+                            <Badge
+                              variant="destructive"
+                              className="text-xs mt-1 w-fit"
+                            >
+                              -{Math.round(item.discountPercentage)}% OFF
+                            </Badge>
                           )}
                         </div>
 
@@ -702,6 +717,46 @@ export default function CartPage() {
                   {formatPrice(cart.subtotal)}
                 </span>
               </div>
+
+              {/* Discount Summary */}
+              {cart.items.some((item) => item.hasDiscount) && (
+                <>
+                  <Separator />
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium text-green-600">
+                      Discounts Applied
+                    </div>
+                    {cart.items
+                      .filter((item) => item.hasDiscount)
+                      .map((item, index) => (
+                        <div
+                          key={index}
+                          className="flex justify-between text-sm"
+                        >
+                          <span className="text-muted-foreground">
+                            {item.name} ({item.discountName || "Discount"})
+                          </span>
+                          <span className="text-green-600 font-medium">
+                            -{formatPrice(item.discountAmount || 0)}
+                          </span>
+                        </div>
+                      ))}
+                    <div className="flex justify-between text-sm font-medium text-green-600 border-t pt-2">
+                      <span>Total Savings</span>
+                      <span>
+                        -
+                        {formatPrice(
+                          cart.items.reduce(
+                            (total, item) => total + (item.discountAmount || 0),
+                            0
+                          )
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
+
               <Separator className="my-4" />
 
               <div className="flex justify-between text-lg font-semibold">

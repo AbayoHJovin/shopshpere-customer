@@ -4,6 +4,7 @@ import {
   User,
   UserRegistrationDTO,
   LoginDto,
+  SignupResponseDTO,
   PasswordResetRequest,
   VerifyResetCodeRequest,
   ResetPasswordRequest,
@@ -18,6 +19,7 @@ const initialState: AuthState = {
     typeof window !== "undefined" ? !!localStorage.getItem("authToken") : false,
   isLoading: false,
   error: null,
+  signupResponse: null,
 };
 
 export const register = createAsyncThunk(
@@ -132,6 +134,9 @@ const authSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    clearSignupResponse: (state) => {
+      state.signupResponse = null;
+    },
     setUser: (state, action: PayloadAction<User>) => {
       state.user = action.payload;
       state.isAuthenticated = true;
@@ -159,9 +164,7 @@ const authSlice = createSlice({
       })
       .addCase(register.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.user = action.payload.user;
-        state.token = action.payload.token;
-        state.isAuthenticated = true;
+        state.signupResponse = action.payload;
         state.error = null;
       })
       .addCase(register.rejected, (state, action) => {
@@ -265,5 +268,11 @@ const authSlice = createSlice({
   },
 });
 
-export const { clearError, setUser, setToken, logoutLocal } = authSlice.actions;
+export const {
+  clearError,
+  clearSignupResponse,
+  setUser,
+  setToken,
+  logoutLocal,
+} = authSlice.actions;
 export default authSlice.reducer;

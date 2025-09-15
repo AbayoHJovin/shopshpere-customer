@@ -30,6 +30,8 @@ interface ProductCardProps {
   discountEndDate?: string;
   shortDescription?: string;
   isFeatured?: boolean;
+  hasVariantDiscounts?: boolean;
+  maxVariantDiscount?: number;
 }
 
 const ProductCard = ({
@@ -51,6 +53,8 @@ const ProductCard = ({
   discountEndDate,
   shortDescription,
   isFeatured,
+  hasVariantDiscounts,
+  maxVariantDiscount,
 }: ProductCardProps) => {
   const [isInCart, setIsInCart] = useState(false);
   const [isInWishlist, setIsInWishlist] = useState(false);
@@ -58,6 +62,10 @@ const ProductCard = ({
   const [isWishlistLoading, setIsWishlistLoading] = useState(false);
   const [showVariantModal, setShowVariantModal] = useState(false);
   const [productDetails, setProductDetails] = useState<ProductDTO | null>(null);
+  const [variantDiscountInfo, setVariantDiscountInfo] = useState<{
+    hasVariantDiscounts: boolean;
+    maxVariantDiscount: number;
+  }>({ hasVariantDiscounts: false, maxVariantDiscount: 0 });
   const { toast } = useToast();
   const { isAuthenticated } = useAppSelector((state) => state.auth);
 
@@ -65,6 +73,21 @@ const ProductCard = ({
   useEffect(() => {
     checkCartStatus();
     checkWishlistStatus();
+
+    // Fetch variant discount information
+    const fetchVariantDiscountInfo = async () => {
+      try {
+        const product = await ProductService.getProductById(id);
+        const hasVariantDiscounts = ProductService.hasVariantDiscounts(product);
+        const maxVariantDiscount =
+          ProductService.getMaxVariantDiscount(product);
+        setVariantDiscountInfo({ hasVariantDiscounts, maxVariantDiscount });
+      } catch (error) {
+        console.error("Error fetching variant discount info:", error);
+      }
+    };
+
+    fetchVariantDiscountInfo();
   }, [id]);
 
   const checkCartStatus = async () => {
@@ -274,14 +297,16 @@ const ProductCard = ({
                   -{discount}% OFF
                 </Badge>
               )}
-              {discountName && hasActiveDiscount && (
-                <Badge
-                  variant="secondary"
-                  className="text-xs bg-orange-100 text-orange-800"
-                >
-                  {discountName}
-                </Badge>
-              )}
+              {variantDiscountInfo.hasVariantDiscounts &&
+                !hasActiveDiscount &&
+                variantDiscountInfo.maxVariantDiscount > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="text-xs bg-orange-500 text-white"
+                  >
+                    Up to -{variantDiscountInfo.maxVariantDiscount}% OFF
+                  </Badge>
+                )}
               {isNew && (
                 <Badge className="bg-green-500 text-white text-xs">New</Badge>
               )}
@@ -417,14 +442,6 @@ const ProductCard = ({
               </span>
             )}
           </div>
-
-          {/* Discount End Date */}
-          {discountEndDate && hasActiveDiscount && (
-            <div className="mt-2 text-xs text-orange-600">
-              <span className="font-medium">Offer ends: </span>
-              {new Date(discountEndDate).toLocaleDateString()}
-            </div>
-          )}
         </div>
       </CardContent>
 

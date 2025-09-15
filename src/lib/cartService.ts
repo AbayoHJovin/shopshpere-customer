@@ -4,7 +4,8 @@ export interface CartItemResponse {
   productId: string;
   variantId?: string;
   name: string;
-  price: number;
+  price: number; // Current price with discount applied
+  originalPrice: number; // Original price before discount
   previousPrice: number | null;
   url: string;
   quantity: number;
@@ -12,6 +13,12 @@ export interface CartItemResponse {
   totalPrice: number;
   averageRating: number;
   ratingCount: number;
+
+  // Discount information
+  discountPercentage?: number;
+  discountName?: string;
+  discountAmount?: number; // Amount saved due to discount
+  hasDiscount?: boolean;
 }
 
 export interface CartResponse {

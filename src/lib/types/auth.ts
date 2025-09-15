@@ -1,3 +1,10 @@
+export interface SignupResponseDTO {
+  message: string;
+  userId: string;
+  awardedPoints: number;
+  pointsDescription?: string;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -8,6 +15,7 @@ export interface User {
   dateOfBirth?: string;
   gender?: string;
   isActive: boolean;
+  points?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -51,6 +59,7 @@ export interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  signupResponse: SignupResponseDTO | null;
 }
 
 export interface ApiResponse<T> {

@@ -17,6 +17,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
+import RewardDialog from "@/components/RewardDialog";
 
 export default function RegisterForm() {
   const [formData, setFormData] = useState({
@@ -35,7 +36,9 @@ export default function RegisterForm() {
 
   const dispatch = useAppDispatch();
   const router = useRouter();
-  const { isLoading, error } = useAppSelector((state) => state.auth);
+  const { isLoading, error, signupResponse } = useAppSelector(
+    (state) => state.auth
+  );
 
   const validateForm = () => {
     const errors: { [key: string]: string } = {};
@@ -98,7 +101,6 @@ export default function RegisterForm() {
 
     try {
       await dispatch(register(userData)).unwrap();
-      router.push("/");
     } catch (error) {
       console.error("Registration failed:", error);
     }
@@ -313,6 +315,13 @@ export default function RegisterForm() {
           </form>
         </CardContent>
       </Card>
+
+      <RewardDialog
+        isOpen={!!signupResponse && signupResponse.awardedPoints > 0}
+        onClose={() => {}}
+        awardedPoints={signupResponse?.awardedPoints || 0}
+        pointsDescription={signupResponse?.pointsDescription}
+      />
     </div>
   );
 }

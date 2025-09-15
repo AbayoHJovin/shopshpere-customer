@@ -33,16 +33,19 @@ import { toast } from "sonner";
 
 interface UserData {
   id: string;
-  email: string;
   firstName?: string;
   lastName?: string;
-  userName?: string;
+  userEmail: string;
   phoneNumber?: string;
-  dateOfBirth?: string;
-  gender?: string;
-  isActive: boolean;
+  role: string;
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  enabled: boolean;
+  points?: number;
+  lastLogin?: string;
   createdAt: string;
   updatedAt: string;
+  fullName?: string;
 }
 
 export default function AccountPage() {
@@ -60,7 +63,7 @@ export default function AccountPage() {
 
         const response = await authService.getCurrentUser();
         if (response.success && response.data) {
-          setUserData(response.data);
+          setUserData(response.data as unknown as UserData);
         } else {
           throw new Error(response.message || "Failed to fetch user data");
         }
@@ -99,7 +102,7 @@ export default function AccountPage() {
   const getUserInitials = () => {
     if (!userData) return "U";
 
-    const firstName = userData.firstName || userData.userName || "";
+    const firstName = userData.firstName || "";
     const lastName = userData.lastName || "";
 
     if (!firstName && !lastName) return "U";
@@ -209,22 +212,36 @@ export default function AccountPage() {
                   </Avatar>
                 </div>
                 <CardTitle className="text-xl">
-                  {userData?.firstName || userData?.userName || "User"}{" "}
-                  {userData?.lastName || ""}
+                  {userData?.firstName || "User"} {userData?.lastName || ""}
                 </CardTitle>
-                <CardDescription>{userData?.email}</CardDescription>
+                <CardDescription>{userData?.userEmail}</CardDescription>
                 <Badge
-                  variant={userData?.isActive ? "default" : "secondary"}
+                  variant={userData?.enabled ? "default" : "secondary"}
                   className="mt-2"
                 >
-                  {userData?.isActive ? "Active" : "Inactive"}
+                  {userData?.enabled ? "Active" : "Inactive"}
                 </Badge>
+                {userData?.points !== undefined && (
+                  <div className="mt-3 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border">
+                    <div className="flex items-center justify-center gap-2">
+                      <Gift className="h-5 w-5 text-yellow-600" />
+                      <span className="text-lg font-bold text-yellow-700">
+                        {userData.points || 0} Points
+                      </span>
+                    </div>
+                    <p className="text-xs text-center text-gray-600 mt-1">
+                      {userData.points > 0
+                        ? "Available for redemption"
+                        : "Start earning points today!"}
+                    </p>
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm">
                     <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span>{userData?.email}</span>
+                    <span>{userData?.userEmail}</span>
                   </div>
                   {userData?.phoneNumber && (
                     <div className="flex items-center gap-2 text-sm">
@@ -232,17 +249,37 @@ export default function AccountPage() {
                       <span>{userData.phoneNumber}</span>
                     </div>
                   )}
-                  {userData?.dateOfBirth && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="capitalize">
+                      {userData?.role?.toLowerCase() || "Customer"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span
+                      className={
+                        userData?.emailVerified
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }
+                    >
+                      Email{" "}
+                      {userData?.emailVerified ? "Verified" : "Not Verified"}
+                    </span>
+                  </div>
+                  {userData?.phoneNumber && (
                     <div className="flex items-center gap-2 text-sm">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span>{formatDate(userData.dateOfBirth)}</span>
-                    </div>
-                  )}
-                  {userData?.gender && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <span className="capitalize">
-                        {userData.gender.toLowerCase()}
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <span
+                        className={
+                          userData?.phoneVerified
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }
+                      >
+                        Phone{" "}
+                        {userData?.phoneVerified ? "Verified" : "Not Verified"}
                       </span>
                     </div>
                   )}
@@ -254,6 +291,11 @@ export default function AccountPage() {
                       ? formatDate(userData.createdAt)
                       : "N/A"}
                   </p>
+                  {userData?.lastLogin && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Last login: {formatDate(userData.lastLogin)}
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -399,7 +441,10 @@ export default function AccountPage() {
                     Reward System
                   </CardTitle>
                   <CardDescription>
-                    Learn about our reward system and earn points
+                    Your current points:{" "}
+                    <span className="font-semibold text-yellow-600">
+                      {userData?.points || 0}
+                    </span>
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -416,6 +461,12 @@ export default function AccountPage() {
                       <p>• Earn 1 point per $1 spent</p>
                       <p>• Redeem 100 points = $1 discount</p>
                       <p>• Unlock tier benefits</p>
+                      {userData?.points && userData.points > 0 && (
+                        <p className="text-green-600 font-medium mt-2">
+                          • You can redeem ${(userData.points / 100).toFixed(2)}{" "}
+                          in discounts
+                        </p>
+                      )}
                     </div>
                   </div>
                 </CardContent>

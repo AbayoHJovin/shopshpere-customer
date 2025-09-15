@@ -99,12 +99,72 @@ const VariantSelectionModal = ({
     }
   };
 
-  // Format price
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
+  // Check if product has an active discount
+  const hasProductDiscount = () => {
+    return (
+      product.discountedPrice && product.discountedPrice < product.basePrice
+    );
+  };
+
+  // Get effective discount for a variant (either variant-specific or product-level)
+  const getEffectiveDiscount = (variant: ProductVariantDTO) => {
+    // If variant has its own discount, use that
+    if (variant.hasActiveDiscount && variant.discount) {
+      return {
+        percentage: variant.discount.percentage,
+        discountedPrice: variant.discountedPrice || variant.price,
+        isVariantSpecific: true,
+        discount: variant.discount,
+      };
+    }
+
+    // If product has discount, apply it to variant
+    if (hasProductDiscount()) {
+      const discountPercentage =
+        ((product.basePrice - product.discountedPrice!) / product.basePrice) *
+        100;
+      const variantDiscountedPrice =
+        variant.price * (1 - discountPercentage / 100);
+      return {
+        percentage: discountPercentage,
+        discountedPrice: variantDiscountedPrice,
+        isVariantSpecific: false,
+        discount: null,
+      };
+    }
+
+    return null;
+  };
+
+  // Format price with discount
+  const formatPrice = (price: number, variant?: ProductVariantDTO) => {
+    const basePrice = new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
     }).format(price);
+
+    if (variant) {
+      const effectiveDiscount = getEffectiveDiscount(variant);
+      if (effectiveDiscount) {
+        const discountedPrice = new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+        }).format(effectiveDiscount.discountedPrice);
+
+        return (
+          <div className="flex flex-col">
+            <span className="font-semibold text-green-600">
+              {discountedPrice}
+            </span>
+            <span className="text-xs text-muted-foreground line-through">
+              {basePrice}
+            </span>
+          </div>
+        );
+      }
+    }
+
+    return <span className="font-semibold">{basePrice}</span>;
   };
 
   // Get main product image
@@ -226,7 +286,7 @@ const VariantSelectionModal = ({
                                   )}
                                 </div>
                                 <span className="font-semibold text-sm">
-                                  {formatPrice(variant.price)}
+                                  {formatPrice(variant.price, variant)}
                                 </span>
                               </div>
 
@@ -243,6 +303,36 @@ const VariantSelectionModal = ({
                                     ? `${variant.stockQuantity} in stock`
                                     : "Out of stock"}
                                 </span>
+                                {(() => {
+                                  const effectiveDiscount =
+                                    getEffectiveDiscount(variant);
+                                  if (effectiveDiscount) {
+                                    return (
+                                      <Badge
+                                        variant={
+                                          effectiveDiscount.isVariantSpecific
+                                            ? "destructive"
+                                            : "secondary"
+                                        }
+                                        className={`text-xs ${
+                                          effectiveDiscount.isVariantSpecific
+                                            ? ""
+                                            : "bg-orange-500 text-white"
+                                        }`}
+                                      >
+                                        -
+                                        {Math.round(
+                                          effectiveDiscount.percentage
+                                        )}
+                                        % OFF
+                                        {effectiveDiscount.isVariantSpecific
+                                          ? ""
+                                          : " (Product)"}
+                                      </Badge>
+                                    );
+                                  }
+                                  return null;
+                                })()}
                               </div>
 
                               {/* Variant Attributes */}
@@ -356,14 +446,34 @@ const VariantSelectionModal = ({
                       <div className="flex justify-between">
                         <span className="text-sm">Price:</span>
                         <span className="text-sm font-medium">
-                          {formatPrice(selectedVariant.price)}
+                          {(() => {
+                            const effectiveDiscount =
+                              getEffectiveDiscount(selectedVariant);
+                            if (effectiveDiscount) {
+                              return formatPrice(
+                                effectiveDiscount.discountedPrice
+                              );
+                            }
+                            return formatPrice(selectedVariant.price);
+                          })()}
                         </span>
                       </div>
                       <Separator />
                       <div className="flex justify-between">
                         <span className="font-medium">Total:</span>
                         <span className="font-bold">
-                          {formatPrice(selectedVariant.price * quantity)}
+                          {(() => {
+                            const effectiveDiscount =
+                              getEffectiveDiscount(selectedVariant);
+                            if (effectiveDiscount) {
+                              return formatPrice(
+                                effectiveDiscount.discountedPrice * quantity
+                              );
+                            }
+                            return formatPrice(
+                              selectedVariant.price * quantity
+                            );
+                          })()}
                         </span>
                       </div>
                     </div>
