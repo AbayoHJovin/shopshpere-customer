@@ -111,10 +111,8 @@ const ProductCard = ({
   };
 
   const checkWishlistStatus = async () => {
-    if (!isAuthenticated) return;
-
     try {
-      // Check if the product is in wishlist
+      // Check if the product is in wishlist (works for both authenticated and guest users)
       const isProductInWishlist = await WishlistService.isInWishlist(id);
       setIsInWishlist(isProductInWishlist);
     } catch (error) {
@@ -224,23 +222,30 @@ const ProductCard = ({
     e.preventDefault();
     e.stopPropagation();
 
-    if (!isAuthenticated) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to add items to your wishlist.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     if (isInWishlist) {
       // Remove from wishlist
       try {
         setIsWishlistLoading(true);
-        // For now, we'll just show a message that removal is not implemented yet
+
+        if (isAuthenticated) {
+          // For authenticated users, we need to get the wishlist item ID
+          const wishlist = await WishlistService.getWishlist();
+          const wishlistItem = wishlist.products.find(
+            (item) => item.productId === id
+          );
+
+          if (wishlistItem) {
+            await WishlistService.removeFromWishlist(wishlistItem.id);
+          }
+        } else {
+          // For guest users, remove from localStorage by productId
+          await WishlistService.removeFromWishlist(id);
+        }
+
+        setIsInWishlist(false);
         toast({
-          title: "Remove from wishlist",
-          description: "Please go to your wishlist page to remove items.",
+          title: "Removed from wishlist",
+          description: `${name} has been removed from your wishlist.`,
         });
       } catch (error) {
         console.error("Error removing from wishlist:", error);
@@ -262,9 +267,14 @@ const ProductCard = ({
         productId: id,
       });
       setIsInWishlist(true);
+
+      const message = isAuthenticated
+        ? `${name} has been added to your wishlist.`
+        : `${name} has been added to your local wishlist. Sign in to sync across devices.`;
+
       toast({
         title: "Added to wishlist",
-        description: `${name} has been added to your wishlist.`,
+        description: message,
       });
     } catch (error) {
       console.error("Error adding to wishlist:", error);

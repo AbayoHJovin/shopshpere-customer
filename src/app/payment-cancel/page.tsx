@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +14,7 @@ import { AlertCircle, ArrowLeft, ShoppingCart } from "lucide-react";
 import { checkoutService } from "@/lib/services/checkout-service";
 import Link from "next/link";
 
-export default function PaymentCancelPage() {
+function PaymentCancelContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
   const [isCleaningUp, setIsCleaningUp] = useState(false);
@@ -36,7 +36,9 @@ export default function PaymentCancelPage() {
     try {
       await checkoutService.handlePaymentCancellation(sessionId);
       setCleanupComplete(true);
-      console.log("Order cleanup completed successfully. Stock has been unlocked.");
+      console.log(
+        "Order cleanup completed successfully. Stock has been unlocked."
+      );
     } catch (err) {
       console.error("Error during cleanup:", err);
       setError(
@@ -124,5 +126,24 @@ export default function PaymentCancelPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function PaymentCancelPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md">
+            <CardContent className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <p className="mt-4 text-sm text-gray-600">Loading...</p>
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
+      <PaymentCancelContent />
+    </Suspense>
   );
 }

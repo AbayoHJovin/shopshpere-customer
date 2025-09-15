@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   CheckCircle2,
@@ -17,7 +17,7 @@ import { OrderService, CheckoutVerificationResult } from "@/lib/orderService";
 import { CartService } from "@/lib/cartService";
 import Link from "next/link";
 
-export default function OrderSuccessPage() {
+function OrderSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [verificationResult, setVerificationResult] =
@@ -237,5 +237,20 @@ export default function OrderSuccessPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function OrderSuccessPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="container mx-auto px-4 py-16 flex flex-col items-center justify-center min-h-[50vh]">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+          <p className="mt-4 text-lg text-muted-foreground">Loading...</p>
+        </div>
+      }
+    >
+      <OrderSuccessContent />
+    </Suspense>
   );
 }

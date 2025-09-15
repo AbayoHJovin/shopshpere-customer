@@ -30,6 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAppSelector } from "@/lib/store/hooks";
 import VariantSelectionModal from "@/components/VariantSelectionModal";
 import SimilarProducts from "@/components/SimilarProducts";
+import ReviewSection from "@/components/ReviewSection";
 
 // Define a proper review interface
 interface ProductReview {
@@ -59,8 +60,6 @@ export function ProductPageClient({ productId }: { productId: string }) {
   const [isCartLoading, setIsCartLoading] = useState(false);
   const [isWishlistLoading, setIsWishlistLoading] = useState(false);
   const [showVariantModal, setShowVariantModal] = useState(false);
-  const [rating, setRating] = useState(0);
-  const [reviewText, setReviewText] = useState("");
   const { toast } = useToast();
   const { isAuthenticated } = useAppSelector((state) => state.auth);
 
@@ -363,18 +362,6 @@ export function ProductPageClient({ productId }: { productId: string }) {
     } finally {
       setIsWishlistLoading(false);
     }
-  };
-
-  // Handle submitting a review
-  const handleReviewSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // In a real app, this would send the review to the backend
-    toast({
-      title: "Review submitted",
-      description: `Thank you for your ${rating}-star review!`,
-    });
-    setRating(0);
-    setReviewText("");
   };
 
   if (isLoading) {
@@ -1012,16 +999,16 @@ export function ProductPageClient({ productId }: { productId: string }) {
                     <span className="text-muted-foreground">SKU</span>
                     <span>{product.sku}</span>
                   </div>
-                  {product.dimensions && (
+                  {product.dimensionsCm && (
                     <div className="grid grid-cols-2 gap-4 py-2 border-b">
                       <span className="text-muted-foreground">Dimensions</span>
-                      <span>{product.dimensions}</span>
+                      <span>{product.dimensionsCm}</span>
                     </div>
                   )}
-                  {product.weight && (
+                  {product.weightKg && (
                     <div className="grid grid-cols-2 gap-4 py-2 border-b">
                       <span className="text-muted-foreground">Weight</span>
-                      <span>{product.weight} kg</span>
+                      <span>{product.weightKg} kg</span>
                     </div>
                   )}
                 </div>
@@ -1036,144 +1023,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
             </div>
           </TabsContent>
           <TabsContent value="reviews">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Review Summary */}
-              <div className="lg:col-span-1 space-y-6">
-                <div className="flex flex-col items-center p-6 bg-muted/30 rounded-lg">
-                  <span className="text-4xl font-bold">
-                    {(product.averageRating || 0).toFixed(1)}
-                  </span>
-                  <div className="flex my-2">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`h-5 w-5 ${
-                          i < fullStars
-                            ? "fill-rating-star text-rating-star"
-                            : i < (product.averageRating || 0)
-                            ? "text-rating-star fill-rating-star/50"
-                            : "text-muted-foreground"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-sm text-muted-foreground">
-                    Based on {product.reviewCount || 0} reviews
-                  </span>
-                </div>
-
-                {/* Add Review Form */}
-                <div className="p-6 border rounded-lg">
-                  <h3 className="font-medium text-lg mb-4">Write a Review</h3>
-                  <form onSubmit={handleReviewSubmit} className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium block mb-1">
-                        Rating
-                      </label>
-                      <div className="flex">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <button
-                            key={star}
-                            type="button"
-                            onClick={() => setRating(star)}
-                            className="p-1"
-                          >
-                            <Star
-                              className={`h-6 w-6 ${
-                                star <= rating
-                                  ? "fill-rating-star text-rating-star"
-                                  : "text-muted-foreground"
-                              }`}
-                            />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium block mb-1">
-                        Your Review
-                      </label>
-                      <textarea
-                        className="w-full min-h-[100px] p-2 border rounded-md"
-                        value={reviewText}
-                        onChange={(e) => setReviewText(e.target.value)}
-                        placeholder="Share your experience with this product..."
-                        required
-                      />
-                    </div>
-                    <Button
-                      type="submit"
-                      disabled={rating === 0 || reviewText.trim() === ""}
-                    >
-                      Submit Review
-                    </Button>
-                  </form>
-                </div>
-              </div>
-
-              {/* Review List */}
-              <div className="lg:col-span-2">
-                {product.reviews && product.reviews.length > 0 ? (
-                  <div className="space-y-6">
-                    {product.reviews.map((review) => (
-                      <div key={review.id} className="p-6 border rounded-lg">
-                        <div className="flex justify-between items-start mb-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full overflow-hidden bg-muted">
-                              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                                {review.userName.charAt(0).toUpperCase()}
-                              </div>
-                            </div>
-                            <div>
-                              <p className="font-medium">{review.userName}</p>
-                              <div className="flex items-center gap-2">
-                                <div className="flex">
-                                  {[...Array(5)].map((_, i) => (
-                                    <Star
-                                      key={i}
-                                      className={`h-4 w-4 ${
-                                        i < review.rating
-                                          ? "fill-rating-star text-rating-star"
-                                          : "text-muted-foreground"
-                                      }`}
-                                    />
-                                  ))}
-                                </div>
-                                {review.isVerifiedPurchase && (
-                                  <Badge variant="outline" className="text-xs">
-                                    Verified Purchase
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-sm text-muted-foreground mb-4">
-                            {new Date(review.createdAt).toLocaleDateString(
-                              "en-US",
-                              {
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric",
-                              }
-                            )}
-                          </div>
-                        </div>
-                        <p className="text-muted-foreground">
-                          {review.content}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-8 text-center border rounded-lg bg-muted/30">
-                    <p className="text-lg font-medium">No reviews yet</p>
-                    <p className="text-muted-foreground mt-1">
-                      Be the first to review this product!
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
+            <ReviewSection productId={productId} productName={product.name} />
           </TabsContent>
         </Tabs>
       </section>

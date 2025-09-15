@@ -30,25 +30,38 @@ class SimilarProductsService {
     request: SimilarProductsRequest
   ): Promise<SimilarProductsResponse> {
     try {
-      const response = await fetch(`${API_ENDPOINTS.PRODUCTS}/similar`, {
-        method: "GET",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          productId: request.productId,
-          page: request.page || 0,
-          size: request.size || 12,
-          includeOutOfStock: request.includeOutOfStock || false,
-          algorithm: request.algorithm || "mixed",
-        }),
-      });
+      const params = new URLSearchParams();
+      params.append("page", String(request.page || 0));
+      params.append("size", String(request.size || 12));
+      params.append(
+        "includeOutOfStock",
+        String(
+          request.includeOutOfStock !== undefined
+            ? request.includeOutOfStock
+            : true
+        )
+      );
+      params.append("algorithm", request.algorithm || "mixed");
+
+      const response = await fetch(
+        `${API_ENDPOINTS.PRODUCTS}/${
+          request.productId
+        }/similar?${params.toString()}`,
+        {
+          method: "GET",
+          headers: getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       const data = await response.json();
       return data;
     } catch (error: any) {
       console.error("Error fetching similar products:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to fetch similar products"
-      );
+      throw new Error(error.message || "Failed to fetch similar products");
     }
   }
 
@@ -67,7 +80,11 @@ class SimilarProductsService {
       params.append("size", String(options.size || 12));
       params.append(
         "includeOutOfStock",
-        String(options.includeOutOfStock || false)
+        String(
+          options.includeOutOfStock !== undefined
+            ? options.includeOutOfStock
+            : true
+        )
       );
       params.append("algorithm", options.algorithm || "mixed");
 
@@ -79,13 +96,15 @@ class SimilarProductsService {
         }
       );
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
       return data;
     } catch (error: any) {
       console.error("Error fetching similar products by product ID:", error);
-      throw new Error(
-        error.response?.data?.message || "Failed to fetch similar products"
-      );
+      throw new Error(error.message || "Failed to fetch similar products");
     }
   }
 }

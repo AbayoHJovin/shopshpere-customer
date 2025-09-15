@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { CheckCircle, Loader2, XCircle, Download, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { OrderService, OrderDetailsResponse } from "@/lib/orderService";
 import Link from "next/link";
 import QRCode from "qrcode";
 
-export default function PaymentSuccessPage() {
+function PaymentSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [verifying, setVerifying] = useState(true);
@@ -266,5 +266,23 @@ export default function PaymentSuccessPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="container mx-auto px-4 py-16 flex flex-col items-center justify-center min-h-[50vh]">
+          <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
+          <h1 className="text-2xl font-bold mb-2">Loading...</h1>
+          <p className="text-muted-foreground">
+            Please wait while we load your payment information.
+          </p>
+        </div>
+      }
+    >
+      <PaymentSuccessContent />
+    </Suspense>
   );
 }

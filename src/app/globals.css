@@ -2,9 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom global styles */
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: poppins, sans-serif;
 }
 
 @layer base {

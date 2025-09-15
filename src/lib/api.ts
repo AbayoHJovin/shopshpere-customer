@@ -11,6 +11,7 @@ export const API_ENDPOINTS = {
   SEARCH_PRODUCTS: `${API_BASE_URL}/products/search`,
   PRODUCT_REVIEWS: (productId: string) =>
     `${API_BASE_URL}/reviews/product/${productId}`,
+  REVIEWS: `${API_BASE_URL}/reviews`,
 
   // Category endpoints
   CATEGORIES: `${API_BASE_URL}/categories`,

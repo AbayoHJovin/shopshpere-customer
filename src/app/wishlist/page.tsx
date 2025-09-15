@@ -69,15 +69,11 @@ export default function WishlistPage() {
   const [totalProducts, setTotalProducts] = useState(0);
   const [pageSize] = useState(10);
   const [showVariantModal, setShowVariantModal] = useState(false);
-  const [selectedProductForVariantModal, setSelectedProductForVariantModal] = useState<ProductDTO | null>(null);
+  const [selectedProductForVariantModal, setSelectedProductForVariantModal] =
+    useState<ProductDTO | null>(null);
 
   // Fetch wishlist data
   const fetchWishlist = async (page = 0) => {
-    if (!isAuthenticated) {
-      setIsLoading(false);
-      return;
-    }
-
     try {
       setIsLoading(true);
       const response = await WishlistService.getWishlist(page, pageSize);
@@ -107,10 +103,24 @@ export default function WishlistPage() {
   };
 
   // Handle remove from wishlist
-  const handleRemoveFromWishlist = async (wishlistProductId: number) => {
+  const handleRemoveFromWishlist = async (
+    wishlistProductId: number | string
+  ) => {
     try {
       setIsActionLoading(true);
-      await WishlistService.removeFromWishlist(wishlistProductId);
+
+      if (isAuthenticated) {
+        // For authenticated users, use the wishlist item ID
+        await WishlistService.removeFromWishlist(wishlistProductId as number);
+      } else {
+        // For guest users, remove by productId
+        const product = wishlistProducts.find(
+          (p) => p.id === wishlistProductId
+        );
+        if (product) {
+          await WishlistService.removeFromWishlist(product.productId);
+        }
+      }
 
       toast({
         title: "Removed from wishlist",
@@ -136,23 +146,34 @@ export default function WishlistPage() {
   const handleMoveToCart = async (wishlistProduct: WishlistProduct) => {
     try {
       setIsActionLoading(true);
-      
+
       // Check if the product has variants
-      const product = await ProductService.getProductById(wishlistProduct.productId);
-      
+      const product = await ProductService.getProductById(
+        wishlistProduct.productId
+      );
+
       if (product.variants && product.variants.length > 0) {
         // Show variant selection modal for products with variants
         setSelectedProductForVariantModal(product);
         setShowVariantModal(true);
       } else {
-        // For products without variants, move directly to cart
-        await WishlistService.moveToCart(wishlistProduct.id, 1);
-        
+        // For products without variants, add directly to cart
+        if (isAuthenticated) {
+          // For authenticated users, use the move to cart functionality
+          await WishlistService.moveToCart(wishlistProduct.id, 1);
+        } else {
+          // For guest users, add to cart directly
+          await CartService.addItemToCart({
+            productId: wishlistProduct.productId,
+            quantity: 1,
+          });
+        }
+
         toast({
           title: "Moved to cart",
           description: "Product has been moved to your cart.",
         });
-        
+
         // Refresh the current page
         await fetchWishlist(currentPage);
       }
@@ -197,7 +218,7 @@ export default function WishlistPage() {
   const handleAddToCart = async (request: CartItemRequest) => {
     try {
       setIsActionLoading(true);
-      
+
       // Add the variant to cart
       await CartService.addItemToCart({
         variantId: request.variantId,
@@ -223,23 +244,6 @@ export default function WishlistPage() {
       setIsActionLoading(false);
     }
   };
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <Heart className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-          <h2 className="text-2xl font-bold mb-2">
-            Sign in to view your wishlist
-          </h2>
-          <p className="text-muted-foreground mb-4">
-            You need to be signed in to access your wishlist.
-          </p>
-          <Button onClick={() => router.push("/auth/login")}>Sign In</Button>
-        </div>
-      </div>
-    );
-  }
 
   if (isLoading) {
     return (
@@ -310,6 +314,32 @@ export default function WishlistPage() {
         </div>
       </div>
 
+      {/* Guest User Banner */}
+      {!isAuthenticated && (
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mx-4 mb-6">
+          <div className="flex items-center">
+            <AlertCircle className="h-5 w-5 text-blue-400 mr-3" />
+            <div className="flex-1">
+              <p className="text-sm text-blue-700">
+                <strong>Guest Mode:</strong> You're viewing your local wishlist.
+                <Link href="/auth/login" className="underline ml-1">
+                  Sign in
+                </Link>{" "}
+                to sync your wishlist across all devices and never lose your
+                saved items.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => router.push("/auth/login")}
+              className="ml-4"
+            >
+              Sign In
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       <div className="container mx-auto px-4 py-8">
         {wishlistProducts.length === 0 ? (
@@ -343,26 +373,37 @@ export default function WishlistPage() {
                       <TableRow key={product.id}>
                         <TableCell>
                           <div className="flex items-center gap-3">
-                                                         <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted">
-                               {product.productImage ? (
-                                 <img
-                                   src={product.productImage}
-                                   alt={product.productName}
-                                   className="w-full h-full object-cover"
-                                 />
-                               ) : (
-                                 <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                                   <Package className="h-6 w-6" />
-                                 </div>
-                               )}
-                             </div>
-                             <div>
-                               <h3 className="font-medium">
-                                 {product.productName}
-                               </h3>
-                               <p className="text-sm text-muted-foreground">
-                                 SKU: {product.productSku}
-                               </p>
+                            <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted">
+                              {product.productImage ? (
+                                <img
+                                  src={product.productImage}
+                                  alt={product.productName}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                  <Package className="h-6 w-6" />
+                                </div>
+                              )}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-medium">
+                                  {product.productName}
+                                </h3>
+                                {product.hasActiveDiscount &&
+                                  product.discountInfo?.active && (
+                                    <Badge
+                                      variant="destructive"
+                                      className="text-xs"
+                                    >
+                                      {product.discountInfo.percentage}% OFF
+                                    </Badge>
+                                  )}
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                SKU: {product.productSku}
+                              </p>
                               {product.notes && (
                                 <p className="text-sm text-muted-foreground mt-1">
                                   Note: {product.notes}
@@ -372,9 +413,26 @@ export default function WishlistPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <span className="font-medium">
-                            ${product.price.toFixed(2)}
-                          </span>
+                          <div className="flex flex-col">
+                            {product.hasActiveDiscount &&
+                            product.discountInfo?.active ? (
+                              <>
+                                <span className="font-medium text-green-600">
+                                  ${(product.finalPrice || 0).toFixed(2)}
+                                </span>
+                                <span className="text-sm text-muted-foreground line-through">
+                                  ${(product.price || 0).toFixed(2)}
+                                </span>
+                                <span className="text-xs text-green-600 font-medium">
+                                  {product.discountInfo.percentage}% OFF
+                                </span>
+                              </>
+                            ) : (
+                              <span className="font-medium">
+                                ${(product.price || 0).toFixed(2)}
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Badge
@@ -398,12 +456,12 @@ export default function WishlistPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                                                         <Button
-                               size="sm"
-                               variant="outline"
-                               onClick={() => handleMoveToCart(product)}
-                               disabled={isActionLoading || !product.inStock}
-                             >
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleMoveToCart(product)}
+                              disabled={isActionLoading || !product.inStock}
+                            >
                               <ShoppingCart className="h-4 w-4 mr-1" />
                               Move to Cart
                             </Button>
@@ -455,30 +513,53 @@ export default function WishlistPage() {
                 <Card key={product.id}>
                   <CardContent className="p-4">
                     <div className="flex gap-4">
-                                             <div className="w-20 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                         {product.productImage ? (
-                           <img
-                             src={product.productImage}
-                             alt={product.productName}
-                             className="w-full h-full object-cover"
-                           />
-                         ) : (
-                           <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                             <Package className="h-6 w-6" />
-                           </div>
-                         )}
-                       </div>
-                       <div className="flex-1 min-w-0">
-                         <h3 className="font-medium truncate">
-                           {product.productName}
-                         </h3>
-                         <p className="text-sm text-muted-foreground">
-                           SKU: {product.productSku}
-                         </p>
+                      <div className="w-20 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                        {product.productImage ? (
+                          <img
+                            src={product.productImage}
+                            alt={product.productName}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                            <Package className="h-6 w-6" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-medium truncate">
+                            {product.productName}
+                          </h3>
+                          {product.hasActiveDiscount &&
+                            product.discountInfo?.active && (
+                              <Badge variant="destructive" className="text-xs">
+                                {product.discountInfo.percentage}% OFF
+                              </Badge>
+                            )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          SKU: {product.productSku}
+                        </p>
                         <div className="flex items-center gap-2 mt-2">
-                          <span className="font-medium">
-                            ${product.price.toFixed(2)}
-                          </span>
+                          {product.hasActiveDiscount &&
+                          product.discountInfo?.active ? (
+                            <div className="flex flex-col">
+                              <span className="font-medium text-green-600">
+                                ${(product.finalPrice || 0).toFixed(2)}
+                              </span>
+                              <span className="text-sm text-muted-foreground line-through">
+                                ${(product.price || 0).toFixed(2)}
+                              </span>
+                              <span className="text-xs text-green-600 font-medium">
+                                {product.discountInfo.percentage}% OFF
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="font-medium">
+                              ${(product.price || 0).toFixed(2)}
+                            </span>
+                          )}
                           <Badge
                             variant={
                               product.inStock ? "outline" : "destructive"
@@ -494,13 +575,13 @@ export default function WishlistPage() {
                           </p>
                         )}
                         <div className="flex items-center gap-2 mt-3">
-                                                     <Button
-                             size="sm"
-                             variant="outline"
-                             onClick={() => handleMoveToCart(product)}
-                             disabled={isActionLoading || !product.inStock}
-                             className="flex-1"
-                           >
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleMoveToCart(product)}
+                            disabled={isActionLoading || !product.inStock}
+                            className="flex-1"
+                          >
                             <ShoppingCart className="h-4 w-4 mr-1" />
                             Move to Cart
                           </Button>
@@ -601,21 +682,21 @@ export default function WishlistPage() {
               </div>
             )}
           </>
-                 )}
-       </div>
+        )}
+      </div>
 
-       {/* Variant Selection Modal */}
-       {selectedProductForVariantModal && (
-         <VariantSelectionModal
-           isOpen={showVariantModal}
-           onClose={() => {
-             setShowVariantModal(false);
-             setSelectedProductForVariantModal(null);
-           }}
-           product={selectedProductForVariantModal}
-           onAddToCart={handleAddToCart}
-         />
-       )}
-     </div>
-   );
- }
+      {/* Variant Selection Modal */}
+      {selectedProductForVariantModal && (
+        <VariantSelectionModal
+          isOpen={showVariantModal}
+          onClose={() => {
+            setShowVariantModal(false);
+            setSelectedProductForVariantModal(null);
+          }}
+          product={selectedProductForVariantModal}
+          onAddToCart={handleAddToCart}
+        />
+      )}
+    </div>
+  );
+}

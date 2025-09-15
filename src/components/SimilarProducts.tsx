@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ManyProductsDto } from "@/lib/types/product";
+import { ManyProductsDto } from "@/lib/productService";
 import {
   similarProductsService,
   SimilarProductsRequest,
@@ -63,7 +63,7 @@ export default function SimilarProducts({
         productId,
         page,
         size: maxProducts,
-        includeOutOfStock: false,
+        includeOutOfStock: true,
         algorithm: algo as any,
       };
 
@@ -76,7 +76,7 @@ export default function SimilarProducts({
         setHasPreviousPage(response.data.hasPrevious);
         setTotalPages(response.data.totalPages);
       } else {
-        setError("Failed to load similar products");
+        setError(response.message || "Failed to load similar products");
       }
     } catch (err: any) {
       console.error("Error fetching similar products:", err);
@@ -91,7 +91,9 @@ export default function SimilarProducts({
   }, [productId, currentAlgorithm]);
 
   const handleAlgorithmChange = (newAlgorithm: string) => {
-    setCurrentAlgorithm(newAlgorithm);
+    setCurrentAlgorithm(
+      newAlgorithm as "brand" | "category" | "keywords" | "popular" | "mixed"
+    );
     fetchSimilarProducts(0, newAlgorithm);
   };
 
@@ -125,16 +127,6 @@ export default function SimilarProducts({
             <RefreshCw className="h-4 w-4 mr-2" />
             Try Again
           </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (products.length === 0) {
-    return (
-      <div className="py-8">
-        <div className="text-center">
-          <p className="text-muted-foreground">No similar products found</p>
         </div>
       </div>
     );
@@ -183,18 +175,17 @@ export default function SimilarProducts({
             key={product.productId}
             id={product.productId}
             name={product.productName}
-            price={product.basePrice}
+            price={product.price}
             discountedPrice={product.discountedPrice}
-            image={product.primaryImageUrl}
-            rating={product.averageRating}
-            reviewCount={product.reviewCount}
-            stockQuantity={product.stockQuantity}
+            image={product.primaryImage?.imageUrl}
+            rating={product.averageRating || 0}
+            reviewCount={product.reviewCount || 0}
             hasActiveDiscount={product.hasActiveDiscount}
-            discount={product.discount}
-            discountName={product.discountName}
-            discountEndDate={product.discountEndDate}
-            hasVariantDiscounts={product.hasVariantDiscounts}
-            maxVariantDiscount={product.maxVariantDiscount}
+            discount={product.discountInfo?.percentage}
+            discountName={product.discountInfo?.name}
+            discountEndDate={product.discountInfo?.endDate}
+            hasVariantDiscounts={false}
+            maxVariantDiscount={0}
           />
         ))}
       </div>
