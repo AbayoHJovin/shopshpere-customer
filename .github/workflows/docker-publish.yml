@@ -18,13 +18,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ Log in to GHCR using PAT
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v2
-        with:
-          registry: ghcr.io
-          username: ashrafutuyubahe
-          password: ${{ secrets.GHCR_PAT }}
+      # 2️⃣ Debug login manually (show docker info)
+      - name: Debug GHCR login
+        run: |
+          echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ashrafutuyubahe --password-stdin
+          docker info
+          docker system info
 
       # 3️⃣ Build & push Docker image
       - name: Build and push Docker image
