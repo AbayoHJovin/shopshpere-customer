@@ -185,8 +185,7 @@ class WishlistServices {
     const token = getAuthToken();
 
     if (!token) {
-      // No token = guest user, use localStorage
-      // If wishlistProductId is a string, it's a productId for guest users
+ 
       if (typeof wishlistProductId === "string") {
         removeFromLocalStorageWishlistByProductId(wishlistProductId);
       } else {
