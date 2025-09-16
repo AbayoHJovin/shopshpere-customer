@@ -1,0 +1,34 @@
+name: Publish Docker image
+
+on:
+  push:
+    branches:
+      - prod
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      # 1️⃣ Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2️⃣ Debug login manually (show docker info)
+      - name: Debug GHCR login
+        run: |
+          echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ashrafutuyubahe --password-stdin
+          docker info
+          docker system info
+
+      # 3️⃣ Build & push Docker image
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/ashrafutuyubahe/ecommerce-frontend:latest

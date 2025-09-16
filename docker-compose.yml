@@ -1,0 +1,58 @@
+version: "3.9"
+
+services:
+  app:
+    image: ghcr.io/ashrafutuyubahe/ecommerce:latest
+    container_name: ecommerce_app
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SERVER_ADDRESS=${SERVER_ADDRESS}
+      - SERVER_PORT=${SERVER_PORT}
+      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
+      - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
+    env_file:
+      - .env
+    depends_on:
+      - db
+    restart: always
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  ecommerce-frontend:
+    image: ghcr.io/ashrafutuyubahe/ecommerce-frontend:latest
+    container_name: ecommerce_frontend
+    ports:
+      - "3000:3000"
+    restart: always
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+  db:
+    image: postgres:15
+    container_name: ecommerce_db
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_REGISTRY_AUTH: "true"
+      WATCHTOWER_USERNAME: ${GHCR_USERNAME}
+      WATCHTOWER_PASSWORD: ${GHCR_TOKEN}
+    command: --interval 30 --cleanup
+
+volumes:
+  db_data:
