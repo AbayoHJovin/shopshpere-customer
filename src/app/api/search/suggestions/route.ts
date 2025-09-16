@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "@/lib/api";
 import { NextRequest, NextResponse } from "next/server";
 
 interface SearchSuggestion {
@@ -19,8 +20,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Call backend API for suggestions
-    const backendUrl =
-      process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
+    const backendUrl = API_BASE_URL
+     
     const response = await fetch(
       `${backendUrl}/products/search/suggestions?q=${encodeURIComponent(
         query
