@@ -1,4 +1,4 @@
-import { API_ENDPOINTS, getAuthHeaders } from "./api";
+import { API_BASE_URL, API_ENDPOINTS, getAuthHeaders } from "./api";
 import { ManyProductsDto } from "./productService";
 
 export interface WishlistProduct {
@@ -73,9 +73,7 @@ const getAuthToken = (): string | null => {
 };
 
 class WishlistServices {
-  private baseUrl =
-    process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
-
+  private baseUrl = API_BASE_URL
   private async getAuthHeaders(): Promise<HeadersInit> {
     const token = getAuthToken();
     return {

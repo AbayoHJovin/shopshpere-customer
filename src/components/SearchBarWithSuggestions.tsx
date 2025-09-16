@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { API_BASE_URL } from "@/lib/api";
 
 interface SearchSuggestion {
   id: string;
@@ -68,12 +69,12 @@ export function SearchBarWithSuggestions({
       setIsLoading(true);
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
 
         const response = await fetch(
           `${
-            process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
-          }/api/v1/products/search/suggestions?q=${encodeURIComponent(value)}`,
+            API_BASE_URL
+          }/products/search/suggestions?q=${encodeURIComponent(value)}`,
           {
             method: "GET",
             headers: {
