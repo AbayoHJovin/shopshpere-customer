@@ -116,7 +116,7 @@ const Header = () => {
         <div className="hidden sm:flex items-center justify-between py-2 text-sm border-b">
           <div className="flex items-center gap-4">
             <span className="text-muted-foreground">
-              Free shipping on orders over $50
+              Free shipping on orders over $60
             </span>
           </div>
           <div className="flex items-center gap-4">
