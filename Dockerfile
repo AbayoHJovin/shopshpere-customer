@@ -1,25 +1,24 @@
-# Build image
+
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Copy package files first
+# Copy all files
 COPY package.json pnpm-lock.yaml ./
 
-# Install pnpm and dependencies
+# Install pnpm and dep
 RUN npm install -g pnpm && pnpm install --frozen-lockfile
 
-# Copy the rest of the source code (node_modules excluded by .dockerignore)
 COPY . .
 
-# Build Next.js app
+# Building
 RUN pnpm build
 
-# Production image
+# Prod image
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Install pnpm
+# Installing pnpm
 RUN npm install -g pnpm
 
 COPY --from=builder /app/public ./public
