@@ -25,7 +25,7 @@ import {
   AlertCircle,
   ExternalLink,
 } from "lucide-react";
-import { ProductDTO, ProductVariantDTO } from "@/lib/productService";
+import { ProductDTO, ProductVariantDTO, ProductService } from "@/lib/productService";
 import { CartItemRequest } from "@/lib/cartService";
 import Link from "next/link";
 
@@ -74,8 +74,8 @@ const VariantSelectionModal = ({
     if (newQuantity < 1) return;
     if (
       selectedVariant &&
-      selectedVariant.stockQuantity > 0 &&
-      newQuantity > selectedVariant.stockQuantity
+      ProductService.getVariantTotalStock(selectedVariant) > 0 &&
+      newQuantity > ProductService.getVariantTotalStock(selectedVariant)
     )
       return;
     setQuantity(newQuantity);
@@ -293,14 +293,14 @@ const VariantSelectionModal = ({
                               <div className="flex items-center gap-4 text-xs text-muted-foreground mb-2">
                                 <span
                                   className={`flex items-center gap-1 ${
-                                    variant.stockQuantity > 0
+                                    ProductService.getVariantTotalStock(variant) > 0
                                       ? "text-green-600"
                                       : "text-red-600"
                                   }`}
                                 >
                                   <Package className="h-3 w-3" />
-                                  {variant.stockQuantity > 0
-                                    ? `${variant.stockQuantity} in stock`
+                                  {ProductService.getVariantTotalStock(variant) > 0
+                                    ? `${ProductService.getVariantTotalStock(variant)} in stock`
                                     : "Out of stock"}
                                 </span>
                                 {(() => {
@@ -378,7 +378,7 @@ const VariantSelectionModal = ({
                     size="icon"
                     onClick={() => handleQuantityChange(quantity - 1)}
                     disabled={
-                      quantity <= 1 || selectedVariant.stockQuantity === 0
+                      quantity <= 1 || ProductService.getVariantTotalStock(selectedVariant) === 0
                     }
                   >
                     <Minus className="h-4 w-4" />
@@ -387,8 +387,8 @@ const VariantSelectionModal = ({
                     type="number"
                     min="1"
                     max={
-                      selectedVariant.stockQuantity > 0
-                        ? selectedVariant.stockQuantity
+                      ProductService.getVariantTotalStock(selectedVariant) > 0
+                        ? ProductService.getVariantTotalStock(selectedVariant)
                         : undefined
                     }
                     value={quantity}
@@ -396,15 +396,15 @@ const VariantSelectionModal = ({
                       handleQuantityChange(parseInt(e.target.value) || 1)
                     }
                     className="w-20 text-center"
-                    disabled={selectedVariant.stockQuantity === 0}
+                    disabled={ProductService.getVariantTotalStock(selectedVariant) === 0}
                   />
                   <Button
                     variant="outline"
                     size="icon"
                     onClick={() => handleQuantityChange(quantity + 1)}
                     disabled={
-                      quantity >= selectedVariant.stockQuantity ||
-                      selectedVariant.stockQuantity === 0
+                      quantity >= ProductService.getVariantTotalStock(selectedVariant) ||
+                      ProductService.getVariantTotalStock(selectedVariant) === 0
                     }
                   >
                     <Plus className="h-4 w-4" />
@@ -412,13 +412,13 @@ const VariantSelectionModal = ({
                 </div>
                 <p
                   className={`text-xs ${
-                    selectedVariant.stockQuantity > 0
+                    ProductService.getVariantTotalStock(selectedVariant) > 0
                       ? "text-muted-foreground"
                       : "text-red-600"
                   }`}
                 >
-                  {selectedVariant.stockQuantity > 0
-                    ? `${selectedVariant.stockQuantity} available`
+                  {ProductService.getVariantTotalStock(selectedVariant) > 0
+                    ? `${ProductService.getVariantTotalStock(selectedVariant)} available`
                     : "Out of stock"}
                 </p>
               </div>
@@ -488,7 +488,7 @@ const VariantSelectionModal = ({
               disabled={
                 !selectedVariant ||
                 isLoading ||
-                selectedVariant.stockQuantity === 0
+                ProductService.getVariantTotalStock(selectedVariant) === 0
               }
               className="w-full"
             >
@@ -497,7 +497,7 @@ const VariantSelectionModal = ({
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                   Adding to Cart...
                 </>
-              ) : selectedVariant && selectedVariant.stockQuantity === 0 ? (
+              ) : selectedVariant && ProductService.getVariantTotalStock(selectedVariant) === 0 ? (
                 <>
                   <AlertCircle className="h-4 w-4 mr-2" />
                   Out of Stock

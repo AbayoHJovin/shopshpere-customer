@@ -2,6 +2,35 @@
 import { API_ENDPOINTS } from "./api";
 
 // Product DTOs matching the backend
+export interface ProductWarehouseStockDTO {
+  stockId: number;
+  warehouseId: number;
+  warehouseName: string;
+  warehouseAddress: string;
+  warehouseCity: string;
+  warehouseState: string;
+  warehouseCountry: string;
+  warehouseContactNumber: string;
+  warehouseEmail: string;
+  quantity: number;
+  lowStockThreshold: number;
+  isInStock: boolean;
+  isLowStock: boolean;
+  isOutOfStock: boolean;
+  createdAt: string;
+  updatedAt: string;
+  variantId?: number;
+  variantSku?: string;
+  variantName?: string;
+  isVariantBased: boolean;
+  batches: any[];
+  totalBatches: number;
+  activeBatches: number;
+  expiredBatches: number;
+  recalledBatches: number;
+  stockQuantity: number;
+}
+
 export interface ProductDTO {
   productId: string;
   name: string;
@@ -31,6 +60,9 @@ export interface ProductDTO {
   images: ProductImageDTO[];
   videos: ProductVideoDTO[];
   variants: ProductVariantDTO[];
+  warehouseStock: ProductWarehouseStockDTO[];
+  totalWarehouseStock: number;
+  totalWarehouses: number;
   fullDescription?: string;
   metaTitle?: string;
   metaDescription?: string;
@@ -56,6 +88,16 @@ export interface ProductVideoDTO {
   durationSeconds?: number;
 }
 
+export interface WarehouseStockDTO {
+  warehouseId: number;
+  warehouseName: string;
+  warehouseLocation: string;
+  stockQuantity: number;
+  lowStockThreshold: number;
+  isLowStock: boolean;
+  lastUpdated: string;
+}
+
 export interface ProductVariantDTO {
   variantId: number;
   variantSku: string;
@@ -64,7 +106,6 @@ export interface ProductVariantDTO {
   price: number;
   salePrice?: number;
   costPrice?: number;
-  stockQuantity: number;
   isActive: boolean;
   isInStock?: boolean;
   isLowStock?: boolean;
@@ -72,11 +113,15 @@ export interface ProductVariantDTO {
   updatedAt: string;
   images: VariantImageDTO[];
   attributes: VariantAttributeDTO[];
+  warehouseStocks: WarehouseStockDTO[];
 
   // Discount information
   discount?: DiscountDTO;
   discountedPrice?: number;
   hasActiveDiscount?: boolean;
+
+  // Computed properties for backward compatibility
+  stockQuantity?: number; // Will be calculated from warehouseStocks
 }
 
 export interface VariantImageDTO {
@@ -401,6 +446,33 @@ export const ProductService = {
    */
   hasVariants: (product: ProductDTO): boolean => {
     return product.variants && product.variants.length > 0;
+  },
+
+  /**
+   * Calculate total stock quantity for a variant from all warehouses
+   */
+  getVariantTotalStock: (variant: ProductVariantDTO): number => {
+    if (!variant.warehouseStocks || variant.warehouseStocks.length === 0) {
+      return 0;
+    }
+    return variant.warehouseStocks.reduce((total, stock) => total + stock.stockQuantity, 0);
+  },
+
+  /**
+   * Check if variant is in stock (has stock in any warehouse)
+   */
+  isVariantInStock: (variant: ProductVariantDTO): boolean => {
+    return ProductService.getVariantTotalStock(variant) > 0;
+  },
+
+  /**
+   * Check if variant is low stock (any warehouse is low stock)
+   */
+  isVariantLowStock: (variant: ProductVariantDTO): boolean => {
+    if (!variant.warehouseStocks || variant.warehouseStocks.length === 0) {
+      return false;
+    }
+    return variant.warehouseStocks.some(stock => stock.isLowStock);
   },
 
   /**

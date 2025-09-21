@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import ProductCard from "@/components/ProductCard";
-import { ProductService, ProductDTO } from "@/lib/productService";
+import { ProductService, ProductDTO, ProductVariantDTO } from "@/lib/productService";
 import { CartService, CartItemRequest } from "@/lib/cartService";
 import { WishlistService, AddToWishlistRequest } from "@/lib/wishlistService";
 import { useToast } from "@/hooks/use-toast";
@@ -160,12 +160,13 @@ export function ProductPageClient({ productId }: { productId: string }) {
             ? effectiveDiscount.discountedPrice
             : selectedVariant.price || 0
         );
-        setDisplayStock(selectedVariant.stockQuantity || 0);
+        // Calculate total stock from all warehouses for this variant
+        setDisplayStock(ProductService.getVariantTotalStock(selectedVariant));
       } else {
         // Use product images and data
         setDisplayImages(product.images || []);
         setDisplayPrice(product.discountedPrice || product.basePrice || 0);
-        setDisplayStock(product.stockQuantity || 0);
+        setDisplayStock(product.totalWarehouseStock || product.stockQuantity || 0);
       }
       // Reset selected image when switching between product and variant images
       setSelectedImage(0);
@@ -652,7 +653,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
             {/* Variant Selection */}
             {product.variants && product.variants.length > 0 && (
               <>
-                {product.variants.every((v) => v.stockQuantity === 0) && (
+                {product.variants.every((v) => ProductService.getVariantTotalStock(v) === 0) && (
                   <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                     <div className="text-sm font-medium text-red-800">
                       All variants are currently out of stock
@@ -678,7 +679,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                             selectedVariant?.variantId === variant.variantId
                               ? "border-primary bg-primary/5 ring-2 ring-primary/20"
                               : "hover:border-primary/50"
-                          } ${variant.stockQuantity === 0 ? "opacity-50" : ""}`}
+                          } ${ProductService.getVariantTotalStock(variant) === 0 ? "opacity-50" : ""}`}
                           onClick={() => setSelectedVariant(variant)}
                         >
                           <div className="text-sm font-medium">
@@ -720,13 +721,13 @@ export function ProductPageClient({ productId }: { productId: string }) {
                           )}
                           <div
                             className={`text-xs ${
-                              variant.stockQuantity > 0
+                              ProductService.getVariantTotalStock(variant) > 0
                                 ? "text-green-600"
                                 : "text-red-600"
                             }`}
                           >
-                            {variant.stockQuantity > 0
-                              ? `Stock: ${variant.stockQuantity}`
+                            {ProductService.getVariantTotalStock(variant) > 0
+                              ? `Stock: ${ProductService.getVariantTotalStock(variant)}`
                               : "Out of Stock"}
                           </div>
                           {/* Show variant attributes */}
@@ -782,7 +783,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                         })()}
                         <span className="ml-2">|</span>
                         <span className="ml-2">
-                          Stock: {selectedVariant.stockQuantity || 0}
+                          Stock: {ProductService.getVariantTotalStock(selectedVariant)}
                         </span>
                       </div>
                       <div className="mt-2 flex gap-2">
@@ -803,7 +804,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                                 ? effectiveDiscount.discountedPrice
                                 : selectedVariant.price || 0
                             );
-                            setDisplayStock(selectedVariant.stockQuantity || 0);
+                            setDisplayStock(ProductService.getVariantTotalStock(selectedVariant));
                           }}
                           className="text-xs"
                         >
@@ -889,7 +890,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                   (displayStock || 0) === 0 ||
                   isCartLoading ||
                   (ProductService.hasVariants(product) && !selectedVariant) ||
-                  (selectedVariant && selectedVariant.stockQuantity === 0)
+                  (selectedVariant && ProductService.getVariantTotalStock(selectedVariant) === 0)
                 }
               >
                 {isCartLoading ? (
@@ -902,7 +903,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                     <Check className="h-5 w-5 mr-2" />
                     Added to Cart
                   </>
-                ) : selectedVariant && selectedVariant.stockQuantity === 0 ? (
+                ) : selectedVariant && ProductService.getVariantTotalStock(selectedVariant) === 0 ? (
                   <>
                     <AlertCircle className="h-5 w-5 mr-2" />
                     Out of Stock

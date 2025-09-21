@@ -314,7 +314,7 @@ const ProductCard = ({
                     variant="secondary"
                     className="text-xs bg-orange-500 text-white"
                   >
-                    Up to -{variantDiscountInfo.maxVariantDiscount}% OFF
+                    Up to -{variantDiscountInfo.maxVariantDiscount}% OFF (Variant)
                   </Badge>
                 )}
               {isNew && (
