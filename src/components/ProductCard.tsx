@@ -10,6 +10,7 @@ import { CartService, CartItemRequest } from "@/lib/cartService";
 import { WishlistService, AddToWishlistRequest } from "@/lib/wishlistService";
 import { useToast } from "@/hooks/use-toast";
 import { useAppSelector } from "@/lib/store/hooks";
+import { formatPrice, formatDiscountedPrice } from "@/lib/utils/priceFormatter";
 
 interface ProductCardProps {
   id: string;
@@ -434,23 +435,33 @@ const ProductCard = ({
 
           {/* Price */}
           <div className="flex items-center gap-2">
-            <span className="font-bold text-lg">
-              ${discountedPrice ? discountedPrice.toFixed(2) : price.toFixed(2)}
-            </span>
-            {(originalPrice && originalPrice > price) ||
-            (discountedPrice && discountedPrice < price) ? (
-              <span className="text-sm text-muted-foreground line-through">
-                ${originalPrice ? originalPrice.toFixed(2) : price.toFixed(2)}
-              </span>
-            ) : null}
-            {hasActiveDiscount && discount && (
-              <span className="text-xs text-green-600 font-medium">
-                Save $
-                {(
-                  (originalPrice || price) - (discountedPrice || price)
-                ).toFixed(2)}
-              </span>
-            )}
+            {(() => {
+              const priceInfo = formatDiscountedPrice(
+                originalPrice || price,
+                discountedPrice || price
+              );
+              
+              return (
+                <>
+                  <span className="font-bold text-lg">
+                    {formatPrice(discountedPrice || price)}
+                  </span>
+                  {priceInfo.hasDiscount && (
+                    <span className="text-sm text-muted-foreground line-through">
+                      {formatPrice(originalPrice || price)}
+                    </span>
+                  )}
+                  {hasActiveDiscount && discount && priceInfo.hasDiscount && (
+                    <span className="text-xs text-green-600 font-medium">
+                      Save {formatPrice(
+                        (originalPrice || price) - (discountedPrice || price),
+                        { showCurrency: false }
+                      )}
+                    </span>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       </CardContent>

@@ -655,6 +655,162 @@ export const ProductService = {
       throw error;
     }
   },
+
+  /**
+   * Get featured products for customers
+   */
+  getFeaturedProducts: async (
+    page = 0,
+    size = 12
+  ): Promise<Page<ManyProductsDto>> => {
+    try {
+      const response = await fetch(
+        `${API_ENDPOINTS.FEATURED_PRODUCTS}?page=${page}&size=${size}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch featured products: ${response.status}`);
+      }
+
+      const products: Page<ManyProductsDto> = await response.json();
+      return products;
+    } catch (error) {
+      console.error("Error fetching featured products:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get bestseller products for customers
+   */
+  getBestsellerProducts: async (
+    page = 0,
+    size = 12
+  ): Promise<Page<ManyProductsDto>> => {
+    try {
+      const response = await fetch(
+        `${API_ENDPOINTS.BESTSELLER_PRODUCTS}?page=${page}&size=${size}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch bestseller products: ${response.status}`);
+      }
+
+      const products: Page<ManyProductsDto> = await response.json();
+      return products;
+    } catch (error) {
+      console.error("Error fetching bestseller products:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get new arrival products for customers
+   */
+  getNewArrivalProducts: async (
+    page = 0,
+    size = 12
+  ): Promise<Page<ManyProductsDto>> => {
+    try {
+      const response = await fetch(
+        `${API_ENDPOINTS.NEW_ARRIVAL_PRODUCTS}?page=${page}&size=${size}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch new arrival products: ${response.status}`);
+      }
+
+      const products: Page<ManyProductsDto> = await response.json();
+      return products;
+    } catch (error) {
+      console.error("Error fetching new arrival products:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get products by category for customers
+   */
+  getProductsByCategory: async (
+    categoryId: string,
+    page = 0,
+    size = 12,
+    sortBy = "createdAt",
+    sortDirection = "desc"
+  ): Promise<Page<ManyProductsDto>> => {
+    try {
+      const response = await fetch(
+        `${API_ENDPOINTS.PRODUCTS_BY_CATEGORY(categoryId)}?page=${page}&size=${size}&sortBy=${sortBy}&sortDirection=${sortDirection}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch products by category: ${response.status}`);
+      }
+
+      const products: Page<ManyProductsDto> = await response.json();
+      return products;
+    } catch (error) {
+      console.error("Error fetching products by category:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get products by brand for customers
+   */
+  getProductsByBrand: async (
+    brandId: string,
+    page = 0,
+    size = 12,
+    sortBy = "createdAt",
+    sortDirection = "desc"
+  ): Promise<Page<ManyProductsDto>> => {
+    try {
+      const response = await fetch(
+        `${API_ENDPOINTS.PRODUCTS_BY_BRAND(brandId)}?page=${page}&size=${size}&sortBy=${sortBy}&sortDirection=${sortDirection}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch products by brand: ${response.status}`);
+      }
+
+      const products: Page<ManyProductsDto> = await response.json();
+      return products;
+    } catch (error) {
+      console.error("Error fetching products by brand:", error);
+      throw error;
+    }
+  },
 };
 
 export default ProductService;

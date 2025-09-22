@@ -44,9 +44,7 @@ class SimilarProductsService {
       params.append("algorithm", request.algorithm || "mixed");
 
       const response = await fetch(
-        `${API_ENDPOINTS.PRODUCTS}/${
-          request.productId
-        }/similar?${params.toString()}`,
+        `${API_ENDPOINTS.SIMILAR_PRODUCTS(request.productId)}?${params.toString()}`,
         {
           method: "GET",
           headers: getAuthHeaders(),
@@ -89,7 +87,7 @@ class SimilarProductsService {
       params.append("algorithm", options.algorithm || "mixed");
 
       const response = await fetch(
-        `${API_ENDPOINTS.PRODUCTS}/${productId}/similar?${params.toString()}`,
+        `${API_ENDPOINTS.SIMILAR_PRODUCTS(productId)}?${params.toString()}`,
         {
           method: "GET",
           headers: getAuthHeaders(),

@@ -6,11 +6,17 @@ export const API_BASE_URL =
 
 // API Endpoints
 export const API_ENDPOINTS = {
-  // Product endpoints
-  PRODUCTS: `${API_BASE_URL}/products`,
-  PRODUCT_BY_ID: (id: string) => `${API_BASE_URL}/products/${id}`,
-  PRODUCT_BY_SLUG: (slug: string) => `${API_BASE_URL}/products/slug/${slug}`,
-  SEARCH_PRODUCTS: `${API_BASE_URL}/products/search`,
+  // Customer Product endpoints (filtered for customers)
+  PRODUCTS: `${API_BASE_URL}/customer/products`,
+  PRODUCT_BY_ID: (id: string) => `${API_BASE_URL}/customer/products/${id}`,
+  PRODUCT_BY_SLUG: (slug: string) => `${API_BASE_URL}/customer/products/slug/${slug}`,
+  SEARCH_PRODUCTS: `${API_BASE_URL}/customer/products/search`,
+  FEATURED_PRODUCTS: `${API_BASE_URL}/customer/products/featured`,
+  BESTSELLER_PRODUCTS: `${API_BASE_URL}/customer/products/bestsellers`,
+  NEW_ARRIVAL_PRODUCTS: `${API_BASE_URL}/customer/products/new-arrivals`,
+  PRODUCTS_BY_CATEGORY: (categoryId: string) => `${API_BASE_URL}/customer/products/category/${categoryId}`,
+  PRODUCTS_BY_BRAND: (brandId: string) => `${API_BASE_URL}/customer/products/brand/${brandId}`,
+  SIMILAR_PRODUCTS: (productId: string) => `${API_BASE_URL}/customer/products/${productId}/similar`,
   PRODUCT_REVIEWS: (productId: string) =>
     `${API_BASE_URL}/reviews/product/${productId}`,
   REVIEWS: `${API_BASE_URL}/reviews`,
