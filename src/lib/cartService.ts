@@ -11,6 +11,7 @@ export interface CartItemResponse {
   quantity: number;
   stock: number;
   totalPrice: number;
+  weight?: number; 
   averageRating: number;
   ratingCount: number;
 
@@ -602,6 +603,7 @@ async function getCartFromBackend(): Promise<CartResponse> {
         variantId: item.variantId?.toString(),
         name: item.productName,
         price: item.price,
+        originalPrice: item.previousPrice || item.price,
         previousPrice: item.previousPrice || null,
         url: item.productImage || "",
         quantity: item.quantity,

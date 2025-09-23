@@ -177,7 +177,7 @@ export default function SimilarProducts({
             name={product.productName}
             price={product.price}
             discountedPrice={product.discountedPrice}
-            image={product.primaryImage?.imageUrl}
+            image={product.primaryImage?.imageUrl || ""}
             rating={product.averageRating || 0}
             reviewCount={product.reviewCount || 0}
             hasActiveDiscount={product.hasActiveDiscount}

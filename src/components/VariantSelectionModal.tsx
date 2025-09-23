@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { ProductDTO, ProductVariantDTO, ProductService } from "@/lib/productService";
 import { CartItemRequest } from "@/lib/cartService";
+import { formatPrice as formatPriceUtil, formatDiscountedPrice } from "@/lib/utils/priceFormatter";
 import Link from "next/link";
 
 interface VariantSelectionModalProps {
@@ -138,33 +139,28 @@ const VariantSelectionModal = ({
 
   // Format price with discount
   const formatPrice = (price: number, variant?: ProductVariantDTO) => {
-    const basePrice = new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
-
     if (variant) {
       const effectiveDiscount = getEffectiveDiscount(variant);
       if (effectiveDiscount) {
-        const discountedPrice = new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "USD",
-        }).format(effectiveDiscount.discountedPrice);
+        const priceInfo = formatDiscountedPrice(
+          price,
+          effectiveDiscount.discountedPrice
+        );
 
         return (
           <div className="flex flex-col">
             <span className="font-semibold text-green-600">
-              {discountedPrice}
+              {formatPriceUtil(effectiveDiscount.discountedPrice)}
             </span>
             <span className="text-xs text-muted-foreground line-through">
-              {basePrice}
+              {formatPriceUtil(price)}
             </span>
           </div>
         );
       }
     }
 
-    return <span className="font-semibold">{basePrice}</span>;
+    return <span className="font-semibold">{formatPriceUtil(price)}</span>;
   };
 
   // Get main product image

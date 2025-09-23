@@ -304,7 +304,6 @@ export default function TrackOrderPage() {
                         <p>
                           {orderDetails.shippingAddress.city},{" "}
                           {orderDetails.shippingAddress.state}{" "}
-                          {orderDetails.shippingAddress.postalCode}
                         </p>
                         <p>{orderDetails.shippingAddress.country}</p>
                         {orderDetails.shippingAddress.phone && (

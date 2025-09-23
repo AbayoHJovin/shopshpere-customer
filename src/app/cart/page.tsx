@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -49,8 +50,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { CartService, CartResponse, CartItemResponse } from "@/lib/cartService";
-import { PaymentIcons } from "@/components/PaymentIcons";
+import { useToast } from "@/hooks/use-toast";
 import { useAppSelector } from "@/lib/store/hooks";
+import { formatPrice as formatPriceUtil } from "@/lib/utils/priceFormatter";
+import { PaymentIcons } from "@/components/PaymentIcons";
 
 export default function CartPage() {
   const router = useRouter();
@@ -59,6 +62,7 @@ export default function CartPage() {
   const [loading, setLoading] = useState(true);
   const [isRemovingItem, setIsRemovingItem] = useState<string | null>(null);
   const [isUpdatingItem, setIsUpdatingItem] = useState<string | null>(null);
+  const [editingQuantity, setEditingQuantity] = useState<{[key: string]: string}>({});
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(0); // Backend uses 0-based pagination
@@ -92,22 +96,71 @@ export default function CartPage() {
     }
   };
 
-  // Update quantity function
+  // Handle quantity input change
+  const handleQuantityInputChange = (itemId: string, value: string) => {
+    setEditingQuantity(prev => ({
+      ...prev,
+      [itemId]: value
+    }));
+  };
+
+  // Handle quantity input blur (when user finishes editing)
+  const handleQuantityInputBlur = async (itemId: string) => {
+    const inputValue = editingQuantity[itemId];
+    if (!inputValue) return;
+
+    const newQuantity = parseInt(inputValue, 10);
+    const item = cart?.items.find((item: CartItemResponse) => item.id === itemId);
+    
+    if (!item) return;
+
+    if (isNaN(newQuantity) || newQuantity < 1) {
+      // Reset to current quantity if invalid
+      setEditingQuantity(prev => ({
+        ...prev,
+        [itemId]: item.quantity.toString()
+      }));
+      return;
+    }
+
+    // If quantity hasn't changed, just clear the editing state
+    if (newQuantity === item.quantity) {
+      setEditingQuantity(prev => {
+        const newState = { ...prev };
+        delete newState[itemId];
+        return newState;
+      });
+      return;
+    }
+
+    await updateQuantity(itemId, newQuantity);
+  };
+
+  // Handle Enter key press in quantity input
+  const handleQuantityInputKeyPress = (e: React.KeyboardEvent, itemId: string) => {
+    if (e.key === 'Enter') {
+      handleQuantityInputBlur(itemId);
+    }
+  };
+
   const updateQuantity = async (itemId: string, newQuantity: number) => {
     if (!cart) return;
 
     if (newQuantity < 1) newQuantity = 1;
 
-    // Find the item to check stock
     const item = cart.items.find((item) => item.id === itemId);
     if (!item) return;
 
-    // Ensure quantity doesn't exceed stock
     const maxStock = item.stock || 100;
     if (newQuantity > maxStock) {
       newQuantity = maxStock;
       toast.warning(`Only ${maxStock} items available in stock.`);
     }
+
+    setEditingQuantity(prev => ({
+      ...prev,
+      [itemId]: newQuantity.toString()
+    }));
 
     setIsUpdatingItem(itemId);
 
@@ -120,9 +173,22 @@ export default function CartPage() {
       setCart(updatedCart);
       dispatchCartUpdatedEvent();
       toast.success("Cart updated successfully");
+      
+      // Clear the editing state after successful update
+      setEditingQuantity(prev => {
+        const newState = { ...prev };
+        delete newState[itemId];
+        return newState;
+      });
     } catch (error) {
       console.error("Error updating cart:", error);
       toast.error("Failed to update cart item.");
+      // Reset the editing quantity on error
+      setEditingQuantity(prev => {
+        const newState = { ...prev };
+        delete newState[itemId];
+        return newState;
+      });
       // Reload cart to get the correct state
       await loadCart();
     } finally {
@@ -192,13 +258,9 @@ export default function CartPage() {
     router.push("/checkout");
   };
 
-  // Format price
+  // Format price using our utility
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-    }).format(price);
+    return formatPriceUtil(price);
   };
 
   // Handle page change
@@ -418,17 +480,23 @@ export default function CartPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      <div className="flex items-center justify-center">
+                      <div className="flex flex-col items-center gap-1">
                         <div className="flex border rounded-md overflow-hidden">
                           <Button
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0 rounded-none"
-                            onClick={() =>
-                              updateQuantity(item.id, item.quantity - 1)
-                            }
+                            onClick={() => {
+                              const currentQuantity = editingQuantity[item.id] 
+                                ? parseInt(editingQuantity[item.id], 10) 
+                                : item.quantity;
+                              updateQuantity(item.id, currentQuantity - 1);
+                            }}
                             disabled={
-                              isUpdatingItem === item.id || item.quantity <= 1
+                              isUpdatingItem === item.id || 
+                              (editingQuantity[item.id] 
+                                ? parseInt(editingQuantity[item.id], 10) <= 1 
+                                : item.quantity <= 1)
                             }
                           >
                             {isUpdatingItem === item.id ? (
@@ -437,19 +505,32 @@ export default function CartPage() {
                               <Minus className="h-3 w-3" />
                             )}
                           </Button>
-                          <div className="w-10 flex items-center justify-center bg-background">
-                            {item.quantity}
-                          </div>
+                          <Input
+                            type="number"
+                            min="1"
+                            max={item.stock}
+                            value={editingQuantity[item.id] ?? item.quantity.toString()}
+                            onChange={(e) => handleQuantityInputChange(item.id, e.target.value)}
+                            onBlur={() => handleQuantityInputBlur(item.id)}
+                            onKeyPress={(e) => handleQuantityInputKeyPress(e, item.id)}
+                            className="min-w-[3rem] w-auto max-w-[6rem] h-8 text-center border-0 rounded-none focus:ring-0 focus:border-0 px-2"
+                            disabled={isUpdatingItem === item.id}
+                          />
                           <Button
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0 rounded-none"
-                            onClick={() =>
-                              updateQuantity(item.id, item.quantity + 1)
-                            }
+                            onClick={() => {
+                              const currentQuantity = editingQuantity[item.id] 
+                                ? parseInt(editingQuantity[item.id], 10) 
+                                : item.quantity;
+                              updateQuantity(item.id, currentQuantity + 1);
+                            }}
                             disabled={
                               isUpdatingItem === item.id ||
-                              item.quantity >= item.stock
+                              (editingQuantity[item.id] 
+                                ? parseInt(editingQuantity[item.id], 10) >= item.stock 
+                                : item.quantity >= item.stock)
                             }
                           >
                             {isUpdatingItem === item.id ? (
@@ -458,6 +539,9 @@ export default function CartPage() {
                               <Plus className="h-3 w-3" />
                             )}
                           </Button>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {item.stock} available
                         </div>
                       </div>
                     </TableCell>
@@ -572,60 +656,84 @@ export default function CartPage() {
                           )}
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <div className="flex border rounded-md overflow-hidden">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 rounded-none"
-                              onClick={() =>
-                                updateQuantity(item.id, item.quantity - 1)
-                              }
-                              disabled={
-                                isUpdatingItem === item.id || item.quantity <= 1
-                              }
-                            >
-                              {isUpdatingItem === item.id ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <Minus className="h-3 w-3" />
-                              )}
-                            </Button>
-                            <div className="w-8 flex items-center justify-center bg-background text-sm">
-                              {item.quantity}
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <div className="flex border rounded-md overflow-hidden">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 rounded-none"
+                                onClick={() => {
+                                  const currentQuantity = editingQuantity[item.id] 
+                                    ? parseInt(editingQuantity[item.id], 10) 
+                                    : item.quantity;
+                                  updateQuantity(item.id, currentQuantity - 1);
+                                }}
+                                disabled={
+                                  isUpdatingItem === item.id || 
+                                  (editingQuantity[item.id] 
+                                    ? parseInt(editingQuantity[item.id], 10) <= 1 
+                                    : item.quantity <= 1)
+                                }
+                              >
+                                {isUpdatingItem === item.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Minus className="h-3 w-3" />
+                                )}
+                              </Button>
+                              <Input
+                                type="number"
+                                min="1"
+                                max={item.stock}
+                                value={editingQuantity[item.id] ?? item.quantity.toString()}
+                                onChange={(e) => handleQuantityInputChange(item.id, e.target.value)}
+                                onBlur={() => handleQuantityInputBlur(item.id)}
+                                onKeyPress={(e) => handleQuantityInputKeyPress(e, item.id)}
+                                className="min-w-[2.5rem] w-auto max-w-[5rem] h-7 text-center text-sm border-0 rounded-none focus:ring-0 focus:border-0 px-2"
+                                disabled={isUpdatingItem === item.id}
+                              />
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 rounded-none"
+                                onClick={() => {
+                                  const currentQuantity = editingQuantity[item.id] 
+                                    ? parseInt(editingQuantity[item.id], 10) 
+                                    : item.quantity;
+                                  updateQuantity(item.id, currentQuantity + 1);
+                                }}
+                                disabled={
+                                  isUpdatingItem === item.id ||
+                                  (editingQuantity[item.id] 
+                                    ? parseInt(editingQuantity[item.id], 10) >= item.stock 
+                                    : item.quantity >= item.stock)
+                                }
+                              >
+                                {isUpdatingItem === item.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Plus className="h-3 w-3" />
+                                )}
+                              </Button>
                             </div>
                             <Button
                               variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 rounded-none"
-                              onClick={() =>
-                                updateQuantity(item.id, item.quantity + 1)
-                              }
-                              disabled={
-                                isUpdatingItem === item.id ||
-                                item.quantity >= item.stock
-                              }
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                              onClick={() => removeItem(item.id)}
+                              disabled={isRemovingItem === item.id}
                             >
-                              {isUpdatingItem === item.id ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
+                              {isRemovingItem === item.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
-                                <Plus className="h-3 w-3" />
+                                <Trash2 className="h-4 w-4" />
                               )}
                             </Button>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                            onClick={() => removeItem(item.id)}
-                            disabled={isRemovingItem === item.id}
-                          >
-                            {isRemovingItem === item.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
-                            )}
-                          </Button>
+                          <div className="text-xs text-muted-foreground text-center">
+                            {item.stock} available
+                          </div>
                         </div>
                       </div>
                     </div>

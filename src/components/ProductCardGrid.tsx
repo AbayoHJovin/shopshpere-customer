@@ -8,6 +8,7 @@ import { Heart, ShoppingCart, Star, Eye } from "lucide-react";
 import { useAppSelector } from "@/lib/store/hooks";
 import { CartService } from "@/lib/cartService";
 import { WishlistService } from "@/lib/wishlistService";
+import { formatPrice, formatDiscountedPrice } from "@/lib/utils/priceFormatter";
 
 interface Product {
   id: string;
@@ -145,19 +146,19 @@ const ProductCardGrid = ({
                 )}
 
                 {/* Badges */}
-                <div className="absolute top-2 left-2 flex flex-col gap-1">
+                <div className="absolute top-2 left-2 flex flex-col gap-1 max-w-[calc(100%-4rem)]">
                   {product.discount && (
-                    <Badge className="bg-red-500 text-white text-xs">
+                    <Badge className="bg-red-500 text-white text-xs w-fit px-2 py-1 whitespace-nowrap">
                       -{product.discount}%
                     </Badge>
                   )}
                   {product.isNew && (
-                    <Badge className="bg-green-500 text-white text-xs">
+                    <Badge className="bg-green-500 text-white text-xs w-fit px-2 py-1 whitespace-nowrap">
                       New
                     </Badge>
                   )}
                   {product.isBestseller && (
-                    <Badge className="bg-orange-500 text-white text-xs">
+                    <Badge className="bg-orange-500 text-white text-xs w-fit px-2 py-1 whitespace-nowrap">
                       Bestseller
                     </Badge>
                   )}
@@ -234,15 +235,25 @@ const ProductCardGrid = ({
 
               {/* Price */}
               <div className="flex items-center gap-2">
-                <span className="text-lg font-semibold text-gray-900">
-                  ${product.price.toFixed(2)}
-                </span>
-                {product.originalPrice &&
-                  product.originalPrice > product.price && (
-                    <span className="text-sm text-gray-500 line-through">
-                      ${product.originalPrice.toFixed(2)}
-                    </span>
-                  )}
+                {(() => {
+                  const priceInfo = formatDiscountedPrice(
+                    product.originalPrice || product.price,
+                    product.price
+                  );
+                  
+                  return (
+                    <>
+                      <span className="text-lg font-semibold text-gray-900">
+                        {formatPrice(product.price)}
+                      </span>
+                      {priceInfo.hasDiscount && product.originalPrice && (
+                        <span className="text-sm text-gray-500 line-through">
+                          {formatPrice(product.originalPrice)}
+                        </span>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Brand/Category */}

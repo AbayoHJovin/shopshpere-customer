@@ -28,6 +28,7 @@ import { CartService, CartItemRequest } from "@/lib/cartService";
 import { WishlistService, AddToWishlistRequest } from "@/lib/wishlistService";
 import { useToast } from "@/hooks/use-toast";
 import { useAppSelector } from "@/lib/store/hooks";
+import { formatPrice } from "@/lib/utils/priceFormatter";
 import VariantSelectionModal from "@/components/VariantSelectionModal";
 import SimilarProducts from "@/components/SimilarProducts";
 import ReviewSection from "@/components/ReviewSection";
@@ -578,7 +579,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
               {/* Price */}
               <div className="mt-4 flex items-center gap-3">
                 <span className="text-3xl font-bold text-price">
-                  ${displayPrice.toFixed(2)}
+                  {formatPrice(displayPrice)}
                 </span>
                 {selectedVariant ? (
                   // Show variant price with discount info
@@ -590,7 +591,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                         return (
                           <>
                             <span className="text-xl text-muted-foreground line-through">
-                              ${selectedVariant.price.toFixed(2)}
+                              {formatPrice(selectedVariant.price)}
                             </span>
                             <Badge
                               variant={
@@ -626,7 +627,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                       product.salePrice < product.basePrice &&
                       product.basePrice && (
                         <span className="text-xl text-muted-foreground line-through">
-                          ${product.basePrice.toFixed(2)}
+                          {formatPrice(product.basePrice)}
                         </span>
                       )}
                     {product.salePrice &&
@@ -689,15 +690,14 @@ export function ProductPageClient({ productId }: { productId: string }) {
                             {effectiveDiscount ? (
                               <div className="flex flex-col">
                                 <span className="font-semibold text-green-600">
-                                  $
-                                  {effectiveDiscount.discountedPrice.toFixed(2)}
+                                  {formatPrice(effectiveDiscount.discountedPrice)}
                                 </span>
                                 <span className="line-through">
-                                  ${(variant.price || 0).toFixed(2)}
+                                  {formatPrice(variant.price || 0)}
                                 </span>
                               </div>
                             ) : (
-                              `$${(variant.price || 0).toFixed(2)}`
+                              formatPrice(variant.price || 0)
                             )}
                           </div>
                           {effectiveDiscount && (
@@ -761,11 +761,10 @@ export function ProductPageClient({ productId }: { productId: string }) {
                             return (
                               <div className="flex flex-col">
                                 <span className="font-semibold">
-                                  Price: $
-                                  {effectiveDiscount.discountedPrice.toFixed(2)}
+                                  Price: {formatPrice(effectiveDiscount.discountedPrice)}
                                 </span>
                                 <span className="line-through">
-                                  Original: ${selectedVariant.price.toFixed(2)}
+                                  Original: {formatPrice(selectedVariant.price)}
                                 </span>
                                 <span className="text-orange-600 font-medium">
                                   -{Math.round(effectiveDiscount.percentage)}%
@@ -777,9 +776,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                               </div>
                             );
                           }
-                          return `Price: $${(
-                            selectedVariant.price || 0
-                          ).toFixed(2)}`;
+                          return `Price: ${formatPrice(selectedVariant.price || 0, { showCurrency: false })}`;
                         })()}
                         <span className="ml-2">|</span>
                         <span className="ml-2">

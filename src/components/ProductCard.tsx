@@ -302,9 +302,9 @@ const ProductCard = ({
             />
 
             {/* Badges */}
-            <div className="absolute top-2 left-2 flex flex-col gap-1">
+            <div className="absolute top-2 left-2 flex flex-col gap-1 max-w-[calc(100%-4rem)]">
               {hasActiveDiscount && discount && (
-                <Badge variant="destructive" className="text-xs">
+                <Badge variant="destructive" className="text-xs w-fit px-2 py-1 whitespace-nowrap">
                   -{discount}% OFF
                 </Badge>
               )}
@@ -313,21 +313,21 @@ const ProductCard = ({
                 variantDiscountInfo.maxVariantDiscount > 0 && (
                   <Badge
                     variant="secondary"
-                    className="text-xs bg-orange-500 text-white"
+                    className="text-xs bg-orange-500 text-white w-fit px-2 py-1 whitespace-nowrap"
                   >
-                    Up to -{variantDiscountInfo.maxVariantDiscount}% OFF (Variant)
+                    Up to -{Math.round(variantDiscountInfo.maxVariantDiscount)}%
                   </Badge>
                 )}
               {isNew && (
-                <Badge className="bg-green-500 text-white text-xs">New</Badge>
+                <Badge className="bg-green-500 text-white text-xs w-fit px-2 py-1 whitespace-nowrap">New</Badge>
               )}
               {isBestseller && (
-                <Badge className="bg-blue-500 text-white text-xs">
+                <Badge className="bg-blue-500 text-white text-xs w-fit px-2 py-1 whitespace-nowrap">
                   Bestseller
                 </Badge>
               )}
               {isFeatured && (
-                <Badge className="bg-purple-500 text-white text-xs">
+                <Badge className="bg-purple-500 text-white text-xs w-fit px-2 py-1 whitespace-nowrap">
                   Featured
                 </Badge>
               )}

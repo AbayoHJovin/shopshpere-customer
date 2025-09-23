@@ -385,7 +385,6 @@ export default function AccountOrderDetailsPage() {
                     <p className="text-muted-foreground">
                       {order.shippingAddress.city},{" "}
                       {order.shippingAddress.state}{" "}
-                      {order.shippingAddress.zipCode}
                     </p>
                     <p className="text-muted-foreground">
                       {order.shippingAddress.country}

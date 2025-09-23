@@ -4,8 +4,9 @@ export interface AddressDto {
   streetAddress: string;
   city: string;
   state?: string;
-  postalCode?: string;
   country: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface CartItemDTO {
@@ -13,6 +14,31 @@ export interface CartItemDTO {
   variantId?: number; // Will be converted to Long on backend
   quantity: number;
   weight?: number;
+}
+
+// Validation function for cart items
+export function validateCartItems(items: CartItemDTO[]): string[] {
+  const errors: string[] = [];
+  
+  items.forEach((item, index) => {
+    if (!item.productId && !item.variantId) {
+      errors.push(`Item ${index + 1}: Must have either productId or variantId`);
+    }
+    
+    if (item.variantId && (typeof item.variantId !== 'number' || item.variantId <= 0)) {
+      errors.push(`Item ${index + 1}: Invalid variantId - must be a positive number`);
+    }
+    
+    if (item.productId && typeof item.productId !== 'string') {
+      errors.push(`Item ${index + 1}: Invalid productId - must be a string`);
+    }
+    
+    if (!item.quantity || item.quantity <= 0) {
+      errors.push(`Item ${index + 1}: Quantity must be greater than 0`);
+    }
+  });
+  
+  return errors;
 }
 
 export interface CalculateOrderShippingRequest {

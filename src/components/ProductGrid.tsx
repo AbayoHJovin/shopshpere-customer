@@ -35,6 +35,7 @@ import { WishlistService, AddToWishlistRequest } from "@/lib/wishlistService";
 import { useToast } from "@/hooks/use-toast";
 import { useAppSelector } from "@/lib/store/hooks";
 import { filterMappingService } from "@/lib/filterMappingService";
+import { formatPrice, formatDiscountedPrice } from "@/lib/utils/priceFormatter";
 import Link from "next/link";
 
 interface FilterState {
@@ -877,39 +878,38 @@ const ProductGrid = ({
 
                           {/* Price Section */}
                           <div className="mb-4">
-                            <div className="flex items-center gap-3 mb-1">
-                              <span className="font-bold text-xl">
-                                $
-                                {convertedProduct.discountedPrice
-                                  ? convertedProduct.discountedPrice.toFixed(2)
-                                  : convertedProduct.price.toFixed(2)}
-                              </span>
-                              {(convertedProduct.originalPrice &&
-                                convertedProduct.originalPrice >
-                                  convertedProduct.price) ||
-                              (convertedProduct.discountedPrice &&
-                                convertedProduct.discountedPrice <
-                                  convertedProduct.price) ? (
-                                <span className="text-sm text-muted-foreground line-through">
-                                  $
-                                  {convertedProduct.originalPrice
-                                    ? convertedProduct.originalPrice.toFixed(2)
-                                    : convertedProduct.price.toFixed(2)}
-                                </span>
-                              ) : null}
-                            </div>
-                            {convertedProduct.hasActiveDiscount &&
-                              convertedProduct.discount && (
-                                <span className="text-sm text-green-600 font-medium">
-                                  Save $
-                                  {(
-                                    (convertedProduct.originalPrice ||
-                                      convertedProduct.price) -
-                                    (convertedProduct.discountedPrice ||
-                                      convertedProduct.price)
-                                  ).toFixed(2)}
-                                </span>
-                              )}
+                            {(() => {
+                              const priceInfo = formatDiscountedPrice(
+                                convertedProduct.originalPrice || convertedProduct.price,
+                                convertedProduct.discountedPrice || convertedProduct.price
+                              );
+                              
+                              return (
+                                <>
+                                  <div className="flex items-center gap-3 mb-1">
+                                    <span className="font-bold text-xl">
+                                      {formatPrice(convertedProduct.discountedPrice || convertedProduct.price)}
+                                    </span>
+                                    {priceInfo.hasDiscount && (
+                                      <span className="text-sm text-muted-foreground line-through">
+                                        {formatPrice(convertedProduct.originalPrice || convertedProduct.price)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {convertedProduct.hasActiveDiscount &&
+                                    convertedProduct.discount &&
+                                    priceInfo.hasDiscount && (
+                                      <span className="text-sm text-green-600 font-medium">
+                                        Save {formatPrice(
+                                          (convertedProduct.originalPrice || convertedProduct.price) -
+                                          (convertedProduct.discountedPrice || convertedProduct.price),
+                                          { showCurrency: false }
+                                        )}
+                                      </span>
+                                    )}
+                                </>
+                              );
+                            })()}
                           </div>
 
                           {/* Action Buttons */}

@@ -52,6 +52,7 @@ import { ProductService, ProductDTO } from "@/lib/productService";
 import { CartService, CartItemRequest } from "@/lib/cartService";
 import { useToast } from "@/hooks/use-toast";
 import { useAppSelector } from "@/lib/store/hooks";
+import { formatPrice } from "@/lib/utils/priceFormatter";
 import VariantSelectionModal from "@/components/VariantSelectionModal";
 
 export default function WishlistPage() {
@@ -418,10 +419,10 @@ export default function WishlistPage() {
                             product.discountInfo?.active ? (
                               <>
                                 <span className="font-medium text-green-600">
-                                  ${(product.finalPrice || 0).toFixed(2)}
+                                  {formatPrice(product.finalPrice || 0)}
                                 </span>
                                 <span className="text-sm text-muted-foreground line-through">
-                                  ${(product.price || 0).toFixed(2)}
+                                  {formatPrice(product.price || 0)}
                                 </span>
                                 <span className="text-xs text-green-600 font-medium">
                                   {product.discountInfo.percentage}% OFF
@@ -429,7 +430,7 @@ export default function WishlistPage() {
                               </>
                             ) : (
                               <span className="font-medium">
-                                ${(product.price || 0).toFixed(2)}
+                                {formatPrice(product.price || 0)}
                               </span>
                             )}
                           </div>
@@ -546,10 +547,10 @@ export default function WishlistPage() {
                           product.discountInfo?.active ? (
                             <div className="flex flex-col">
                               <span className="font-medium text-green-600">
-                                ${(product.finalPrice || 0).toFixed(2)}
+                                {formatPrice(product.finalPrice || 0)}
                               </span>
                               <span className="text-sm text-muted-foreground line-through">
-                                ${(product.price || 0).toFixed(2)}
+                                {formatPrice(product.price || 0)}
                               </span>
                               <span className="text-xs text-green-600 font-medium">
                                 {product.discountInfo.percentage}% OFF
@@ -557,7 +558,7 @@ export default function WishlistPage() {
                             </div>
                           ) : (
                             <span className="font-medium">
-                              ${(product.price || 0).toFixed(2)}
+                              {formatPrice(product.price || 0)}
                             </span>
                           )}
                           <Badge

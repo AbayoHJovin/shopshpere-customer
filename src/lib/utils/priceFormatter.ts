@@ -1,8 +1,3 @@
-/**
- * Price formatting utilities for ShopSphere
- * Formats prices with commas as thousand separators
- */
-
 export interface PriceFormatOptions {
   currency?: string;
   showCurrency?: boolean;
@@ -21,7 +16,7 @@ export const formatPrice = (
   options: PriceFormatOptions = {}
 ): string => {
   const {
-    currency = "RWF",
+    currency = "$",
     showCurrency = true,
     minimumFractionDigits = 0,
     maximumFractionDigits = 2,

@@ -20,7 +20,6 @@ export interface CreateOrderAddressRequest {
   street: string;
   city: string;
   state: string;
-  zipCode: string;
   country: string;
   phone: string;
 }
@@ -63,8 +62,9 @@ export interface AddressDto {
   streetAddress: string;
   city: string;
   state: string;
-  postalCode: string;
   country: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface CheckoutVerificationResult {
@@ -74,8 +74,19 @@ export interface CheckoutVerificationResult {
   customerEmail: string;
   receiptUrl: string;
   paymentIntentId: string;
-  sessionId: string;
   updated: boolean;
+  order: OrderResponse;
+}
+
+export interface OrderCustomerInfo {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string;
+  streetAddress?: string;
+  city?: string;
+  state?: string;
+  country?: string;
 }
 
 export interface OrderResponse {
@@ -92,6 +103,7 @@ export interface OrderResponse {
   total: number;
   shippingAddress: any | null;
   billingAddress: any | null;
+  customerInfo: OrderCustomerInfo | null;
   paymentMethod: string | null;
   paymentStatus: string | null;
   notes: string | null;
@@ -101,23 +113,20 @@ export interface OrderResponse {
   trackingNumber: string | null;
 }
 
+export interface SimpleProduct {
+  productId: string;
+  name: string;
+  description?: string;
+  price?: number;
+  images: string[];
+}
+
 export interface OrderItemResponse {
   id: string;
   productId: string;
   variantId?: string;
-  product?: {
-    productId: string;
-    name: string;
-    description?: string;
-    price?: number;
-    images: string[];
-  };
-  variant?: {
-    variantId: string;
-    name: string;
-    price: number;
-    images: string[];
-  };
+  product?: SimpleProduct;
+  variant?: SimpleProduct;
   quantity: number;
   price: number;
   totalPrice: number;
@@ -128,7 +137,6 @@ export interface OrderAddressResponse {
   street: string;
   city: string;
   state: string;
-  zipCode: string;
   country: string;
 }
 
@@ -146,6 +154,7 @@ export interface OrderDetailsResponse {
   total: number;
   shippingAddress: OrderAddressResponse | null;
   billingAddress: OrderAddressResponse | null;
+  customerInfo: OrderCustomerInfo | null;
   paymentMethod: string | null;
   paymentStatus: string | null;
   notes: string | null;
@@ -206,6 +215,31 @@ export const OrderService = {
     request: GuestCheckoutRequest
   ): Promise<{ sessionUrl: string }> => {
     try {
+      // Validate cart items before sending to backend
+      const validationErrors: string[] = [];
+      
+      request.items.forEach((item, index) => {
+        if (!item.productId && !item.variantId) {
+          validationErrors.push(`Item ${index + 1}: Must have either productId or variantId`);
+        }
+        
+        if (item.variantId && (typeof item.variantId !== 'number' || item.variantId <= 0)) {
+          validationErrors.push(`Item ${index + 1}: Invalid variantId - must be a positive number`);
+        }
+        
+        if (item.productId && typeof item.productId !== 'string') {
+          validationErrors.push(`Item ${index + 1}: Invalid productId - must be a string`);
+        }
+        
+        if (!item.quantity || item.quantity <= 0) {
+          validationErrors.push(`Item ${index + 1}: Quantity must be greater than 0`);
+        }
+      });
+      
+      if (validationErrors.length > 0) {
+        throw new Error(`Validation errors: ${validationErrors.join(', ')}`);
+      }
+
       const response = await fetch(
         `${API_ENDPOINTS.CHECKOUT_GUEST_CREATE_SESSION}`,
         {
