@@ -315,7 +315,7 @@ export default function CartPage() {
   // Calculate total
   const getTotal = () => {
     if (!cart) return 0;
-    return cart.subtotal; // Shipping is free
+    return cart.subtotal;
   };
 
   // Handle proceed to checkout

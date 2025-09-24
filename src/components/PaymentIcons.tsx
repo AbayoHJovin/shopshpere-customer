@@ -6,7 +6,10 @@ interface PaymentIconsProps {
   showMTN?: boolean;
 }
 
-export function PaymentIcons({ className, showMTN = true }: PaymentIconsProps) {
+export function PaymentIcons({
+  className,
+  showMTN = false,
+}: PaymentIconsProps) {
   return (
     <div className={cn("flex items-center justify-center gap-2", className)}>
       <div className="h-8 w-12 bg-muted rounded flex items-center justify-center overflow-hidden">
@@ -40,4 +43,4 @@ export function PaymentIcons({ className, showMTN = true }: PaymentIconsProps) {
       )}
     </div>
   );
-} 
+}

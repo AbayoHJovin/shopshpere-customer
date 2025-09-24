@@ -654,6 +654,7 @@ export function CheckoutClient() {
               <CardDescription>
                 Where should we deliver your order?
               </CardDescription>
+              
             </CardHeader>
             <CardContent className="p-6 space-y-4">
               {!addressSelected ? (
