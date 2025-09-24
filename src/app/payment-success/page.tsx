@@ -50,6 +50,17 @@ function PaymentSuccessContent() {
       if (result && result.status) {
         setVerificationResult(result);
 
+        // Clear cart after successful payment
+        try {
+          // Clear localStorage cart for guest users
+          localStorage.removeItem('cart');
+          localStorage.removeItem('cartItems');
+          console.log("Successfully cleared guest cart from localStorage");
+
+        } catch (error) {
+          console.error("Error clearing cart from localStorage:", error);
+        }
+
         // Use order details directly from verification result
         if (result.order) {
           setOrderDetails(result.order);

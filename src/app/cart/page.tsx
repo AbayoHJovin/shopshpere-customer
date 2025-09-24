@@ -74,6 +74,28 @@ export default function CartPage() {
     loadCart();
   }, [currentPage]);
 
+  // Debug discount calculations when cart changes
+  useEffect(() => {
+    if (cart && cart.items) {
+      console.log("=== DISCOUNT DEBUG ===");
+      cart.items.forEach((item, index) => {
+        console.log(`Item ${index + 1}: ${item.name}`);
+        console.log(`  - hasDiscount: ${item.hasDiscount}`);
+        console.log(`  - price: ${item.price}`);
+        console.log(`  - originalPrice: ${item.originalPrice}`);
+        console.log(`  - discountAmount: ${item.discountAmount}`);
+        console.log(`  - discountName: ${item.discountName}`);
+        console.log(`  - quantity: ${item.quantity}`);
+        console.log(`  - calculated discount: ${calculateItemDiscount(item)}`);
+        console.log("---");
+      });
+      console.log(`Total calculated discount: ${calculateTotalDiscount()}`);
+      console.log(`Original subtotal: ${calculateOriginalSubtotal()}`);
+      console.log(`Cart subtotal: ${cart.subtotal}`);
+      console.log("=== END DEBUG ===");
+    }
+  }, [cart]);
+
   // Function to load cart data
   const loadCart = async () => {
     setLoading(true);
@@ -81,6 +103,10 @@ export default function CartPage() {
       const cartData = await CartService.getCart(currentPage, itemsPerPage);
       setCart(cartData);
       setTotalPages(cartData.totalPages || 1);
+      
+      // Debug: Log cart data to understand discount structure
+      console.log("Cart Data:", cartData);
+      console.log("Cart Items with hasDiscount flag:", cartData.items.filter(item => item.hasDiscount));
     } catch (error) {
       console.error("Error loading cart:", error);
       toast.error("Failed to load cart items.");
@@ -240,6 +266,50 @@ export default function CartPage() {
       console.error("Error clearing cart:", error);
       toast.error("Failed to clear cart.");
     }
+  };
+
+  // Calculate original subtotal (before discounts)
+  const calculateOriginalSubtotal = () => {
+    if (!cart || !cart.items) return 0;
+    return cart.items.reduce((total, item) => {
+      // Use originalPrice * quantity to get the price before any discounts
+      const originalItemPrice = (item.originalPrice || item.price) * item.quantity;
+      return total + originalItemPrice;
+    }, 0);
+  };
+
+  // Calculate total discount amount
+  const calculateTotalDiscount = () => {
+    if (!cart || !cart.items) return 0;
+    return cart.items.reduce((total, item) => {
+      // If discountAmount is provided, use it
+      if (item.discountAmount && item.discountAmount > 0) {
+        return total + item.discountAmount;
+      }
+      
+      // Otherwise, calculate discount from originalPrice and current price
+      if (item.hasDiscount && item.originalPrice && item.originalPrice > item.price) {
+        const discountPerItem = (item.originalPrice - item.price) * item.quantity;
+        return total + discountPerItem;
+      }
+      
+      return total;
+    }, 0);
+  };
+
+  // Calculate discount amount for individual item
+  const calculateItemDiscount = (item: any) => {
+    // If discountAmount is provided, use it
+    if (item.discountAmount && item.discountAmount > 0) {
+      return item.discountAmount;
+    }
+    
+    // Otherwise, calculate discount from originalPrice and current price
+    if (item.hasDiscount && item.originalPrice && item.originalPrice > item.price) {
+      return (item.originalPrice - item.price) * item.quantity;
+    }
+    
+    return 0;
   };
 
   // Calculate total
@@ -819,23 +889,22 @@ export default function CartPage() {
             </div>
 
             <div className="p-6 space-y-4">
+              {/* Original Subtotal (before discounts) */}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="font-medium">
-                  {formatPrice(cart.subtotal)}
+                  {formatPrice(calculateOriginalSubtotal())}
                 </span>
               </div>
 
-              {/* Discount Summary */}
-              {cart.items.some((item) => item.hasDiscount) && (
+              {cart.items.some((item) => item.hasDiscount || calculateItemDiscount(item) > 0) && (
                 <>
-                  <Separator />
                   <div className="space-y-2">
                     <div className="text-sm font-medium text-green-600">
                       Discounts Applied
                     </div>
                     {cart.items
-                      .filter((item) => item.hasDiscount)
+                      .filter((item) => item.hasDiscount || calculateItemDiscount(item) > 0)
                       .map((item, index) => (
                         <div
                           key={index}
@@ -845,22 +914,26 @@ export default function CartPage() {
                             {item.name} ({item.discountName || "Discount"})
                           </span>
                           <span className="text-green-600 font-medium">
-                            -{formatPrice(item.discountAmount || 0)}
+                            -{formatPrice(calculateItemDiscount(item))}
                           </span>
                         </div>
                       ))}
                     <div className="flex justify-between text-sm font-medium text-green-600 border-t pt-2">
-                      <span>Total Savings</span>
+                      <span>Total Discount</span>
                       <span>
-                        -
-                        {formatPrice(
-                          cart.items.reduce(
-                            (total, item) => total + (item.discountAmount || 0),
-                            0
-                          )
-                        )}
+                        -{formatPrice(calculateTotalDiscount())}
                       </span>
                     </div>
+                  </div>
+                  
+                  <Separator />
+                  
+                  {/* Subtotal after discount */}
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Subtotal after discount</span>
+                    <span className="font-medium">
+                      {formatPrice(cart.subtotal)}
+                    </span>
                   </div>
                 </>
               )}
@@ -872,12 +945,10 @@ export default function CartPage() {
                 <span>{formatPrice(getTotal())}</span>
               </div>
 
-              {/* Estimated Delivery */}
               <div className="text-sm text-muted-foreground">
                 <p>Estimated delivery: 3-5 business days</p>
               </div>
 
-              {/* Proceed to Checkout button */}
               <Button
                 className="w-full mt-4"
                 size="lg"
