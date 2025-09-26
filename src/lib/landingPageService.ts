@@ -17,6 +17,9 @@ export interface LandingPageProduct {
   discountEndDate?: string;
   discountName?: string;
   hasActiveDiscount?: boolean;
+  hasVariantDiscounts?: boolean;
+  maxVariantDiscount?: number;
+  discountedVariantsCount?: number;
 }
 
 export interface LandingPageData {
@@ -99,6 +102,9 @@ class LandingPageService {
       discountEndDate: product.discountEndDate,
       discountName: product.discountName,
       hasActiveDiscount: product.hasActiveDiscount,
+      hasVariantDiscounts: product.hasVariantDiscounts,
+      maxVariantDiscount: product.maxVariantDiscount,
+      discountedVariantsCount: product.discountedVariantsCount,
     };
   }
 

@@ -24,6 +24,10 @@ interface Product {
   isInStock?: boolean;
   brand?: string;
   category?: string;
+  hasActiveDiscount?: boolean;
+  hasVariantDiscounts?: boolean;
+  maxVariantDiscount?: number;
+  discountedVariantsCount?: number;
 }
 
 interface ProductCardGridProps {
@@ -152,6 +156,14 @@ const ProductCardGrid = ({
                       -{product.discount}%
                     </Badge>
                   )}
+                  {product.hasVariantDiscounts &&
+                    !product.hasActiveDiscount &&
+                    product.maxVariantDiscount &&
+                    product.maxVariantDiscount > 0 && (
+                      <Badge className="bg-orange-500 text-white text-xs w-fit px-2 py-1 whitespace-nowrap">
+                        Up to -{Math.round(product.maxVariantDiscount)}%
+                      </Badge>
+                    )}
                   {product.isNew && (
                     <Badge className="bg-green-500 text-white text-xs w-fit px-2 py-1 whitespace-nowrap">
                       New
@@ -262,6 +274,16 @@ const ProductCardGrid = ({
                   {product.brand && product.category
                     ? `${product.brand} • ${product.category}`
                     : product.brand || product.category}
+                </p>
+              )}
+
+              {/* Variant Sale Indicator */}
+              {product.hasVariantDiscounts && 
+               !product.hasActiveDiscount && 
+               product.discountedVariantsCount && 
+               product.discountedVariantsCount > 0 && (
+                <p className="text-xs text-orange-600 font-medium">
+                  {product.discountedVariantsCount} variant{product.discountedVariantsCount > 1 ? 's' : ''} on sale
                 </p>
               )}
             </div>

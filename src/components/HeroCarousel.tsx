@@ -191,7 +191,7 @@ const HeroCarousel = ({ landingData }: HeroCarouselProps) => {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-white text-white hover:bg-white hover:text-blue-600 font-semibold px-8 py-3 text-lg"
+                  className="border-white text-blue-500 font-semibold px-8 py-3 text-lg"
                 >
                   Shop All
                 </Button>
@@ -201,7 +201,6 @@ const HeroCarousel = ({ landingData }: HeroCarouselProps) => {
         </div>
       </div>
 
-      {/* Navigation Arrows */}
       <button
         onClick={goToPrevious}
         className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white p-2 rounded-full transition-all duration-200"
