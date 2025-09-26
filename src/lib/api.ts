@@ -85,6 +85,12 @@ export const API_ENDPOINTS = {
   DISCOUNTS: `${API_BASE_URL}/discounts`,
   DISCOUNTS_ACTIVE: `${API_BASE_URL}/discounts/active`,
   DISCOUNT_BY_ID: (id: string) => `${API_BASE_URL}/discounts/${id}`,
+
+  // Points Payment endpoints
+  POINTS_PAYMENT_PREVIEW: `${API_BASE_URL}/points-payment/preview`,
+  POINTS_PAYMENT_PROCESS: `${API_BASE_URL}/points-payment/process`,
+  POINTS_PAYMENT_COMPLETE_HYBRID: (userId: string, orderId: string) => 
+    `${API_BASE_URL}/points-payment/complete-hybrid/${userId}/${orderId}`,
 } as const;
 
 // HTTP Headers

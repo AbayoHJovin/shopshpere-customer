@@ -10,8 +10,8 @@ export interface AddressDto {
 }
 
 export interface CartItemDTO {
-  productId?: string; // Will be converted to UUID on backend
-  variantId?: number; // Will be converted to Long on backend
+  productId?: string; 
+  variantId?: number; 
   quantity: number;
   weight?: number;
 }

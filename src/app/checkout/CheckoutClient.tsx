@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, CreditCard, LockIcon, Loader2, MapPin } from "lucide-react";
+import { ArrowLeft, Coins, CreditCard, LockIcon, Loader2, MapPin } from "lucide-react";
 
 // Components
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,7 @@ import { toast } from "sonner";
 import { PaymentIcons } from "@/components/PaymentIcons";
 import { GoogleMapsAddressPicker } from "@/components/GoogleMapsAddressPicker";
 import { CountrySelector } from "@/components/CountrySelector";
+import { PointsPaymentModal } from "@/components/PointsPaymentModal";
 
 // Services
 import { CartService, CartResponse } from "@/lib/cartService";
@@ -54,6 +55,7 @@ import {
 } from "@/lib/services/checkout-service";
 import { formatPrice, formatPriceForInput } from "@/lib/utils/priceFormatter";
 import { useAppSelector } from "@/lib/store/hooks";
+import { PointsPaymentRequest } from "@/lib/services/points-payment-service";
 
 // Constants
 const PAYMENT_METHODS = [
@@ -86,6 +88,7 @@ export function CheckoutClient() {
   const [paymentSummary, setPaymentSummary] =
     useState<PaymentSummaryDTO | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
+  const [showPointsModal, setShowPointsModal] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -452,6 +455,64 @@ export function CheckoutClient() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handlePointsPayment = () => {
+    if (!isAuthenticated || !user) {
+      toast.error("Please log in to use points payment");
+      return;
+    }
+
+    if (!cart || cart.items.length === 0) {
+      toast.error("Your cart is empty");
+      return;
+    }
+
+    if (!formData.streetAddress || !formData.city || !formData.country) {
+      toast.error("Please complete your shipping address first");
+      return;
+    }
+
+    setShowPointsModal(true);
+  };
+
+  const handlePointsSuccess = (orderId: number) => {
+    setShowPointsModal(false);
+    toast.success("Order placed successfully!");
+    router.push(`/payment-success?orderId=${orderId}`);
+  };
+
+  const handleHybridPayment = (stripeSessionId: string, orderId: number) => {
+    setShowPointsModal(false);
+    // stripeSessionId is actually the complete Stripe checkout URL from backend
+    window.location.href = stripeSessionId;
+  };
+
+  const createPointsPaymentRequest = (): PointsPaymentRequest | null => {
+    if (!cart || !user) return null;
+
+    const cartItems = cart.items.map((item) => ({
+      productId: item.productId,
+      variantId: item.variantId || undefined,
+      quantity: item.quantity,
+      price: item.price,
+    }));
+
+    const address = {
+      streetAddress: formData.streetAddress,
+      city: formData.city,
+      state: formData.stateProvince,
+      country: formData.country,
+      latitude: formData.latitude,
+      longitude: formData.longitude,
+    };
+
+    return {
+      userId: user.id,
+      items: cartItems,
+      shippingAddress: address,
+      useAllAvailablePoints: true,
+    };
   };
 
   const validateForm = () => {
@@ -1021,6 +1082,29 @@ export function CheckoutClient() {
                 </div>
               </CardContent>
               <CardFooter className="bg-muted/30 px-6 py-4 flex flex-col gap-4">
+                {isAuthenticated && user && (
+                  <Button
+                    variant="outline"
+                    className="w-full border-yellow-300 bg-yellow-50 hover:bg-yellow-100 text-yellow-800"
+                    size="lg"
+                    onClick={handlePointsPayment}
+                    disabled={
+                      submitting ||
+                      loadingSummary ||
+                      !paymentSummary ||
+                      !formData.streetAddress.trim() ||
+                      !formData.city.trim() ||
+                      !formData.country.trim() ||
+                      !formData.email.trim() ||
+                      !formData.firstName.trim() ||
+                      !formData.lastName.trim()
+                    }
+                  >
+                    <Coins className="h-4 w-4 mr-2" />
+                    Pay with Points
+                  </Button>
+                )}
+
                 <Button
                   className="w-full"
                   size="lg"
@@ -1122,6 +1206,24 @@ export function CheckoutClient() {
           </div>
         </div>
       </div>
+
+      <PointsPaymentModal
+        isOpen={showPointsModal}
+        onClose={() => setShowPointsModal(false)}
+        onSuccess={handlePointsSuccess}
+        onHybridPayment={handleHybridPayment}
+        paymentRequest={createPointsPaymentRequest() || {
+          userId: "",
+          items: [],
+          shippingAddress: {
+            streetAddress: "",
+            city: "",
+            state: "",
+            country: "",
+          },
+          useAllAvailablePoints: true,
+        }}
+      />
     </div>
   );
 }
