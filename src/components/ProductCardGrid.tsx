@@ -170,7 +170,7 @@ const ProductCardGrid = ({
                     </Badge>
                   )}
                   {product.isBestseller && (
-                    <Badge className="bg-orange-500 text-white text-xs w-fit px-2 py-1 whitespace-nowrap">
+                    <Badge className="bg-blue-500 text-white text-xs w-fit px-2 py-1 whitespace-nowrap">
                       Bestseller
                     </Badge>
                   )}
