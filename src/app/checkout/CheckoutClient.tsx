@@ -736,7 +736,7 @@ export function CheckoutClient() {
               {!addressSelected ? (
                 <GoogleMapsAddressPicker
                   onAddressSelect={handleGoogleMapsAddressSelect}
-                  apiKey="AIzaSyBcHNh-brnTF5rSAhZzi2AjBKRtum3JnDQ"
+                  apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}
                 />
               ) : (
                 <div className="space-y-4">
