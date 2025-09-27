@@ -20,6 +20,7 @@ import {
   PointsPaymentPreview,
   PointsPaymentRequest,
 } from "@/lib/services/points-payment-service";
+import { formatStockErrorMessage, extractErrorDetails } from "@/lib/utils/errorParser";
 
 interface PointsPaymentModalProps {
   isOpen: boolean;
@@ -47,9 +48,26 @@ export function PointsPaymentModal({
     try {
       const previewData = await pointsPaymentService.previewPointsPayment(paymentRequest);
       setPreview(previewData);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error loading points preview:", error);
-      toast.error("Failed to load points information");
+      
+      const errorDetails = extractErrorDetails(error);
+      
+      // Check if this is a stock-related error
+      if (errorDetails.details && (errorDetails.details.includes("not available") || errorDetails.details.includes("out of stock"))) {
+        const stockMessage = formatStockErrorMessage(errorDetails.details);
+        toast.error(stockMessage, {
+          duration: 8000,
+        });
+      } else if (errorDetails.message && (errorDetails.message.includes("not available") || errorDetails.message.includes("out of stock"))) {
+        const stockMessage = formatStockErrorMessage(errorDetails.message);
+        toast.error(stockMessage, {
+          duration: 8000,
+        });
+      } else {
+        toast.error(errorDetails.message || "Failed to load points information");
+      }
+      
       onClose();
     } finally {
       setLoading(false);
@@ -74,9 +92,25 @@ export function PointsPaymentModal({
       } else {
         toast.error(result.message || "Payment failed");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error processing points payment:", error);
-      toast.error("Payment processing failed");
+      
+      const errorDetails = extractErrorDetails(error);
+      
+      // Check if this is a stock-related error
+      if (errorDetails.details && (errorDetails.details.includes("not available") || errorDetails.details.includes("out of stock"))) {
+        const stockMessage = formatStockErrorMessage(errorDetails.details);
+        toast.error(stockMessage, {
+          duration: 8000,
+        });
+      } else if (errorDetails.message && (errorDetails.message.includes("not available") || errorDetails.message.includes("out of stock"))) {
+        const stockMessage = formatStockErrorMessage(errorDetails.message);
+        toast.error(stockMessage, {
+          duration: 8000,
+        });
+      } else {
+        toast.error(errorDetails.message || "Payment processing failed");
+      }
     } finally {
       setProcessing(false);
     }

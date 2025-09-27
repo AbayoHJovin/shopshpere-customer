@@ -59,7 +59,7 @@ class PointsPaymentService {
         console.error('Points payment preview error response:', errorText);
         
         if (response.status === 400) {
-          throw new Error('Invalid request data. Please check your cart and address information.');
+          throw new Error('Some of the products in your cart are no longer available.');
         } else if (response.status === 401) {
           throw new Error('Please log in to use points payment.');
         } else if (response.status === 404) {

@@ -39,6 +39,7 @@ import { PaymentIcons } from "@/components/PaymentIcons";
 import { GoogleMapsAddressPicker } from "@/components/GoogleMapsAddressPicker";
 import { CountrySelector } from "@/components/CountrySelector";
 import { PointsPaymentModal } from "@/components/PointsPaymentModal";
+import { formatStockErrorMessage, extractErrorDetails } from "@/lib/utils/errorParser";
 
 // Services
 import { CartService, CartResponse } from "@/lib/cartService";
@@ -294,11 +295,27 @@ export function CheckoutClient() {
 
       console.log("Payment summary received:", summary);
       setPaymentSummary(summary);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching payment summary:", error);
-      toast.error(
-        "Error calculating shipping and taxes. Please check your address and try again."
-      );
+      
+      const errorDetails = extractErrorDetails(error);
+      
+      // Check if this is a stock-related error
+      if (errorDetails.details && (errorDetails.details.includes("not available") || errorDetails.details.includes("out of stock"))) {
+        const stockMessage = formatStockErrorMessage(errorDetails.details);
+        toast.error(stockMessage, {
+          duration: 8000,
+        });
+      } else if (errorDetails.message && (errorDetails.message.includes("not available") || errorDetails.message.includes("out of stock"))) {
+        const stockMessage = formatStockErrorMessage(errorDetails.message);
+        toast.error(stockMessage, {
+          duration: 8000,
+        });
+      } else {
+        toast.error(
+          errorDetails.message || "Error calculating shipping and taxes. Please check your address and try again."
+        );
+      }
       setPaymentSummary(null);
     } finally {
       setLoadingSummary(false);
@@ -429,10 +446,15 @@ export function CheckoutClient() {
       window.location.href = sessionUrl;
     } catch (error: any) {
       console.error("Error creating checkout session:", error);
+      console.error("Error response data:", error.response?.data);
+      console.error("Error response status:", error.response?.status);
       
-      if (error.response?.data?.errorCode) {
-        const errorData = error.response.data;
-        switch (errorData.errorCode) {
+      const errorDetails = extractErrorDetails(error);
+      console.error("Extracted error details:", errorDetails);
+      
+      if (errorDetails.errorCode) {
+        console.log("🔍 DEBUG: Error code detected:", errorDetails.errorCode);
+        switch (errorDetails.errorCode) {
           case "PRODUCT_NOT_FOUND":
           case "VARIANT_NOT_FOUND":
             toast.error("One or more products in your cart are no longer available. Please refresh and try again.");
@@ -441,16 +463,79 @@ export function CheckoutClient() {
           case "PRODUCT_NOT_AVAILABLE":
           case "VARIANT_INACTIVE":
           case "VARIANT_NOT_AVAILABLE":
-            toast.error("Some products in your cart are no longer available for purchase. Please remove them and try again.");
+            // Use the enhanced error parser for stock-related issues
+            if (errorDetails.details || errorDetails.message) {
+              const stockMessage = formatStockErrorMessage(errorDetails.details || errorDetails.message || "");
+              toast.error(stockMessage, {
+                duration: 8000, // Longer duration for important stock messages
+              });
+            } else {
+              toast.error("Some products in your cart are no longer available for purchase. Please remove them and try again.");
+            }
             break;
           case "INSUFFICIENT_STOCK":
-            toast.error(errorData.message || "Insufficient stock for one or more items in your cart.");
+            // Enhanced stock error handling
+            if (errorDetails.details || errorDetails.message) {
+              const stockMessage = formatStockErrorMessage(errorDetails.details || errorDetails.message || "");
+              toast.error(stockMessage, {
+                duration: 8000,
+              });
+            } else {
+              toast.error("Insufficient stock for one or more items in your cart. Please review your cart and try again.");
+            }
+            break;
+          case "INTERNAL_ERROR":
+            console.log("🔍 DEBUG: INTERNAL_ERROR case triggered");
+            console.log("🔍 DEBUG: errorDetails.details:", errorDetails.details);
+            console.log("🔍 DEBUG: errorDetails.message:", errorDetails.message);
+            
+            // Handle internal errors that might contain stock information
+            if (errorDetails.details && (errorDetails.details.includes("not available") || errorDetails.details.includes("out of stock"))) {
+              console.log("🔍 DEBUG: Stock error detected in details, formatting message...");
+              const stockMessage = formatStockErrorMessage(errorDetails.details);
+              console.log("🔍 DEBUG: Formatted stock message:", stockMessage);
+              toast.error(stockMessage, {
+                duration: 8000,
+              });
+            } else if (errorDetails.message && (errorDetails.message.includes("not available") || errorDetails.message.includes("out of stock"))) {
+              console.log("🔍 DEBUG: Stock error detected in message, formatting message...");
+              const stockMessage = formatStockErrorMessage(errorDetails.message);
+              console.log("🔍 DEBUG: Formatted stock message:", stockMessage);
+              toast.error(stockMessage, {
+                duration: 8000,
+              });
+            } else {
+              console.log("🔍 DEBUG: No stock error detected, showing generic message");
+              toast.error(errorDetails.message || "An unexpected error occurred while processing checkout. Please try again later.");
+            }
             break;
           default:
-            toast.error(errorData.message || "Error processing checkout. Please try again later.");
+            console.log("🔍 DEBUG: Default case triggered for error code:", errorDetails.errorCode);
+            // Check if the default case also contains stock information
+            if ((errorDetails.details && (errorDetails.details.includes("not available") || errorDetails.details.includes("out of stock"))) ||
+                (errorDetails.message && (errorDetails.message.includes("not available") || errorDetails.message.includes("out of stock")))) {
+              console.log("🔍 DEBUG: Stock error detected in default case");
+              const stockMessage = formatStockErrorMessage(errorDetails.details || errorDetails.message || "");
+              toast.error(stockMessage, {
+                duration: 8000,
+              });
+            } else {
+              toast.error(errorDetails.message || "Error processing checkout. Please try again later.");
+            }
         }
       } else {
-        toast.error("Error processing checkout. Please try again later.");
+        console.log("🔍 DEBUG: No error code detected, showing generic message");
+        // Even without error code, check if there's stock information
+        const errorMessage = errorDetails.message || error.message || "";
+        if (errorMessage.includes("not available") || errorMessage.includes("out of stock")) {
+          console.log("🔍 DEBUG: Stock error detected without error code");
+          const stockMessage = formatStockErrorMessage(errorMessage);
+          toast.error(stockMessage, {
+            duration: 8000,
+          });
+        } else {
+          toast.error("Error processing checkout. Please try again later.");
+        }
       }
     } finally {
       setSubmitting(false);
