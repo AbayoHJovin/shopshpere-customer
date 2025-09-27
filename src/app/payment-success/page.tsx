@@ -17,6 +17,9 @@ function PaymentSuccessContent() {
   const [orderDetails, setOrderDetails] = useState<any>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pointsUsed, setPointsUsed] = useState<number | null>(null);
+  const [pointsValue, setPointsValue] = useState<number | null>(null);
+  const [isPointsPayment, setIsPointsPayment] = useState(false);
   const qrCodeRef = useRef<HTMLCanvasElement>(null);
 
   const downloadQRCode = (dataUrl: string, filename: string) => {
@@ -30,16 +33,178 @@ function PaymentSuccessContent() {
 
   useEffect(() => {
     const sessionId = searchParams.get("session_id");
-    console.log("Payment success page loaded with session ID:", sessionId);
+    const orderId = searchParams.get("orderId");
+    const orderNumber = searchParams.get("orderNumber");
+    
+    console.log("Payment success page loaded with session ID:", sessionId, "orderId:", orderId, "orderNumber:", orderNumber);
 
-    if (!sessionId) {
-      setError("No session ID found");
+    if (sessionId) {
+      // Handle Stripe payment verification
+      verifyPayment(sessionId);
+    } else if (orderNumber) {
+      // Handle points-based payment - fetch order by orderNumber (preferred)
+      fetchOrderDetailsByNumber(orderNumber);
+    } else if (orderId) {
+      // Fallback: Handle points-based payment - fetch order by orderId
+      fetchOrderDetails(orderId);
+    } else {
+      setError("No session ID, order ID, or order number found");
       setVerifying(false);
       return;
     }
-
-    verifyPayment(sessionId);
   }, [searchParams]);
+
+  const fetchOrderDetailsByNumber = async (orderNumber: string) => {
+    try {
+      console.log("Fetching order details for orderNumber:", orderNumber);
+      const orderDetails = await OrderService.getOrderDetailsByNumber(orderNumber);
+      console.log("Order details result:", orderDetails);
+
+      if (orderDetails) {
+        // Set order details directly
+        setOrderDetails(orderDetails);
+        setIsPointsPayment(true);
+
+        // Extract points information from URL parameters
+        const pointsUsedParam = searchParams.get("pointsUsed");
+        const pointsValueParam = searchParams.get("pointsValue");
+        
+        if (pointsUsedParam) {
+          setPointsUsed(parseInt(pointsUsedParam));
+        }
+        if (pointsValueParam) {
+          setPointsValue(parseFloat(pointsValueParam));
+        }
+
+        // Create a mock verification result for points-based payment
+        setVerificationResult({
+          status: "paid",
+          amount: Math.round(orderDetails.total * 100), // Convert to cents
+          currency: "usd",
+          customerEmail: orderDetails.customerInfo?.email || "N/A",
+          receiptUrl: null,
+          paymentIntentId: `points_payment_${orderNumber}`,
+          updated: true,
+          order: orderDetails,
+          paymentMethod: pointsUsedParam ? (parseFloat(pointsValueParam || "0") >= orderDetails.total ? "points" : "hybrid") : "unknown"
+        });
+
+        // Clear cart after successful payment
+        try {
+          localStorage.removeItem('cart');
+          localStorage.removeItem('cartItems');
+          console.log("Successfully cleared cart from localStorage");
+        } catch (error) {
+          console.error("Error clearing cart from localStorage:", error);
+        }
+
+        // Generate QR code with pickup token
+        if (orderDetails.pickupToken) {
+          const qrDataUrl = await QRCode.toDataURL(
+            orderDetails.pickupToken,
+            {
+              width: 256,
+              margin: 2,
+              color: {
+                dark: "#000000",
+                light: "#FFFFFF",
+              },
+            }
+          );
+          setQrCodeDataUrl(qrDataUrl);
+
+          // Auto-download the QR code
+          downloadQRCode(
+            qrDataUrl,
+            `pickup-token-${orderDetails.orderNumber}.png`
+          );
+        }
+      } else {
+        throw new Error("Order not found");
+      }
+    } catch (err) {
+      console.error("Order fetch error:", err);
+      setError(err instanceof Error ? err.message : "Failed to fetch order details");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const fetchOrderDetails = async (orderId: string) => {
+    try {
+      console.log("Fetching order details for orderId:", orderId);
+      const orderDetails = await OrderService.getOrderById(orderId);
+      console.log("Order details result:", orderDetails);
+
+      if (orderDetails) {
+        // Set order details directly
+        setOrderDetails(orderDetails);
+        setIsPointsPayment(true);
+
+        // Extract points information from URL parameters or transaction data
+        const pointsUsedParam = searchParams.get("pointsUsed");
+        const pointsValueParam = searchParams.get("pointsValue");
+        
+        // Use transaction data if available, otherwise use URL params
+        const transactionPointsUsed = orderDetails.transaction?.pointsUsed || 0;
+        const transactionPointsValue = orderDetails.transaction?.pointsValue || 0;
+        
+        setPointsUsed(pointsUsedParam ? parseInt(pointsUsedParam) : transactionPointsUsed);
+        setPointsValue(pointsValueParam ? parseFloat(pointsValueParam) : transactionPointsValue);
+
+        // Create a verification result with transaction information
+        setVerificationResult({
+          status: orderDetails.transaction?.status === "COMPLETED" ? "paid" : "pending",
+          amount: orderDetails.transaction?.orderAmount ? Math.round(orderDetails.transaction.orderAmount * 100) : Math.round(orderDetails.total * 100),
+          currency: "rwf",
+          customerEmail: orderDetails.customerInfo?.email || "N/A",
+          receiptUrl: orderDetails.transaction?.receiptUrl || null,
+          paymentIntentId: orderDetails.transaction?.stripePaymentIntentId || `order_payment_${orderId}`,
+          updated: true,
+          order: orderDetails,
+          paymentMethod: orderDetails.transaction?.paymentMethod?.toLowerCase() || "unknown"
+        });
+
+        // Clear cart after successful payment
+        try {
+          localStorage.removeItem('cart');
+          localStorage.removeItem('cartItems');
+          console.log("Successfully cleared cart from localStorage");
+        } catch (error) {
+          console.error("Error clearing cart from localStorage:", error);
+        }
+
+        // Generate QR code with pickup token
+        if (orderDetails.pickupToken) {
+          const qrDataUrl = await QRCode.toDataURL(
+            orderDetails.pickupToken,
+            {
+              width: 256,
+              margin: 2,
+              color: {
+                dark: "#000000",
+                light: "#FFFFFF",
+              },
+            }
+          );
+          setQrCodeDataUrl(qrDataUrl);
+
+          // Auto-download the QR code
+          downloadQRCode(
+            qrDataUrl,
+            `pickup-token-${orderDetails.orderNumber}.png`
+          );
+        }
+      } else {
+        throw new Error("Order not found");
+      }
+    } catch (err) {
+      console.error("Order fetch error:", err);
+      setError(err instanceof Error ? err.message : "Failed to fetch order details");
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   const verifyPayment = async (sessionId: string) => {
     try {
@@ -135,143 +300,248 @@ function PaymentSuccessContent() {
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-8">
           <CheckCircle className="h-24 w-24 text-green-500 mx-auto mb-6" />
-          <h1 className="text-4xl font-bold mb-4 text-green-600">Payment Successful!</h1>
+          <h1 className="text-4xl font-bold mb-4 text-green-600">
+            {isPointsPayment ? "Order Placed Successfully!" : "Payment Successful!"}
+          </h1>
           <p className="text-xl text-muted-foreground">
-            Thank you for your order. We've received your payment and will process your order shortly.
+            {isPointsPayment 
+              ? `Thank you for your order! ${pointsUsed ? `You used ${pointsUsed.toLocaleString()} points` : 'Payment processed'} and we will process your order shortly.`
+              : "Thank you for your order. We've received your payment and will process your order shortly."
+            }
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="space-y-6">
-            {verificationResult && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Payment Details</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="font-medium">Payment Status:</span>
-                      <span className="text-green-600 font-medium capitalize">
-                        {verificationResult.status}
-                      </span>
+        {/* Professional Invoice Layout */}
+        {orderDetails && (
+          <div className="bg-white border-2 border-gray-200 rounded-lg shadow-lg mb-8 print:shadow-none print:border-gray-400">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-t-lg">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">INVOICE</h2>
+                  <p className="text-blue-100">ShopSphere E-Commerce</p>
+                  <p className="text-blue-100 text-sm">Order Confirmation & Receipt</p>
+                </div>
+                <div className="text-right">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-white/20 rounded-lg p-3">
+                      <p className="text-sm text-blue-100">Invoice #</p>
+                      <p className="font-mono font-bold text-lg">{orderDetails.orderNumber}</p>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium">Amount:</span>
-                      <span>
-                        ${(verificationResult.amount / 100).toFixed(2)}{" "}
-                        {verificationResult.currency.toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium">Customer Email:</span>
-                      <span>{verificationResult.customerEmail || "N/A"}</span>
-                    </div>
-                    {verificationResult.receiptUrl && (
-                      <div className="flex justify-between">
-                        <span className="font-medium">Receipt:</span>
-                        <a
-                          href={verificationResult.receiptUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          View Receipt
-                        </a>
-                      </div>
-                    )}
+                    <button
+                      onClick={() => window.print()}
+                      className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors print:hidden"
+                    >
+                      Print Invoice
+                    </button>
                   </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {orderDetails?.customerInfo && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Customer Information</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="font-medium">Name:</span>
-                      <span>{orderDetails.customerInfo.firstName} {orderDetails.customerInfo.lastName}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium">Email:</span>
-                      <span>{orderDetails.customerInfo.email}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium">Phone:</span>
-                      <span>{orderDetails.customerInfo.phoneNumber}</span>
-                    </div>
-                    {orderDetails.customerInfo.streetAddress && (
-                      <div className="flex justify-between">
-                        <span className="font-medium">Address:</span>
-                        <span className="text-right">
-                          {orderDetails.customerInfo.streetAddress}
-                          {orderDetails.customerInfo.city && <><br />{orderDetails.customerInfo.city}</>}
-                          {orderDetails.customerInfo.state && <>, {orderDetails.customerInfo.state}</>}
-                          {orderDetails.customerInfo.country && <><br />{orderDetails.customerInfo.country}</>}
-                        </span>
-                      </div>
-                    )}
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              {/* Invoice Details Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div>
+                  <h3 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Bill To</h3>
+                  <div className="space-y-1">
+                    <p className="font-medium">{orderDetails.customerInfo?.firstName} {orderDetails.customerInfo?.lastName}</p>
+                    <p className="text-sm text-gray-600">{orderDetails.customerInfo?.email}</p>
+                    <p className="text-sm text-gray-600">{orderDetails.customerInfo?.phoneNumber}</p>
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                </div>
+                
+                <div>
+                  <h3 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Ship To</h3>
+                  <div className="space-y-1 text-sm">
+                    <p>{orderDetails.shippingAddress?.street}</p>
+                    {orderDetails.shippingAddress?.roadName && <p>{orderDetails.shippingAddress.roadName}</p>}
+                    <p>{orderDetails.shippingAddress?.city}, {orderDetails.shippingAddress?.state}</p>
+                    <p>{orderDetails.shippingAddress?.country}</p>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Order Details</h3>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Order Date:</span>
+                      <span>{new Date(orderDetails.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Status:</span>
+                      <span className="capitalize font-medium text-green-600">{orderDetails.status}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Payment:</span>
+                      <span className="capitalize">{verificationResult?.paymentMethod || 'Card'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-            {orderDetails && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Order Summary</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between">
-                      <span className="font-medium">Order Number:</span>
-                      <span className="font-mono">{orderDetails.orderNumber}</span>
+              {/* Products Table */}
+              <div className="mb-8">
+                <h3 className="font-semibold text-gray-700 mb-4 text-lg border-b pb-2">Items Purchased</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b-2 border-gray-200">
+                        <th className="text-left py-3 px-2 font-semibold text-gray-700">Description</th>
+                        <th className="text-center py-3 px-2 font-semibold text-gray-700 w-20">Qty</th>
+                        <th className="text-right py-3 px-2 font-semibold text-gray-700 w-32">Unit Price</th>
+                        <th className="text-right py-3 px-2 font-semibold text-gray-700 w-32">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {orderDetails.items?.map((item: any, index: number) => {
+                        const isVariant = item.variant && item.variant.name;
+                        const displayName = isVariant ? item.variant?.name : item.product?.name;
+                        const displayImage = isVariant ? item.variant?.images?.[0] : item.product?.images?.[0];
+                        
+                        return (
+                          <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="py-4 px-2">
+                              <div className="flex items-center space-x-3">
+                                {displayImage && (
+                                  <img
+                                    src={displayImage}
+                                    alt={displayName || 'Product'}
+                                    className="w-12 h-12 object-cover rounded border flex-shrink-0"
+                                  />
+                                )}
+                                <div className="min-w-0">
+                                  <p className="font-medium text-gray-800 text-sm">
+                                    {displayName || 'Unknown Product'}
+                                  </p>
+                                  {isVariant && item.product?.name && (
+                                    <p className="text-xs text-gray-500">
+                                      Base: {item.product.name}
+                                    </p>
+                                  )}
+                                  <p className="text-xs text-gray-500">
+                                    {isVariant ? 'Product Variant' : 'Standard Product'}
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-4 px-2 text-center font-medium">
+                              {item.quantity}
+                            </td>
+                            <td className="py-4 px-2 text-right font-medium">
+                              RWF {item.price?.toLocaleString() || '0'}
+                            </td>
+                            <td className="py-4 px-2 text-right font-bold">
+                              RWF {item.totalPrice?.toLocaleString() || '0'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Order Summary */}
+              <div className="flex justify-end">
+                <div className="w-full max-w-sm">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="font-semibold text-gray-700 mb-3">Order Summary</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Subtotal:</span>
+                        <span className="font-medium">RWF {orderDetails.subtotal?.toLocaleString() || '0'}</span>
+                      </div>
+                      {orderDetails.tax > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Tax:</span>
+                          <span className="font-medium">RWF {orderDetails.tax?.toLocaleString() || '0'}</span>
+                        </div>
+                      )}
+                      {orderDetails.shipping > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Shipping:</span>
+                          <span className="font-medium">RWF {orderDetails.shipping?.toLocaleString() || '0'}</span>
+                        </div>
+                      )}
+                      {orderDetails.discount > 0 && (
+                        <div className="flex justify-between text-green-600">
+                          <span>Discount:</span>
+                          <span className="font-medium">-RWF {orderDetails.discount?.toLocaleString() || '0'}</span>
+                        </div>
+                      )}
+                      
+                      {/* Points Information */}
+                      {((pointsUsed && pointsUsed > 0) || (orderDetails?.transaction?.pointsUsed && orderDetails.transaction.pointsUsed > 0)) && (
+                        <>
+                          <div className="border-t pt-2 mt-2">
+                            <div className="flex justify-between text-blue-600">
+                              <span>Points Used:</span>
+                              <span className="font-medium">
+                                {(pointsUsed || orderDetails?.transaction?.pointsUsed || 0).toLocaleString()} pts
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-blue-600">
+                              <span>Points Value:</span>
+                              <span className="font-medium">
+                                -RWF {(pointsValue || orderDetails?.transaction?.pointsValue || 0).toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                      
+                      <div className="border-t pt-3 mt-3">
+                        <div className="flex justify-between text-lg font-bold text-gray-800">
+                          <span>Total Amount:</span>
+                          <span>RWF {orderDetails.total?.toLocaleString() || '0'}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium">Order Status:</span>
-                      <span className="capitalize">{orderDetails.status}</span>
-                    </div>
-                    
-                    <div className="border-t pt-4">
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Information */}
+              {verificationResult && (
+                <div className="mt-6 pt-6 border-t">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 className="font-semibold text-gray-700 mb-2">Payment Information</h4>
                       <div className="space-y-1 text-sm">
                         <div className="flex justify-between">
-                          <span>Subtotal:</span>
-                          <span>${orderDetails.subtotal?.toFixed(2) || '0.00'}</span>
+                          <span className="text-gray-600">Payment Status:</span>
+                          <span className="font-medium text-green-600 capitalize">{verificationResult.status}</span>
                         </div>
-                        {orderDetails.tax > 0 && (
-                          <div className="flex justify-between">
-                            <span>Tax:</span>
-                            <span>${orderDetails.tax?.toFixed(2) || '0.00'}</span>
-                          </div>
-                        )}
-                        {orderDetails.shipping > 0 && (
-                          <div className="flex justify-between">
-                            <span>Shipping:</span>
-                            <span>${orderDetails.shipping?.toFixed(2) || '0.00'}</span>
-                          </div>
-                        )}
-                        {orderDetails.discount > 0 && (
-                          <div className="flex justify-between text-green-600">
-                            <span>Discount:</span>
-                            <span>-${orderDetails.discount?.toFixed(2) || '0.00'}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between font-medium border-t pt-1">
-                          <span>Total:</span>
-                          <span>${orderDetails.total?.toFixed(2) || '0.00'}</span>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Payment Method:</span>
+                          <span className="capitalize">{verificationResult.paymentMethod}</span>
                         </div>
+                        {orderDetails?.transaction?.transactionRef && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Transaction ID:</span>
+                            <span className="font-mono text-xs">{orderDetails.transaction.transactionRef}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h4 className="font-semibold text-gray-700 mb-2">Contact Information</h4>
+                      <div className="space-y-1 text-sm text-gray-600">
+                        <p>For questions about your order:</p>
+                        <p>Email: support@shopsphere.com</p>
+                        <p>Phone: +250 123 456 789</p>
                       </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                </div>
+              )}
+            </div>
           </div>
+        )}
 
+        {/* Additional Information Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
           <div className="space-y-6">
             {orderDetails?.shippingAddress?.latitude && orderDetails?.shippingAddress?.longitude && (
               <Card>
@@ -282,7 +552,7 @@ function PaymentSuccessContent() {
                   <div className="space-y-4">
                     <div className="h-64 w-full rounded-lg overflow-hidden border">
                       <iframe
-                        src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBcHNh-brnTF5rSAhZzi2AjBKRtum3JnDQ&q=${orderDetails.shippingAddress.latitude},${orderDetails.shippingAddress.longitude}&zoom=16&maptype=satellite`}
+                        src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&q=${orderDetails.shippingAddress.latitude},${orderDetails.shippingAddress.longitude}&zoom=16&maptype=satellite`}
                         width="100%"
                         height="100%"
                         style={{ border: 0 }}
@@ -290,6 +560,25 @@ function PaymentSuccessContent() {
                         loading="lazy"
                         referrerPolicy="no-referrer-when-downgrade"
                       />
+                    </div>
+                    
+                    <div className="flex gap-2 mt-2">
+                      <a
+                        href={`https://www.google.com/maps?q=${orderDetails.shippingAddress.latitude},${orderDetails.shippingAddress.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 bg-blue-600 text-white px-3 py-2 rounded text-sm text-center hover:bg-blue-700 transition-colors"
+                      >
+                        Open in Google Maps
+                      </a>
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${orderDetails.shippingAddress.latitude},${orderDetails.shippingAddress.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 bg-green-600 text-white px-3 py-2 rounded text-sm text-center hover:bg-green-700 transition-colors"
+                      >
+                        Get Directions
+                      </a>
                     </div>
                     
                     <div className="space-y-2 text-sm">
@@ -328,67 +617,6 @@ function PaymentSuccessContent() {
             )}
           </div>
 
-          <div className="space-y-6">
-            {orderDetails?.items && orderDetails.items.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Items Ordered ({orderDetails.items.length})</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
-                    {orderDetails.items.map((item: OrderItemResponse, index: number) => {
-                      // Determine which product info to display (variant takes priority)
-                      const displayProduct: SimpleProduct | undefined = item.variant || item.product;
-                      const isVariant = !!item.variant;
-                      
-                      return (
-                        <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                          <div className="flex-shrink-0">
-                            {displayProduct?.images && displayProduct.images.length > 0 ? (
-                              <img
-                                src={displayProduct.images[0]}
-                                alt={displayProduct?.name || 'Product'}
-                                className="w-16 h-16 object-cover rounded-md border"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.src = '/placeholder-product.png';
-                                }}
-                              />
-                            ) : (
-                              <div className="w-16 h-16 bg-gray-200 rounded-md flex items-center justify-center">
-                                <span className="text-gray-400 text-xs">No Image</span>
-                              </div>
-                            )}
-                          </div>
-                          
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">
-                              {displayProduct?.name || 'Product'}
-                            </p>
-                            {isVariant && item.product?.name && (
-                              <p className="text-xs text-muted-foreground truncate">
-                                Base: {item.product.name}
-                              </p>
-                            )}
-                            <p className="text-xs text-muted-foreground">
-                              {isVariant ? 'Product Variant' : 'Standard Product'}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Qty: {item.quantity} × ${item.price?.toFixed(2) || '0.00'}
-                            </p>
-                          </div>
-                          
-                          <div className="text-right">
-                            <p className="font-medium text-sm">${item.totalPrice?.toFixed(2) || '0.00'}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
         </div>
 
         {/* Pickup Token QR Code */}

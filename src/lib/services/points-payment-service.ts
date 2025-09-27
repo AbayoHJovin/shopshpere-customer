@@ -32,6 +32,7 @@ export interface PointsPaymentResult {
   success: boolean;
   message: string;
   orderId?: number;
+  orderNumber?: string;
   pointsUsed: number;
   pointsValue: number;
   remainingAmount: number;

@@ -86,9 +86,7 @@ class WishlistServices {
     const token = getAuthToken();
 
     if (!token) {
-      // No token = guest user, use localStorage
       addToLocalStorageWishlist(request.productId);
-      // Return a mock response for consistency
       return {
         id: Date.now(),
         productId: request.productId,

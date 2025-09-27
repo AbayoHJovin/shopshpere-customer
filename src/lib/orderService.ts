@@ -78,6 +78,22 @@ export interface CheckoutVerificationResult {
   order: OrderResponse;
 }
 
+export interface OrderTransactionInfo {
+  orderTransactionId: string;
+  orderAmount: number;
+  paymentMethod: string;
+  transactionRef?: string;
+  status: string;
+  receiptUrl?: string;
+  stripeSessionId?: string;
+  stripePaymentIntentId?: string;
+  paymentDate?: string;
+  pointsUsed: number;
+  pointsValue: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface OrderCustomerInfo {
   firstName: string;
   lastName: string;
@@ -111,6 +127,7 @@ export interface OrderResponse {
   updatedAt: string;
   estimatedDelivery: string | null;
   trackingNumber: string | null;
+  transaction?: OrderTransactionInfo | null;
 }
 
 export interface SimpleProduct {
@@ -138,6 +155,8 @@ export interface OrderAddressResponse {
   city: string;
   state: string;
   country: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface OrderDetailsResponse {
@@ -162,6 +181,7 @@ export interface OrderDetailsResponse {
   updatedAt: string;
   estimatedDelivery: string | null;
   trackingNumber: string | null;
+  transaction?: OrderTransactionInfo | null;
 }
 
 export interface ErrorResponse {
@@ -381,6 +401,33 @@ export const OrderService = {
   },
 
   /**
+   * Get order details by order number for the authenticated user
+   */
+  getOrderDetailsByNumber: async (orderNumber: string): Promise<OrderDetailsResponse> => {
+    try {
+      const token = localStorage.getItem("authToken");
+      const response = await fetch(`${API_ENDPOINTS.ORDERS}/number/${orderNumber}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Error fetching order details");
+      }
+
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error("Error fetching order details by number:", error);
+      throw error;
+    }
+  },
+
+  /**
    * Track order by order number (public endpoint)
    */
   trackOrderByNumber: async (
@@ -436,6 +483,33 @@ export const OrderService = {
       return data.data;
     } catch (error) {
       console.error("Error tracking order by token:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get order by ID (authenticated endpoint)
+   */
+  getOrderById: async (orderId: string): Promise<OrderDetailsResponse> => {
+    try {
+      const token = localStorage.getItem("authToken");
+      const response = await fetch(`${API_ENDPOINTS.ORDERS}/id/${orderId}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Error fetching order");
+      }
+
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error("Error fetching order by ID:", error);
       throw error;
     }
   },

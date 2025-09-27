@@ -40,15 +40,9 @@ export const StripeService = {
     };
   },
 
-  /**
-   * Verify a checkout session (handled by backend)
-   * This is just a placeholder - the actual verification happens in the backend
-   */
   verifyCheckoutSession: async (
     sessionId: string
   ): Promise<StripeCheckoutSession> => {
-    // This would typically call your backend API to verify the session
-    // For now, we'll return a mock response
     return {
       id: sessionId,
       url: "",

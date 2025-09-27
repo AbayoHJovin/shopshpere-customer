@@ -476,10 +476,25 @@ export function CheckoutClient() {
     setShowPointsModal(true);
   };
 
-  const handlePointsSuccess = (orderId: number) => {
+  const handlePointsSuccess = (orderId: number, orderNumber?: string, pointsUsed?: number, pointsValue?: number) => {
     setShowPointsModal(false);
     toast.success("Order placed successfully!");
-    router.push(`/payment-success?orderId=${orderId}`);
+    
+    // Build URL with orderNumber and points information
+    const params = new URLSearchParams();
+    if (orderNumber) {
+      params.set('orderNumber', orderNumber);
+    } else {
+      params.set('orderId', orderId.toString()); // Fallback to orderId if orderNumber not available
+    }
+    if (pointsUsed) {
+      params.set('pointsUsed', pointsUsed.toString());
+    }
+    if (pointsValue) {
+      params.set('pointsValue', pointsValue.toString());
+    }
+    
+    router.push(`/payment-success?${params.toString()}`);
   };
 
   const handleHybridPayment = (stripeSessionId: string, orderId: number) => {
@@ -493,7 +508,7 @@ export function CheckoutClient() {
 
     const cartItems = cart.items.map((item) => ({
       productId: item.productId,
-      variantId: item.variantId || undefined,
+      variantId: item.variantId ? parseInt(item.variantId) : undefined,
       quantity: item.quantity,
       price: item.price,
     }));

@@ -24,7 +24,7 @@ import {
 interface PointsPaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (orderId: number) => void;
+  onSuccess: (orderId: number, orderNumber?: string, pointsUsed?: number, pointsValue?: number) => void;
   onHybridPayment: (stripeSessionId: string, orderId: number) => void;
   paymentRequest: PointsPaymentRequest;
 }
@@ -68,7 +68,8 @@ export function PointsPaymentModal({
           onHybridPayment(result.stripeSessionId, result.orderId);
         } else if (result.orderId) {
           toast.success("Payment completed successfully!");
-          onSuccess(result.orderId);
+          // Pass orderNumber and points information to the success callback
+          onSuccess(result.orderId, result.orderNumber, result.pointsUsed, result.pointsValue);
         }
       } else {
         toast.error(result.message || "Payment failed");
