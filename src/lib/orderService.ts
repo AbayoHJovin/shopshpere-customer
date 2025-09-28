@@ -147,6 +147,11 @@ export interface OrderItemResponse {
   quantity: number;
   price: number;
   totalPrice: number;
+  // Return eligibility fields
+  maxReturnDays?: number;
+  deliveredAt?: string;
+  isReturnEligible?: boolean;
+  daysRemainingForReturn?: number;
 }
 
 export interface OrderAddressResponse {

@@ -17,6 +17,10 @@ import {
   Phone,
   Mail,
   Download,
+  RotateCcw,
+  Clock,
+  AlertCircle,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -164,6 +168,23 @@ export default function TrackOrderPage() {
     }).format(amount);
   };
 
+  const getDaysRemainingBadge = (item: any) => {
+    if (!item.isReturnEligible) {
+      return <Badge variant="destructive" className="ml-2">Return Expired</Badge>;
+    }
+    
+    if (item.daysRemainingForReturn <= 3) {
+      return <Badge variant="destructive" className="ml-2">{item.daysRemainingForReturn} days left</Badge>;
+    } else if (item.daysRemainingForReturn <= 7) {
+      return <Badge variant="secondary" className="ml-2">{item.daysRemainingForReturn} days left</Badge>;
+    } else {
+      return <Badge variant="outline" className="ml-2">{item.daysRemainingForReturn} days left</Badge>;
+    }
+  };
+
+  const hasEligibleItems = orderDetails?.items?.some(item => item.isReturnEligible) || false;
+  const isDelivered = orderDetails?.status?.toLowerCase() === 'delivered';
+
   return (
     <div className="container mx-auto px-4 py-16">
       <div className="max-w-6xl mx-auto">
@@ -239,51 +260,80 @@ export default function TrackOrderPage() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
-                        {orderDetails.items.map((item, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center gap-4 p-4 border rounded-lg"
-                          >
-                            <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
-                              {item.product?.images &&
-                              item.product.images.length > 0 ? (
-                                <img
-                                  src={item.product.images[0]}
-                                  alt={item.product.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : item.variant?.images &&
-                                item.variant.images.length > 0 ? (
-                                <img
-                                  src={item.variant.images[0]}
-                                  alt={item.variant.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <Package className="h-8 w-8 text-gray-400" />
-                              )}
+                        {orderDetails.items.map((item, index) => {
+                          const displayProduct = item.variant || item.product;
+                          
+                          return (
+                            <div
+                              key={index}
+                              className="flex items-start gap-4 p-4 border rounded-lg"
+                            >
+                              <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                                {displayProduct?.images &&
+                                displayProduct.images.length > 0 ? (
+                                  <img
+                                    src={displayProduct.images[0]}
+                                    alt={displayProduct.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <Package className="h-8 w-8 text-gray-400" />
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-start justify-between">
+                                  <div>
+                                    <h4 className="font-medium">
+                                      {displayProduct?.name || "Product"}
+                                    </h4>
+                                    {item.variant && (
+                                      <p className="text-sm text-gray-600">Variant: {item.variant.name}</p>
+                                    )}
+                                    <p className="text-sm text-muted-foreground">
+                                      Quantity: {item.quantity} • Price: {formatCurrency(item.price || 0)}
+                                    </p>
+                                    <p className="text-sm font-medium">
+                                      Total: {formatCurrency(item.totalPrice)}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Return Eligibility Information */}
+                                {isDelivered && item.maxReturnDays && (
+                                  <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <Clock className="h-4 w-4 text-gray-400" />
+                                      <span className="text-sm font-medium">Return Information</span>
+                                      {getDaysRemainingBadge(item)}
+                                    </div>
+                                    <div className="text-sm text-gray-600 space-y-1">
+                                      <p>Return window: {item.maxReturnDays} days from delivery</p>
+                                      {item.deliveredAt && (
+                                        <p>Delivered: {new Date(item.deliveredAt).toLocaleDateString()}</p>
+                                      )}
+                                      {item.isReturnEligible ? (
+                                        <div className="flex items-center gap-1 text-green-600">
+                                          <CheckCircle className="h-3 w-3" />
+                                          <span className="text-xs font-medium">Eligible for return</span>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center gap-1 text-red-600">
+                                          <XCircle className="h-3 w-3" />
+                                          <span className="text-xs font-medium">Return period expired</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <div className="flex-1">
-                              <h4 className="font-medium">
-                                {item.variant?.name ||
-                                  item.product?.name ||
-                                  "Product"}
-                              </h4>
-                              <p className="text-sm text-muted-foreground">
-                                Quantity: {item.quantity}
-                              </p>
-                              <p className="text-sm font-medium">
-                                {formatCurrency(item.totalPrice)}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </CardContent>
                   </Card>
                 )}
 
-                {/* Shipping Address */}
                 {orderDetails.shippingAddress && (
                   <Card>
                     <CardHeader>
@@ -294,24 +344,12 @@ export default function TrackOrderPage() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
-                        <p className="font-medium">
-                          {orderDetails.shippingAddress.fullName}
-                        </p>
-                        <p>{orderDetails.shippingAddress.addressLine1}</p>
-                        {orderDetails.shippingAddress.addressLine2 && (
-                          <p>{orderDetails.shippingAddress.addressLine2}</p>
-                        )}
+                        <p>{orderDetails.shippingAddress.street}</p>
                         <p>
                           {orderDetails.shippingAddress.city},{" "}
                           {orderDetails.shippingAddress.state}{" "}
                         </p>
                         <p>{orderDetails.shippingAddress.country}</p>
-                        {orderDetails.shippingAddress.phone && (
-                          <p className="flex items-center gap-2 mt-2">
-                            <Phone className="h-4 w-4" />
-                            {orderDetails.shippingAddress.phone}
-                          </p>
-                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -495,6 +533,40 @@ export default function TrackOrderPage() {
                 )}
               </div>
             </div>
+
+            {/* Return Request Section */}
+            {isDelivered && hasEligibleItems && (
+              <Card className="bg-blue-50 border-blue-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-blue-800">
+                    <RotateCcw className="h-5 w-5" />
+                    Return Items
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <p className="text-sm text-blue-700">
+                      Some items in this order are eligible for return. You can request a return for eligible items.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-blue-600" />
+                      <span className="text-xs text-blue-600">
+                        Return requests must be submitted within the return window for each item.
+                      </span>
+                    </div>
+                    <Button asChild className="w-full">
+                      <Link 
+                        href={`/returns/request?orderNumber=${orderDetails.orderNumber}${orderDetails.pickupToken ? `&pickupToken=${orderDetails.pickupToken}` : ''}`}
+                        className="flex items-center gap-2"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                        Request Return
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Actions */}
             <div className="flex justify-center gap-4">
