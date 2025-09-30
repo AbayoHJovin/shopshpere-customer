@@ -98,11 +98,28 @@ export default function AppealPage() {
   };
 
   const removeFile = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      mediaFiles: prev.mediaFiles.filter((_, i) => i !== index)
-    }));
+    setFormData(prev => {
+      // Revoke the object URL to free up memory
+      const fileToRemove = prev.mediaFiles[index];
+      if (fileToRemove) {
+        URL.revokeObjectURL(URL.createObjectURL(fileToRemove));
+      }
+      
+      return {
+        ...prev,
+        mediaFiles: prev.mediaFiles.filter((_, i) => i !== index)
+      };
+    });
   };
+
+  // Cleanup object URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      formData.mediaFiles.forEach(file => {
+        URL.revokeObjectURL(URL.createObjectURL(file));
+      });
+    };
+  }, [formData.mediaFiles]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,7 +140,12 @@ export default function AppealPage() {
       // Create FormData for file upload
       const appealFormData = new FormData();
       appealFormData.append("returnRequestId", returnId!);
-      appealFormData.append("customerId", returnRequest!.customerId);
+      
+      // Only append customerId if it exists and is not empty (for registered customers)
+      if (returnRequest!.customerId && returnRequest!.customerId.trim() !== "") {
+        appealFormData.append("customerId", returnRequest!.customerId);
+      }
+      
       appealFormData.append("reason", formData.reason);
       appealFormData.append("description", formData.description);
       
@@ -137,7 +159,17 @@ export default function AppealPage() {
       router.push(`/returns/info?returnId=${returnId}`);
     } catch (err: any) {
       console.error("Error submitting appeal:", err);
-      toast.error(err.message || "Failed to submit appeal");
+      
+      // Enhanced error handling
+      if (err.message?.includes("Appeal already exists")) {
+        toast.error("An appeal has already been submitted for this return request");
+      } else if (err.message?.includes("Appeal period has expired")) {
+        toast.error("The appeal period for this return has expired");
+      } else if (err.message?.includes("Only denied return requests")) {
+        toast.error("Appeals can only be submitted for denied return requests");
+      } else {
+        toast.error(err.message || "Failed to submit appeal");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -157,6 +189,7 @@ export default function AppealPage() {
       </div>
     );
   }
+
 
   if (error) {
     return (
@@ -274,28 +307,57 @@ export default function AppealPage() {
                   </div>
                 </div>
 
-                {/* Uploaded Files */}
+                {/* Uploaded Files with Previews */}
                 {formData.mediaFiles.length > 0 && (
-                  <div className="space-y-2">
+                  <div className="space-y-4">
                     <label className="text-sm font-medium">Uploaded Files ({formData.mediaFiles.length}/5)</label>
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {formData.mediaFiles.map((file, index) => (
-                        <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                          <Paperclip className="h-4 w-4 text-gray-500" />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium">{file.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {(file.size / 1024 / 1024).toFixed(2)} MB
-                            </p>
+                        <div key={index} className="relative border rounded-lg p-3 bg-gray-50">
+                          {/* Preview */}
+                          <div className="mb-3">
+                            {file.type.startsWith('image/') ? (
+                              <div className="relative w-full h-32 bg-gray-100 rounded-lg overflow-hidden">
+                                <img
+                                  src={URL.createObjectURL(file)}
+                                  alt={file.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ) : file.type.startsWith('video/') ? (
+                              <div className="relative w-full h-32 bg-gray-100 rounded-lg overflow-hidden">
+                                <video
+                                  src={URL.createObjectURL(file)}
+                                  className="w-full h-full object-cover"
+                                  controls
+                                  preload="metadata"
+                                />
+                              </div>
+                            ) : (
+                              <div className="w-full h-32 bg-gray-200 rounded-lg flex items-center justify-center">
+                                <Paperclip className="h-8 w-8 text-gray-400" />
+                              </div>
+                            )}
                           </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeFile(index)}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
+                          
+                          {/* File Info */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{file.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {(file.size / 1024 / 1024).toFixed(2)} MB • {file.type.split('/')[0]}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeFile(index)}
+                              className="ml-2 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
