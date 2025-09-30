@@ -91,6 +91,18 @@ export const API_ENDPOINTS = {
   POINTS_PAYMENT_PROCESS: `${API_BASE_URL}/points-payment/process`,
   POINTS_PAYMENT_COMPLETE_HYBRID: (userId: string, orderId: string) => 
     `${API_BASE_URL}/points-payment/complete-hybrid/${userId}/${orderId}`,
+
+  // Return endpoints
+  RETURNS: `${API_BASE_URL}/returns`,
+  RETURN_BY_ID: (returnId: string) => `${API_BASE_URL}/returns/${returnId}`,
+  RETURN_BY_ORDER_ID: (orderId: string) => `${API_BASE_URL}/returns/order/${orderId}`,
+  RETURN_BY_ORDER_NUMBER: (orderNumber: string) => `${API_BASE_URL}/returns/order-number/${orderNumber}`,
+  RETURN_SUBMIT: `${API_BASE_URL}/returns/submit`,
+
+  // Appeal endpoints
+  APPEALS: `${API_BASE_URL}/appeals`,
+  APPEAL_SUBMIT: `${API_BASE_URL}/appeals/submit`,
+  APPEAL_BY_RETURN_ID: (returnId: string) => `${API_BASE_URL}/appeals/return/${returnId}`,
 } as const;
 
 // HTTP Headers

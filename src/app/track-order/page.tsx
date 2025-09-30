@@ -21,6 +21,7 @@ import {
   Clock,
   AlertCircle,
   XCircle,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ import { toast } from "sonner";
 import QRCode from "qrcode";
 import QrScanner from "qr-scanner";
 import { OrderService, OrderDetailsResponse } from "@/lib/orderService";
+import { ReturnService } from "@/lib/services/returnService";
 
 export default function TrackOrderPage() {
   const [orderNumber, setOrderNumber] = useState("");
@@ -50,7 +52,22 @@ export default function TrackOrderPage() {
   const [error, setError] = useState<string | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
   const [scanner, setScanner] = useState<QrScanner | null>(null);
+  const [hasReturnRequest, setHasReturnRequest] = useState<boolean>(false);
+  const [checkingReturn, setCheckingReturn] = useState<boolean>(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  const checkForReturnRequest = async (orderNumber: string) => {
+    try {
+      setCheckingReturn(true);
+      const returnRequest = await ReturnService.getReturnByOrderNumber(orderNumber);
+      setHasReturnRequest(!!returnRequest);
+    } catch (error) {
+      // No return request found or error - that's okay
+      setHasReturnRequest(false);
+    } finally {
+      setCheckingReturn(false);
+    }
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,6 +96,9 @@ export default function TrackOrderPage() {
         });
         setQrCodeDataUrl(qrDataUrl);
       }
+
+      // Check for return request
+      await checkForReturnRequest(orderNumber.trim());
 
       toast.success("Order found successfully!");
     } catch (err: any) {
@@ -117,6 +137,9 @@ export default function TrackOrderPage() {
           });
           setQrCodeDataUrl(qrDataUrl);
         }
+
+        // Check for return request
+        await checkForReturnRequest(order.orderNumber);
 
         toast.success("Order found from QR code!");
       } else {
@@ -568,6 +591,72 @@ export default function TrackOrderPage() {
               </Card>
             )}
 
+            {/* Return Check Loading */}
+            {checkingReturn && (
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                    <span className="text-sm text-blue-700">Checking for return requests...</span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Return Information Section */}
+            {hasReturnRequest && (
+              <Card className="bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-orange-800">
+                    <div className="p-2 bg-orange-100 rounded-full">
+                      <FileText className="h-5 w-5" />
+                    </div>
+                    Return Request Found
+                  </CardTitle>
+                  <CardDescription className="text-orange-700">
+                    This order has an active return request that you can track and manage.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="p-4 bg-white/70 rounded-lg border border-orange-200">
+                      <p className="text-sm text-orange-800 font-medium mb-2">
+                        📋 What you can do:
+                      </p>
+                      <ul className="text-sm text-orange-700 space-y-1">
+                        <li>• View return status and processing updates</li>
+                        <li>• Check decision notes from our team</li>
+                        <li>• Submit an appeal if your return was denied</li>
+                        <li>• Track refund processing status</li>
+                      </ul>
+                    </div>
+                    
+                    <div className="flex gap-3">
+                      <Button asChild className="flex-1 bg-orange-600 hover:bg-orange-700 text-white shadow-md">
+                        <Link 
+                          href={`/returns/info?orderNumber=${orderDetails.orderNumber}`}
+                          className="flex items-center gap-2"
+                        >
+                          <FileText className="h-4 w-4" />
+                          View Return Information
+                        </Link>
+                      </Button>
+                      <Button variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-50" asChild>
+                        <Link href="/returns">
+                          <RotateCcw className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 text-xs text-orange-600 bg-orange-100/50 p-2 rounded">
+                      <AlertCircle className="h-3 w-3" />
+                      <span>Click "View Return Information" to see complete details and current status</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Actions */}
             <div className="flex justify-center gap-4">
               <Button variant="outline" asChild>
@@ -582,6 +671,7 @@ export default function TrackOrderPage() {
                   setError(null);
                   setQrCodeDataUrl(null);
                   setOrderNumber("");
+                  setHasReturnRequest(false);
                 }}
               >
                 Track Another Order
@@ -750,6 +840,21 @@ export default function TrackOrderPage() {
                 </p>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Floating Return Info Button */}
+        {orderDetails && hasReturnRequest && (
+          <div className="fixed bottom-6 right-6 z-50">
+            <Button
+              asChild
+              className="bg-orange-600 hover:bg-orange-700 text-white shadow-lg rounded-full w-14 h-14 p-0"
+              title="View Return Information"
+            >
+              <Link href={`/returns/info?orderNumber=${orderDetails.orderNumber}`}>
+                <FileText className="h-6 w-6" />
+              </Link>
+            </Button>
           </div>
         )}
       </div>
