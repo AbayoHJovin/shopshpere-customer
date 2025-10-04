@@ -1,0 +1,987 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import {
+  Mail,
+  Send,
+  Shield,
+  CheckCircle,
+  Package,
+  Truck,
+  Calendar,
+  CreditCard,
+  User,
+  Phone,
+  Clock,
+  AlertCircle,
+  FileText,
+  KeyRound,
+  Timer,
+  RotateCcw,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
+import { OrderService, OrderDetailsResponse } from "@/lib/orderService";
+import { ReturnService } from "@/lib/services/returnService";
+
+export default function TrackOrderPage() {
+  const searchParams = useSearchParams();
+  const tokenFromUrl = searchParams.get('token');
+  
+  const [email, setEmail] = useState("");
+  const [token, setToken] = useState(tokenFromUrl || "");
+  const [isRequestingAccess, setIsRequestingAccess] = useState(false);
+  const [isVerifyingToken, setIsVerifyingToken] = useState(false);
+  const [orderDetails, setOrderDetails] = useState<OrderDetailsResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [hasReturnRequest, setHasReturnRequest] = useState<boolean>(false);
+  const [checkingReturn, setCheckingReturn] = useState<boolean>(false);
+  const [accessRequested, setAccessRequested] = useState(false);
+  const [tokenExpiry, setTokenExpiry] = useState<Date | null>(null);
+
+  const checkForReturnRequest = async (orderNumber: string) => {
+    try {
+      setCheckingReturn(true);
+      const returnRequest = await ReturnService.getReturnByOrderNumber(orderNumber);
+      setHasReturnRequest(!!returnRequest);
+    } catch (error) {
+      // No return request found or error - that's okay
+      setHasReturnRequest(false);
+    } finally {
+      setCheckingReturn(false);
+    }
+  };
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orderNumber.trim()) {
+      toast.error("Please enter an order number");
+      return;
+    }
+
+    setIsTracking(true);
+    setError(null);
+    setOrderDetails(null);
+
+    try {
+      const order = await OrderService.trackOrderByNumber(orderNumber.trim());
+      setOrderDetails(order);
+
+      // Generate QR code for pickup token if available
+      if (order.pickupToken) {
+        const qrDataUrl = await QRCode.toDataURL(order.pickupToken, {
+          width: 200,
+          margin: 2,
+          color: {
+            dark: "#000000",
+            light: "#FFFFFF",
+          },
+        });
+        setQrCodeDataUrl(qrDataUrl);
+      }
+
+      // Check for return request
+      await checkForReturnRequest(orderNumber.trim());
+
+      toast.success("Order found successfully!");
+    } catch (err: any) {
+      setError(err.message || "Order not found");
+      toast.error(err.message || "Order not found");
+    } finally {
+      setIsTracking(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setError(null);
+    setOrderDetails(null);
+
+    try {
+      const result = await QrScanner.scanImage(file);
+      if (result) {
+        // Try to track order by pickup token
+        setIsTracking(true);
+        const order = await OrderService.trackOrderByToken(result);
+        setOrderDetails(order);
+
+        // Generate QR code for pickup token
+        if (order.pickupToken) {
+          const qrDataUrl = await QRCode.toDataURL(order.pickupToken, {
+            width: 200,
+            margin: 2,
+            color: {
+              dark: "#000000",
+              light: "#FFFFFF",
+            },
+          });
+          setQrCodeDataUrl(qrDataUrl);
+        }
+
+        // Check for return request
+        await checkForReturnRequest(order.orderNumber);
+
+        toast.success("Order found from QR code!");
+      } else {
+        setError("No QR code found in the image");
+        toast.error("No QR code found in the image");
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to scan QR code");
+      toast.error(err.message || "Failed to scan QR code");
+    } finally {
+      setIsUploading(false);
+      setIsTracking(false);
+    }
+  };
+
+  const downloadQRCode = (dataUrl: string, filename: string) => {
+    const link = document.createElement("a");
+    link.download = filename;
+    link.href = dataUrl;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("QR code downloaded successfully");
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case "pending":
+        return "bg-yellow-100 text-yellow-800";
+      case "confirmed":
+        return "bg-blue-100 text-blue-800";
+      case "processing":
+        return "bg-purple-100 text-purple-800";
+      case "shipped":
+        return "bg-indigo-100 text-indigo-800";
+      case "delivered":
+        return "bg-green-100 text-green-800";
+      case "cancelled":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(amount);
+  };
+
+  const getDaysRemainingBadge = (item: any) => {
+    if (!item.isReturnEligible) {
+      return <Badge variant="destructive" className="ml-2">Return Expired</Badge>;
+    }
+    
+    if (item.daysRemainingForReturn <= 3) {
+      return <Badge variant="destructive" className="ml-2">{item.daysRemainingForReturn} days left</Badge>;
+    } else if (item.daysRemainingForReturn <= 7) {
+      return <Badge variant="secondary" className="ml-2">{item.daysRemainingForReturn} days left</Badge>;
+    } else {
+      return <Badge variant="outline" className="ml-2">{item.daysRemainingForReturn} days left</Badge>;
+    }
+  };
+
+  const hasEligibleItems = orderDetails?.items?.some(item => item.isReturnEligible) || false;
+  const isDelivered = orderDetails?.status?.toLowerCase() === 'delivered';
+
+  // Check if token is provided in URL on component mount
+  useEffect(() => {
+    if (tokenFromUrl) {
+      handleTokenVerification(tokenFromUrl);
+    }
+  }, [tokenFromUrl]);
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) {
+      toast.error("Please enter your email address");
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
+    setIsRequestingAccess(true);
+    setError(null);
+
+    try {
+      // TODO: Replace with actual API call
+      // await OrderService.requestOrderAccess(email.trim());
+      
+      // Simulate API call for now
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      setAccessRequested(true);
+      toast.success("Access link sent to your email!");
+      
+      // Set token expiry to 15 minutes from now
+      setTokenExpiry(new Date(Date.now() + 15 * 60 * 1000));
+      
+    } catch (err: any) {
+      setError(err.message || "Failed to send access link");
+      toast.error(err.message || "Failed to send access link");
+    } finally {
+      setIsRequestingAccess(false);
+    }
+  };
+
+  const handleTokenVerification = async (tokenToVerify: string) => {
+    if (!tokenToVerify.trim()) {
+      toast.error("Please enter the access token");
+      return;
+    }
+
+    setIsVerifyingToken(true);
+    setError(null);
+    setOrderDetails(null);
+
+    try {
+      // TODO: Replace with actual API call
+      // const order = await OrderService.trackOrderByToken(tokenToVerify.trim());
+      
+      // Simulate API call for now - this will be replaced with actual backend call
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Mock order data - this will come from the actual API
+      const mockOrder: OrderDetailsResponse = {
+        id: 1,
+        orderNumber: "ORD-12345678",
+        status: "DELIVERED",
+        createdAt: new Date().toISOString(),
+        total: 299.99,
+        items: [
+          {
+            id: 1,
+            quantity: 2,
+            price: 149.99,
+            totalPrice: 299.98,
+            product: {
+              id: 1,
+              name: "Premium Wireless Headphones",
+              images: ["https://via.placeholder.com/300x300?text=Headphones"]
+            },
+            isReturnEligible: true,
+            maxReturnDays: 30,
+            daysRemainingForReturn: 25
+          }
+        ],
+        customerInfo: {
+          name: "John Doe",
+          email: email || "customer@example.com",
+          phone: "+1234567890"
+        },
+        shippingAddress: {
+          street: "123 Main St",
+          city: "New York",
+          state: "NY",
+          zipCode: "10001",
+          country: "USA"
+        },
+        paymentMethod: "Credit Card",
+        paymentStatus: "PAID"
+      };
+      
+      setOrderDetails(mockOrder);
+      
+      // Check for return request
+      if (mockOrder.orderNumber) {
+        await checkForReturnRequest(mockOrder.orderNumber);
+      }
+
+      toast.success("Order details loaded successfully!");
+    } catch (err: any) {
+      setError(err.message || "Invalid or expired access token");
+      toast.error(err.message || "Invalid or expired access token");
+    } finally {
+      setIsVerifyingToken(false);
+    }
+  };
+
+  const handleTokenSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await handleTokenVerification(token);
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-16">
+      <div className="max-w-6xl mx-auto">
+        <div className="mb-10 text-center">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="p-3 bg-blue-100 rounded-full">
+              <Shield className="h-8 w-8 text-blue-600" />
+            </div>
+            <h1 className="text-3xl font-bold">Secure Order Tracking</h1>
+          </div>
+          <p className="text-muted-foreground max-w-2xl mx-auto">
+            For your security, we'll send a secure access link to the email address you used when placing your order. 
+            This ensures only you can view your order details.
+          </p>
+        </div>
+
+        {/* Error Alert */}
+        {error && (
+          <Alert className="mb-6" variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Order Details Display */}
+        {orderDetails ? (
+          <div className="space-y-6">
+            {/* Order Summary */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Package className="h-5 w-5" />
+                      Order #{orderDetails.orderNumber}
+                    </CardTitle>
+                    <CardDescription>
+                      Placed on{" "}
+                      {new Date(orderDetails.createdAt).toLocaleDateString()}
+                    </CardDescription>
+                  </div>
+                  <Badge className={getStatusColor(orderDetails.status)}>
+                    {orderDetails.status}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">
+                      <strong>Order Date:</strong>{" "}
+                      {new Date(orderDetails.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">
+                      <strong>Total:</strong>{" "}
+                      {formatCurrency(orderDetails.total || 0)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Truck className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">
+                      <strong>Status:</strong> {orderDetails.status}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Order Items */}
+              <div className="lg:col-span-2 space-y-6">
+                {orderDetails.items && orderDetails.items.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Order Items</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {orderDetails.items.map((item, index) => {
+                          const displayProduct = item.variant || item.product;
+                          
+                          return (
+                            <div
+                              key={index}
+                              className="flex items-start gap-4 p-4 border rounded-lg"
+                            >
+                              <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                                {displayProduct?.images &&
+                                displayProduct.images.length > 0 ? (
+                                  <img
+                                    src={displayProduct.images[0]}
+                                    alt={displayProduct.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <Package className="h-8 w-8 text-gray-400" />
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-start justify-between">
+                                  <div>
+                                    <h4 className="font-medium">
+                                      {displayProduct?.name || "Product"}
+                                    </h4>
+                                    {item.variant && (
+                                      <p className="text-sm text-gray-600">Variant: {item.variant.name}</p>
+                                    )}
+                                    <p className="text-sm text-muted-foreground">
+                                      Quantity: {item.quantity} • Price: {formatCurrency(item.price || 0)}
+                                    </p>
+                                    <p className="text-sm font-medium">
+                                      Total: {formatCurrency(item.totalPrice)}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Return Eligibility Information */}
+                                {isDelivered && item.maxReturnDays && (
+                                  <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <Clock className="h-4 w-4 text-gray-400" />
+                                      <span className="text-sm font-medium">Return Information</span>
+                                      {getDaysRemainingBadge(item)}
+                                    </div>
+                                    <div className="text-sm text-gray-600 space-y-1">
+                                      <p>Return window: {item.maxReturnDays} days from delivery</p>
+                                      {item.deliveredAt && (
+                                        <p>Delivered: {new Date(item.deliveredAt).toLocaleDateString()}</p>
+                                      )}
+                                      {item.isReturnEligible ? (
+                                        <div className="flex items-center gap-1 text-green-600">
+                                          <CheckCircle className="h-3 w-3" />
+                                          <span className="text-xs font-medium">Eligible for return</span>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center gap-1 text-red-600">
+                                          <XCircle className="h-3 w-3" />
+                                          <span className="text-xs font-medium">Return period expired</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {orderDetails.shippingAddress && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <MapPin className="h-5 w-5" />
+                        Shipping Address
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <p>{orderDetails.shippingAddress.street}</p>
+                        <p>
+                          {orderDetails.shippingAddress.city},{" "}
+                          {orderDetails.shippingAddress.state}{" "}
+                        </p>
+                        <p>{orderDetails.shippingAddress.country}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              {/* Sidebar */}
+              <div className="space-y-6">
+                {/* Pickup Token QR Code */}
+                {orderDetails.pickupToken && qrCodeDataUrl && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <QrCode className="h-5 w-5" />
+                        Pickup Token QR Code
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                          Show this QR code when picking up your order.
+                        </p>
+                        <div className="flex justify-center">
+                          <div className="relative">
+                            <img
+                              src={qrCodeDataUrl}
+                              alt="Pickup Token QR Code"
+                              className="border-2 border-gray-200 rounded-lg"
+                            />
+                            <div className="absolute -top-2 -right-2 bg-green-500 text-white rounded-full p-1">
+                              <CheckCircle className="h-4 w-4" />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-2 text-center">
+                          <p className="text-sm font-medium">
+                            Order Number: {orderDetails.orderNumber}
+                          </p>
+                          <p className="text-xs text-muted-foreground font-mono break-all">
+                            Token: {orderDetails.pickupToken}
+                          </p>
+                        </div>
+                        <Button
+                          onClick={() =>
+                            downloadQRCode(
+                              qrCodeDataUrl,
+                              `pickup-token-${orderDetails.orderNumber}.png`
+                            )
+                          }
+                          variant="outline"
+                          className="w-full"
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Download QR Code
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Order Timeline */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Order Timeline</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <div>
+                          <p className="text-sm font-medium">Order Placed</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(orderDetails.createdAt).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-2 h-2 rounded-full ${
+                            orderDetails.status === "confirmed" ||
+                            orderDetails.status === "processing" ||
+                            orderDetails.status === "shipped" ||
+                            orderDetails.status === "delivered"
+                              ? "bg-green-500"
+                              : "bg-gray-300"
+                          }`}
+                        ></div>
+                        <div>
+                          <p className="text-sm font-medium">Confirmed</p>
+                          <p className="text-xs text-muted-foreground">
+                            Order confirmed
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-2 h-2 rounded-full ${
+                            orderDetails.status === "processing" ||
+                            orderDetails.status === "shipped" ||
+                            orderDetails.status === "delivered"
+                              ? "bg-green-500"
+                              : "bg-gray-300"
+                          }`}
+                        ></div>
+                        <div>
+                          <p className="text-sm font-medium">Processing</p>
+                          <p className="text-xs text-muted-foreground">
+                            Preparing your order
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-2 h-2 rounded-full ${
+                            orderDetails.status === "shipped" ||
+                            orderDetails.status === "delivered"
+                              ? "bg-green-500"
+                              : "bg-gray-300"
+                          }`}
+                        ></div>
+                        <div>
+                          <p className="text-sm font-medium">Shipped</p>
+                          <p className="text-xs text-muted-foreground">
+                            On its way to you
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-2 h-2 rounded-full ${
+                            orderDetails.status === "delivered"
+                              ? "bg-green-500"
+                              : "bg-gray-300"
+                          }`}
+                        ></div>
+                        <div>
+                          <p className="text-sm font-medium">Delivered</p>
+                          <p className="text-xs text-muted-foreground">
+                            Order delivered
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Payment Information */}
+                {(orderDetails.paymentMethod || orderDetails.paymentStatus) && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <CreditCard className="h-5 w-5" />
+                        Payment Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {orderDetails.paymentMethod && (
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">
+                              Method:
+                            </span>
+                            <span className="text-sm font-medium">
+                              {orderDetails.paymentMethod}
+                            </span>
+                          </div>
+                        )}
+                        {orderDetails.paymentStatus && (
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">
+                              Status:
+                            </span>
+                            <Badge variant="outline">
+                              {orderDetails.paymentStatus}
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
+
+            {/* Return Request Section */}
+            {isDelivered && hasEligibleItems && (
+              <Card className="bg-blue-50 border-blue-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-blue-800">
+                    <RotateCcw className="h-5 w-5" />
+                    Return Items
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <p className="text-sm text-blue-700">
+                      Some items in this order are eligible for return. You can request a return for eligible items.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-blue-600" />
+                      <span className="text-xs text-blue-600">
+                        Return requests must be submitted within the return window for each item.
+                      </span>
+                    </div>
+                    <Button asChild className="w-full">
+                      <Link 
+                        href={`/returns/request?orderNumber=${orderDetails.orderNumber}${orderDetails.pickupToken ? `&pickupToken=${orderDetails.pickupToken}` : ''}`}
+                        className="flex items-center gap-2"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                        Request Return
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Return Check Loading */}
+            {checkingReturn && (
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                    <span className="text-sm text-blue-700">Checking for return requests...</span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Return Information Section */}
+            {hasReturnRequest && (
+              <Card className="bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-orange-800">
+                    <div className="p-2 bg-orange-100 rounded-full">
+                      <FileText className="h-5 w-5" />
+                    </div>
+                    Return Request Found
+                  </CardTitle>
+                  <CardDescription className="text-orange-700">
+                    This order has an active return request that you can track and manage.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="p-4 bg-white/70 rounded-lg border border-orange-200">
+                      <p className="text-sm text-orange-800 font-medium mb-2">
+                        📋 What you can do:
+                      </p>
+                      <ul className="text-sm text-orange-700 space-y-1">
+                        <li>• View return status and processing updates</li>
+                        <li>• Check decision notes from our team</li>
+                        <li>• Submit an appeal if your return was denied</li>
+                        <li>• Track refund processing status</li>
+                      </ul>
+                    </div>
+                    
+                    <div className="flex gap-3">
+                      <Button asChild className="flex-1 bg-orange-600 hover:bg-orange-700 text-white shadow-md">
+                        <Link 
+                          href={`/returns/info?orderNumber=${orderDetails.orderNumber}`}
+                          className="flex items-center gap-2"
+                        >
+                          <FileText className="h-4 w-4" />
+                          View Return Information
+                        </Link>
+                      </Button>
+                      <Button variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-50" asChild>
+                        <Link href="/returns">
+                          <RotateCcw className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 text-xs text-orange-600 bg-orange-100/50 p-2 rounded">
+                      <AlertCircle className="h-3 w-3" />
+                      <span>Click "View Return Information" to see complete details and current status</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Actions */}
+            <div className="flex justify-center gap-4">
+              <Button variant="outline" asChild>
+                <Link href="/" className="flex items-center gap-2">
+                  Return to Home
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button
+                onClick={() => {
+                  setOrderDetails(null);
+                  setError(null);
+                  setQrCodeDataUrl(null);
+                  setOrderNumber("");
+                  setHasReturnRequest(false);
+                }}
+              >
+                Track Another Order
+              </Button>
+            </div>
+          </div>
+        ) : (
+          /* Tracking Form */
+          <Tabs defaultValue="number" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-8">
+              <TabsTrigger value="number" className="flex items-center gap-2">
+                <Search className="h-4 w-4" />
+                <span>Track by Order Number</span>
+              </TabsTrigger>
+              <TabsTrigger value="qrcode" className="flex items-center gap-2">
+                <QrCode className="h-4 w-4" />
+                <span>Scan QR Code</span>
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="number">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Enter Your Order Number</CardTitle>
+                  <CardDescription>
+                    You can find your order number in the confirmation email we
+                    sent you
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleSearch} className="space-y-4">
+                    <div>
+                      <Input
+                        placeholder="Order number (e.g., ORD-12345678)"
+                        value={orderNumber}
+                        onChange={(e) => setOrderNumber(e.target.value)}
+                        className="w-full"
+                        disabled={isTracking}
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={isTracking}
+                    >
+                      {isTracking ? "Tracking..." : "Track Order"}
+                    </Button>
+                  </form>
+                </CardContent>
+                <CardFooter className="flex justify-center border-t pt-6">
+                  <p className="text-sm text-muted-foreground">
+                    Don't have your order number?{" "}
+                    <Link
+                      href="/contact"
+                      className="text-primary hover:underline"
+                    >
+                      Contact support
+                    </Link>
+                  </p>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="qrcode">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Scan Your Order QR Code</CardTitle>
+                  <CardDescription>
+                    Upload the QR code image you received after placing your
+                    order
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 bg-muted/30">
+                    <div className="text-center space-y-4">
+                      <Upload className="mx-auto h-12 w-12 text-muted-foreground" />
+                      <div className="space-y-2">
+                        <p className="text-xl font-medium">Upload QR Code</p>
+                        <p className="text-sm text-muted-foreground pb-4">
+                          Drag and drop or click to upload
+                        </p>
+                        <div className="relative">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="sr-only"
+                            onChange={handleFileUpload}
+                            disabled={isUploading || isTracking}
+                            id="qr-file-input"
+                          />
+                          <Button
+                            variant="outline"
+                            className="relative"
+                            disabled={isUploading || isTracking}
+                            onClick={() => {
+                              const fileInput = document.getElementById(
+                                "qr-file-input"
+                              ) as HTMLInputElement;
+                              if (fileInput) {
+                                fileInput.click();
+                              }
+                            }}
+                          >
+                            {isUploading
+                              ? "Processing..."
+                              : isTracking
+                              ? "Tracking..."
+                              : "Select File"}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-center border-t pt-6">
+                  <p className="text-sm text-muted-foreground">
+                    Can't find your QR code?{" "}
+                    <Link
+                      href="/track-order"
+                      className="text-primary hover:underline"
+                    >
+                      Track by order number
+                    </Link>
+                  </p>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        )}
+
+        {/* How Tracking Works */}
+        {!orderDetails && (
+          <div className="mt-12">
+            <h2 className="text-xl font-semibold mb-4">How Tracking Works</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-card rounded-lg p-6 border">
+                <div className="bg-primary/10 rounded-full w-10 h-10 flex items-center justify-center mb-4">
+                  <span className="text-primary font-bold">1</span>
+                </div>
+                <h3 className="font-medium mb-2">Enter Your Details</h3>
+                <p className="text-sm text-muted-foreground">
+                  Use your order number or scan the QR code provided when you
+                  completed your purchase.
+                </p>
+              </div>
+
+              <div className="bg-card rounded-lg p-6 border">
+                <div className="bg-primary/10 rounded-full w-10 h-10 flex items-center justify-center mb-4">
+                  <span className="text-primary font-bold">2</span>
+                </div>
+                <h3 className="font-medium mb-2">View Status</h3>
+                <p className="text-sm text-muted-foreground">
+                  See real-time updates on processing, packaging, and shipping
+                  stages of your order.
+                </p>
+              </div>
+
+              <div className="bg-card rounded-lg p-6 border">
+                <div className="bg-primary/10 rounded-full w-10 h-10 flex items-center justify-center mb-4">
+                  <span className="text-primary font-bold">3</span>
+                </div>
+                <h3 className="font-medium mb-2">Get Notifications</h3>
+                <p className="text-sm text-muted-foreground">
+                  Receive email updates when your order status changes until
+                  it's delivered.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Floating Return Info Button */}
+        {orderDetails && hasReturnRequest && (
+          <div className="fixed bottom-6 right-6 z-50">
+            <Button
+              asChild
+              className="bg-orange-600 hover:bg-orange-700 text-white shadow-lg rounded-full w-14 h-14 p-0"
+              title="View Return Information"
+            >
+              <Link href={`/returns/info?orderNumber=${orderDetails.orderNumber}`}>
+                <FileText className="h-6 w-6" />
+              </Link>
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

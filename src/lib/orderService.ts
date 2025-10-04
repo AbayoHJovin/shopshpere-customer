@@ -1,4 +1,38 @@
 // Types based on backend DTOs
+
+// Secure Order Tracking Types
+export interface OrderTrackingRequest {
+  email: string;
+}
+
+export interface OrderTrackingResponse {
+  success: boolean;
+  message: string;
+  expiresAt?: string;
+  trackingUrl?: string;
+}
+
+export interface OrderSummary {
+  id: number;
+  orderNumber: string;
+  status: string;
+  createdAt: string;
+  total: number;
+  itemCount: number;
+  customerName: string;
+  customerEmail: string;
+  hasReturnRequest: boolean;
+}
+
+export interface OrderListResponse {
+  success: boolean;
+  data: OrderSummary[];
+  totalElements: number;
+  totalPages: number;
+  currentPage: number;
+  pageSize: number;
+}
+
 export interface CreateOrderRequest {
   userId: string;
   items: CreateOrderItemRequest[];
@@ -433,44 +467,47 @@ export const OrderService = {
   },
 
   /**
-   * Track order by order number (public endpoint)
+   * Request secure tracking access via email
    */
-  trackOrderByNumber: async (
-    orderNumber: string
-  ): Promise<OrderDetailsResponse> => {
+  requestTrackingAccess: async (
+    request: OrderTrackingRequest
+  ): Promise<OrderTrackingResponse> => {
     try {
       const response = await fetch(
-        `${API_ENDPOINTS.ORDERS}/track/${orderNumber}`,
+        `${API_ENDPOINTS.ORDERS}/track/request-access`,
         {
-          method: "GET",
+          method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
+          body: JSON.stringify(request),
         }
       );
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Error tracking order");
+        throw new Error(errorData.message || "Error requesting tracking access");
       }
 
       const data = await response.json();
-      return data.data;
+      return data;
     } catch (error) {
-      console.error("Error tracking order by number:", error);
+      console.error("Error requesting tracking access:", error);
       throw error;
     }
   },
 
   /**
-   * Track order by pickup token (public endpoint)
+   * Get orders by tracking token with pagination
    */
-  trackOrderByToken: async (
-    pickupToken: string
-  ): Promise<OrderDetailsResponse> => {
+  getOrdersByToken: async (
+    token: string,
+    page: number = 0,
+    size: number = 10
+  ): Promise<OrderListResponse> => {
     try {
       const response = await fetch(
-        `${API_ENDPOINTS.ORDERS}/track/token/${pickupToken}`,
+        `${API_ENDPOINTS.ORDERS}/track/orders?token=${encodeURIComponent(token)}&page=${page}&size=${size}`,
         {
           method: "GET",
           headers: {
@@ -481,13 +518,44 @@ export const OrderService = {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Error tracking order");
+        throw new Error(errorData.message || "Error fetching orders");
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error fetching orders by token:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get specific order by tracking token and order ID
+   */
+  getOrderByTokenAndId: async (
+    token: string,
+    orderId: number
+  ): Promise<OrderDetailsResponse> => {
+    try {
+      const response = await fetch(
+        `${API_ENDPOINTS.ORDERS}/track/order/${orderId}?token=${encodeURIComponent(token)}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Error fetching order details");
       }
 
       const data = await response.json();
       return data.data;
     } catch (error) {
-      console.error("Error tracking order by token:", error);
+      console.error("Error fetching order by token and ID:", error);
       throw error;
     }
   },
