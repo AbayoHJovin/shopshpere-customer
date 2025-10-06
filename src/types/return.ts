@@ -22,7 +22,7 @@ export interface OrderItem {
   // Return eligibility fields
   maxReturnDays: number;
   deliveredAt?: string;
-  isReturnEligible: boolean;
+  returnEligible: boolean;
   daysRemainingForReturn: number;
 }
 

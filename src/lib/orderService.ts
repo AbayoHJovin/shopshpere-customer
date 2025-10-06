@@ -129,14 +129,9 @@ export interface OrderTransactionInfo {
 }
 
 export interface OrderCustomerInfo {
-  firstName: string;
-  lastName: string;
+  name: string;
   email: string;
-  phoneNumber: string;
-  streetAddress?: string;
-  city?: string;
-  state?: string;
-  country?: string;
+  phone: string;
 }
 
 export interface OrderResponse {
@@ -184,7 +179,7 @@ export interface OrderItemResponse {
   // Return eligibility fields
   maxReturnDays?: number;
   deliveredAt?: string;
-  isReturnEligible?: boolean;
+  returnEligible?: boolean;
   daysRemainingForReturn?: number;
 }
 

@@ -14,10 +14,6 @@ import {
   Calendar,
   CreditCard,
   User,
-  Phone,
-  Clock,
-  AlertCircle,
-  FileText,
   KeyRound,
   Timer,
   RotateCcw,
@@ -35,8 +31,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { OrderService, OrderDetailsResponse, OrderTrackingRequest, OrderSummary } from "@/lib/orderService";
-import { ReturnService } from "@/lib/services/returnService";
+import { OrderService, OrderTrackingRequest, OrderSummary } from "@/lib/orderService";
 
 export default function TrackOrderPage() {
   const searchParams = useSearchParams();
@@ -46,12 +41,9 @@ export default function TrackOrderPage() {
   const [token, setToken] = useState(tokenFromUrl || "");
   const [isRequestingAccess, setIsRequestingAccess] = useState(false);
   const [isVerifyingToken, setIsVerifyingToken] = useState(false);
-  const [orderDetails, setOrderDetails] = useState<OrderDetailsResponse | null>(null);
   const [ordersList, setOrdersList] = useState<OrderSummary[]>([]);
   const [showOrdersList, setShowOrdersList] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasReturnRequest, setHasReturnRequest] = useState<boolean>(false);
-  const [checkingReturn, setCheckingReturn] = useState<boolean>(false);
   const [accessRequested, setAccessRequested] = useState(false);
   const [tokenExpiry, setTokenExpiry] = useState<Date | null>(null);
 
@@ -62,18 +54,6 @@ export default function TrackOrderPage() {
     }
   }, [tokenFromUrl]);
 
-  const checkForReturnRequest = async (orderNumber: string) => {
-    try {
-      setCheckingReturn(true);
-      const returnRequest = await ReturnService.getReturnByOrderNumber(orderNumber);
-      setHasReturnRequest(!!returnRequest);
-    } catch (error) {
-      // No return request found or error - that's okay
-      setHasReturnRequest(false);
-    } finally {
-      setCheckingReturn(false);
-    }
-  };
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,6 +78,7 @@ export default function TrackOrderPage() {
       
       if (response.success) {
         setAccessRequested(true);
+        setError(null); // Clear any previous errors
         toast.success(response.message);
         
         // Set token expiry from response
@@ -125,7 +106,6 @@ export default function TrackOrderPage() {
 
     setIsVerifyingToken(true);
     setError(null);
-    setOrderDetails(null);
 
     try {
       // Load orders list using the token
@@ -152,32 +132,15 @@ export default function TrackOrderPage() {
     await handleTokenVerification(token);
   };
 
-  const handleOrderClick = async (orderId: number) => {
+  const handleOrderClick = (orderId: number) => {
     if (!token) {
       toast.error("No valid token available");
       return;
     }
 
-    setIsVerifyingToken(true);
-    setError(null);
-
-    try {
-      const orderDetails = await OrderService.getOrderByTokenAndId(token, orderId);
-      setOrderDetails(orderDetails);
-      setShowOrdersList(false);
-
-      // Check for return request
-      if (orderDetails.orderNumber) {
-        await checkForReturnRequest(orderDetails.orderNumber);
-      }
-
-      toast.success("Order details loaded successfully!");
-    } catch (err: any) {
-      setError(err.message || "Failed to load order details");
-      toast.error(err.message || "Failed to load order details");
-    } finally {
-      setIsVerifyingToken(false);
-    }
+    // Navigate to the individual order page with token and order ID
+    const url = `/track-order/${orderId}?token=${encodeURIComponent(token)}`;
+    window.location.href = url;
   };
 
   const getStatusColor = (status: string) => {
@@ -204,22 +167,6 @@ export default function TrackOrderPage() {
     }).format(amount);
   };
 
-  const getDaysRemainingBadge = (item: any) => {
-    if (!item.isReturnEligible) {
-      return <Badge variant="destructive" className="ml-2">Return Expired</Badge>;
-    }
-    
-    if (item.daysRemainingForReturn <= 3) {
-      return <Badge variant="destructive" className="ml-2">{item.daysRemainingForReturn} days left</Badge>;
-    } else if (item.daysRemainingForReturn <= 7) {
-      return <Badge variant="secondary" className="ml-2">{item.daysRemainingForReturn} days left</Badge>;
-    } else {
-      return <Badge variant="outline" className="ml-2">{item.daysRemainingForReturn} days left</Badge>;
-    }
-  };
-
-  const hasEligibleItems = orderDetails?.items?.some(item => item.isReturnEligible) || false;
-  const isDelivered = orderDetails?.status?.toLowerCase() === 'delivered';
 
   return (
     <div className="container mx-auto px-4 py-16">
@@ -237,11 +184,78 @@ export default function TrackOrderPage() {
           </p>
         </div>
 
-        {/* Error Alert */}
-        {error && (
-          <Alert className="mb-6" variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+        {/* Error Alert with Token Refresh Option */}
+        {error && !showOrdersList && (
+          <div className="mb-6">
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+            
+            {/* Show email input when token is expired/invalid */}
+            <Card className="max-w-md mx-auto shadow-lg border-0 bg-gradient-to-br from-red-50 to-white border-red-200">
+              <CardHeader className="text-center pb-2">
+                <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                  <RotateCcw className="h-8 w-8 text-red-600" />
+                </div>
+                <CardTitle className="text-xl text-red-800">Token Expired or Invalid</CardTitle>
+                <CardDescription className="text-red-700">
+                  Please enter your email to receive a new secure access link
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-2">
+                <form onSubmit={handleEmailSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Input
+                      type="email"
+                      placeholder="Enter your email address"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={isRequestingAccess}
+                      className="h-12 text-center text-lg border-2 focus:border-red-500 transition-colors"
+                      required
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full h-12 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors"
+                    disabled={isRequestingAccess}
+                  >
+                    {isRequestingAccess ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Sending New Access Link...
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Send className="h-4 w-4" />
+                        Send New Access Link
+                      </div>
+                    )}
+                  </Button>
+                </form>
+              </CardContent>
+              <CardFooter className="text-center pt-4 border-t">
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">
+                    🔒 Your email is secure and will only be used for order verification
+                  </p>
+                  <button 
+                    onClick={() => {
+                      setError(null);
+                      setAccessRequested(false);
+                      setToken("");
+                      setEmail("");
+                      setShowOrdersList(false);
+                      setOrdersList([]);
+                    }}
+                    className="text-sm text-red-600 hover:underline font-medium"
+                  >
+                    Start Over
+                  </button>
+                </div>
+              </CardFooter>
+            </Card>
+          </div>
         )}
 
         {/* Orders List Display */}
@@ -324,278 +338,6 @@ export default function TrackOrderPage() {
               </CardFooter>
             </Card>
           </div>
-        ) : orderDetails ? (
-          /* Order Details Display */
-          <div className="space-y-6">
-            {/* Order Summary */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Package className="h-5 w-5" />
-                      Order #{orderDetails.orderNumber}
-                    </CardTitle>
-                    <CardDescription>
-                      Placed on{" "}
-                      {new Date(orderDetails.createdAt).toLocaleDateString()}
-                    </CardDescription>
-                  </div>
-                  <Badge className={getStatusColor(orderDetails.status)}>
-                    {orderDetails.status}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">
-                      <strong>Order Date:</strong>{" "}
-                      {new Date(orderDetails.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">
-                      <strong>Total:</strong>{" "}
-                      {formatCurrency(orderDetails.total || 0)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Truck className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">
-                      <strong>Status:</strong> {orderDetails.status}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Order Items */}
-              <div className="lg:col-span-2 space-y-6">
-                {orderDetails.items && orderDetails.items.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Order Items</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {orderDetails.items.map((item, index) => {
-                          const displayProduct = item.variant || item.product;
-                          
-                          return (
-                            <div
-                              key={index}
-                              className="flex items-start gap-4 p-4 border rounded-lg"
-                            >
-                              <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
-                                {displayProduct?.images &&
-                                displayProduct.images.length > 0 ? (
-                                  <img
-                                    src={displayProduct.images[0]}
-                                    alt={displayProduct.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <Package className="h-8 w-8 text-gray-400" />
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1">
-                                    <h4 className="font-medium text-sm">
-                                      {displayProduct?.name || "Product"}
-                                    </h4>
-                                    {item.variant && (
-                                      <p className="text-sm text-gray-600">Variant: {item.variant.name}</p>
-                                    )}
-                                    <p className="text-sm text-muted-foreground">
-                                      Quantity: {item.quantity} • Price: {formatCurrency(item.price || 0)}
-                                    </p>
-                                    <p className="text-sm font-medium">
-                                      Total: {formatCurrency(item.totalPrice)}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                {/* Return Eligibility Information */}
-                                {isDelivered && item.maxReturnDays && (
-                                  <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <Clock className="h-4 w-4 text-gray-400" />
-                                      <span className="text-sm font-medium">Return Information</span>
-                                      {getDaysRemainingBadge(item)}
-                                    </div>
-                                    <div className="text-sm text-gray-600 space-y-1">
-                                      <p>Return window: {item.maxReturnDays} days from delivery</p>
-                                      {item.isReturnEligible ? (
-                                        <p className="text-green-600 font-medium">✓ Eligible for return</p>
-                                      ) : (
-                                        <p className="text-red-600 font-medium">✗ Return window expired</p>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-
-              {/* Order Information Sidebar */}
-              <div className="space-y-6">
-                {/* Customer Information */}
-                {orderDetails.customerInfo && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <User className="h-5 w-5" />
-                        Customer Information
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{orderDetails.customerInfo.firstName} {orderDetails.customerInfo.lastName}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{orderDetails.customerInfo.email}</span>
-                      </div>
-                      {orderDetails.customerInfo.phoneNumber && (
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">{orderDetails.customerInfo.phoneNumber}</span>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Shipping Address */}
-                {orderDetails.shippingAddress && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Truck className="h-5 w-5" />
-                        Shipping Address
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-sm space-y-1">
-                        <p>{orderDetails.shippingAddress.street}</p>
-                        <p>
-                          {orderDetails.shippingAddress.city}, {orderDetails.shippingAddress.state}
-                        </p>
-                        <p>{orderDetails.shippingAddress.country}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Payment Information */}
-                {(orderDetails.paymentMethod || orderDetails.paymentStatus) && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <CreditCard className="h-5 w-5" />
-                        Payment Information
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {orderDetails.paymentMethod && (
-                        <div className="flex items-center gap-2">
-                          <CreditCard className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">{orderDetails.paymentMethod}</span>
-                        </div>
-                      )}
-                      {orderDetails.paymentStatus && (
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">Status: {orderDetails.paymentStatus}</span>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </div>
-
-            {/* Return Information Section */}
-            {hasReturnRequest && (
-              <Card className="bg-gradient-to-r from-orange-50 to-amber-50 border-orange-200 shadow-lg">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-orange-800">
-                    <AlertCircle className="h-5 w-5" />
-                    Return Request Active
-                  </CardTitle>
-                  <CardDescription className="text-orange-700">
-                    You have an active return request for this order
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <Button variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-50" asChild>
-                      <Link
-                        href={`/returns/info?orderNumber=${orderDetails.orderNumber}`}
-                        className="flex items-center gap-2"
-                      >
-                        <FileText className="h-4 w-4" />
-                        View Return Information
-                      </Link>
-                    </Button>
-                    <Button variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-50" asChild>
-                      <Link href="/returns">
-                        Manage Returns
-                      </Link>
-                    </Button>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-xs text-orange-600 bg-orange-100/50 p-2 rounded mt-3">
-                    <AlertCircle className="h-3 w-3" />
-                    <span>Click "View Return Information" to see complete details and current status</span>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Navigation Options */}
-            <div className="flex justify-center gap-4 pt-6">
-              {ordersList.length > 0 && (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setOrderDetails(null);
-                    setShowOrdersList(true);
-                  }}
-                >
-                  <ArrowRight className="h-4 w-4 mr-2 rotate-180" />
-                  Back to Orders List
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setOrderDetails(null);
-                  setOrdersList([]);
-                  setShowOrdersList(false);
-                  setAccessRequested(false);
-                  setToken("");
-                  setEmail("");
-                  setError(null);
-                }}
-              >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Track Different Email
-              </Button>
-            </div>
-          </div>
         ) : !accessRequested && !token ? (
           /* Email Request Form */
           <div className="max-w-md mx-auto">
@@ -653,15 +395,15 @@ export default function TrackOrderPage() {
               </CardFooter>
             </Card>
           </div>
-        ) : accessRequested && !orderDetails ? (
-          /* Access Requested - Show Token Input */
+        ) : accessRequested ? (
+          /* Access Requested - Email Sent Confirmation */
           <div className="max-w-md mx-auto">
             <Card className="shadow-lg border-0 bg-gradient-to-br from-green-50 to-white border-green-200">
               <CardHeader className="text-center pb-2">
                 <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
                   <CheckCircle className="h-8 w-8 text-green-600" />
                 </div>
-                <CardTitle className="text-xl text-green-800">Check Your Email</CardTitle>
+                <CardTitle className="text-xl text-green-800">Email Sent Successfully!</CardTitle>
                 <CardDescription className="text-green-700">
                   We've sent a secure access link to <strong>{email}</strong>
                 </CardDescription>
@@ -675,55 +417,55 @@ export default function TrackOrderPage() {
                     </AlertDescription>
                   </Alert>
                   
-                  <div className="text-center space-y-3">
-                    <p className="text-sm text-gray-600">
-                      Click the link in your email, or enter the access token below:
-                    </p>
+                  <div className="text-center space-y-4">
+                    <div className="bg-white p-4 rounded-lg border border-green-200">
+                      <Mail className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                      <p className="text-sm font-medium text-green-800 mb-1">
+                        Check your email inbox
+                      </p>
+                      <p className="text-xs text-green-700">
+                        Click the secure link in your email to view your orders
+                      </p>
+                    </div>
                     
-                    <form onSubmit={handleTokenSubmit} className="space-y-3">
-                      <Input
-                        type="text"
-                        placeholder="Enter access token"
-                        value={token}
-                        onChange={(e) => setToken(e.target.value)}
-                        disabled={isVerifyingToken}
-                        className="h-12 text-center font-mono text-sm border-2 focus:border-green-500 transition-colors"
-                      />
-                      <Button
-                        type="submit"
-                        className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
-                        disabled={isVerifyingToken || !token.trim()}
-                      >
-                        {isVerifyingToken ? (
-                          <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            Verifying...
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <KeyRound className="h-4 w-4" />
-                            Access My Orders
-                          </div>
-                        )}
-                      </Button>
-                    </form>
+                    <div className="text-xs text-gray-600 space-y-1">
+                      <p>📧 The email should arrive within a few minutes</p>
+                      <p>🔒 The link is secure and expires automatically</p>
+                      <p>📱 Works on all devices - desktop, tablet, and mobile</p>
+                    </div>
                   </div>
                 </div>
               </CardContent>
               <CardFooter className="text-center pt-4 border-t">
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <p className="text-sm text-gray-600">
-                    Didn't receive the email? Check your spam folder or{" "}
-                    <button 
+                    Didn't receive the email? Check your spam folder
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
                       onClick={() => {
                         setAccessRequested(false);
                         setToken("");
+                        setError(null);
                       }}
-                      className="text-green-600 hover:underline font-medium"
+                      className="flex-1 text-green-600 border-green-300 hover:bg-green-50"
                     >
-                      try again
-                    </button>
-                  </p>
+                      Send Again
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setAccessRequested(false);
+                        setToken("");
+                        setEmail("");
+                        setError(null);
+                      }}
+                      className="flex-1"
+                    >
+                      Use Different Email
+                    </Button>
+                  </div>
                 </div>
               </CardFooter>
             </Card>
@@ -731,7 +473,7 @@ export default function TrackOrderPage() {
         ) : null}
 
         {/* How Secure Tracking Works */}
-        {!orderDetails && (
+        {!showOrdersList && (
           <div className="mt-12">
             <h2 className="text-xl font-semibold mb-4 text-center">How Secure Tracking Works</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

@@ -44,6 +44,26 @@ export class ReturnService {
   }
 
   /**
+   * Get order details by tracking token (secure endpoint)
+   */
+  static async getOrderByTrackingToken(trackingToken: string, orderNumber: string): Promise<OrderDetails> {
+    const response = await fetch(`${API_BASE_URL}/api/v1/orders/track/secure/${orderNumber}?token=${encodeURIComponent(trackingToken)}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to fetch order details or invalid token');
+    }
+
+    const data = await response.json();
+    return data.data;
+  }
+
+  /**
    * Submit return request for authenticated users
    */
   static async submitReturnRequest(
@@ -105,6 +125,41 @@ export class ReturnService {
     }
 
     const response = await fetch(`${API_BASE_URL}/api/v1/returns/submit/guest`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to submit return request');
+    }
+
+    return await response.json();
+  }
+
+  /**
+   * Submit return request using tracking token (secure endpoint)
+   */
+  static async submitTokenizedReturnRequest(
+    returnRequest: { orderNumber: string; trackingToken: string; reason: string; returnItems: any[] },
+    mediaFiles?: File[]
+  ): Promise<ReturnRequestResponse> {
+    const formData = new FormData();
+    
+    // Add return request data as JSON blob with correct content type
+    const returnRequestBlob = new Blob([JSON.stringify(returnRequest)], {
+      type: 'application/json'
+    });
+    formData.append('returnRequest', returnRequestBlob);
+    
+    // Add media files if provided
+    if (mediaFiles && mediaFiles.length > 0) {
+      mediaFiles.forEach((file, index) => {
+        formData.append('mediaFiles', file);
+      });
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/returns/submit/tokenized`, {
       method: 'POST',
       body: formData,
     });

@@ -40,6 +40,7 @@ export default function ReturnRequestPage() {
   // URL parameters
   const orderNumber = searchParams.get('orderNumber');
   const pickupToken = searchParams.get('pickupToken');
+  const trackingToken = searchParams.get('token');
   const isGuest = !localStorage.getItem('authToken');
 
   // State
@@ -55,11 +56,11 @@ export default function ReturnRequestPage() {
   // Load order details on component mount
   useEffect(() => {
     loadOrderDetails();
-  }, [orderNumber, pickupToken]);
+  }, [orderNumber, pickupToken, trackingToken]);
 
   const loadOrderDetails = async () => {
-    if (!orderNumber && !pickupToken) {
-      setError('Order number or pickup token is required');
+    if (!orderNumber && !pickupToken && !trackingToken) {
+      setError('Order number, pickup token, or tracking token is required');
       setLoading(false);
       return;
     }
@@ -68,12 +69,15 @@ export default function ReturnRequestPage() {
       setLoading(true);
       let order: OrderDetails;
 
-      if (pickupToken) {
+      if (trackingToken && orderNumber) {
+        // Use tokenized order lookup for secure access
+        order = await ReturnService.getOrderByTrackingToken(trackingToken, orderNumber);
+      } else if (pickupToken) {
         order = await ReturnService.getOrderByPickupToken(pickupToken);
       } else if (orderNumber) {
         order = await ReturnService.getOrderByOrderNumber(orderNumber);
       } else {
-        throw new Error('Order number or pickup token is required');
+        throw new Error('Order number, pickup token, or tracking token is required');
       }
 
       setOrderDetails(order);
@@ -194,7 +198,15 @@ export default function ReturnRequestPage() {
       }));
 
       let response;
-      if (isGuest && pickupToken && orderNumber) {
+      if (trackingToken && orderNumber) {
+        // Use tokenized return request submission
+        response = await ReturnService.submitTokenizedReturnRequest({
+          orderNumber,
+          trackingToken,
+          reason: generalReason,
+          returnItems
+        }, mediaFiles);
+      } else if (isGuest && pickupToken && orderNumber) {
         response = await ReturnService.submitGuestReturnRequest({
           orderNumber,
           pickupToken,
@@ -222,7 +234,7 @@ export default function ReturnRequestPage() {
   };
 
   const getDaysRemainingBadge = (item: OrderItem) => {
-    if (!item.isReturnEligible) {
+    if (!item.returnEligible) {
       return <Badge variant="destructive" className="ml-2">Return Expired</Badge>;
     }
     
@@ -264,8 +276,8 @@ export default function ReturnRequestPage() {
     );
   }
 
-  const eligibleItems = orderDetails.items.filter(item => item.isReturnEligible);
-  const ineligibleItems = orderDetails.items.filter(item => !item.isReturnEligible);
+  const eligibleItems = orderDetails.items.filter(item => item.returnEligible);
+  const ineligibleItems = orderDetails.items.filter(item => !item.returnEligible);
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
