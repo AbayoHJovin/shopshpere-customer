@@ -103,6 +103,11 @@ export const API_ENDPOINTS = {
   APPEALS: `${API_BASE_URL}/appeals`,
   APPEAL_SUBMIT: `${API_BASE_URL}/appeals/submit`,
   APPEAL_BY_RETURN_ID: (returnId: string) => `${API_BASE_URL}/appeals/return/${returnId}`,
+
+  // Public Delivery endpoints (no authentication required)
+  DELIVERY_CHECK_AVAILABILITY: (country: string) => 
+    `${API_BASE_URL}/public/delivery/check-availability?country=${encodeURIComponent(country)}`,
+  DELIVERY_AVAILABLE_COUNTRIES: `${API_BASE_URL}/public/delivery/available-countries`,
 } as const;
 
 // HTTP Headers
@@ -127,3 +132,39 @@ export interface ApiError {
   status: number;
   timestamp: string;
 }
+
+// API Helper functions
+export const apiCall = async <T>(
+  url: string,
+  options: RequestInit = {}
+): Promise<T> => {
+  const defaultOptions: RequestInit = {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  };
+
+  const config = { ...defaultOptions, ...options };
+  
+  try {
+    const response = await fetch(url, config);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('API call failed:', error);
+    throw error;
+  }
+};
+
+// Public API call (no authentication required)
+export const publicApiCall = async <T>(
+  url: string,
+  options: RequestInit = {}
+): Promise<T> => {
+  return apiCall<T>(url, options);
+};
