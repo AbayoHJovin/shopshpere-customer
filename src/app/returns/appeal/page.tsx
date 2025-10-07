@@ -46,7 +46,24 @@ export default function AppealPage() {
     mediaFiles: [],
   });
 
+  // URL parameters - support both authenticated and guest flows
   const returnId = searchParams.get("returnId");
+  const trackingToken = searchParams.get("token");
+  
+  // Fix hydration mismatch by using state for authentication check
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isGuest, setIsGuest] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  // Check authentication status on client side only
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('authToken');
+      setIsAuthenticated(!!token);
+      setIsGuest(!token);
+      setAuthChecked(true);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchReturnInfo = async () => {
@@ -76,8 +93,12 @@ export default function AppealPage() {
       }
     };
 
-    fetchReturnInfo();
-  }, [returnId]);
+    // Only load return details after authentication state is determined
+    if (authChecked) {
+      fetchReturnInfo();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [returnId, authChecked]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -140,12 +161,6 @@ export default function AppealPage() {
       // Create FormData for file upload
       const appealFormData = new FormData();
       appealFormData.append("returnRequestId", returnId!);
-      
-      // Only append customerId if it exists and is not empty (for registered customers)
-      if (returnRequest!.customerId && returnRequest!.customerId.trim() !== "") {
-        appealFormData.append("customerId", returnRequest!.customerId);
-      }
-      
       appealFormData.append("reason", formData.reason);
       appealFormData.append("description", formData.description);
       
@@ -153,10 +168,27 @@ export default function AppealPage() {
         appealFormData.append("mediaFiles", file);
       });
 
-      await ReturnService.submitAppeal(appealFormData);
+      let response;
+      if (isAuthenticated && returnRequest?.customerId) {
+        // Authenticated user appeal
+        appealFormData.append("customerId", returnRequest.customerId);
+        response = await ReturnService.submitAppeal(appealFormData);
+      } else if (trackingToken) {
+        // Guest user with tracking token
+        appealFormData.append("trackingToken", trackingToken);
+        response = await ReturnService.submitTokenizedAppeal(appealFormData);
+      } else {
+        throw new Error("Missing authentication information for appeal submission");
+      }
       
       toast.success("Appeal submitted successfully!");
-      router.push(`/returns/info?returnId=${returnId}`);
+      
+      // Navigate back with appropriate parameters
+      if (isAuthenticated) {
+        router.push(`/returns/info?returnId=${returnId}`);
+      } else {
+        router.push(`/returns/info?returnId=${returnId}&token=${trackingToken}`);
+      }
     } catch (err: any) {
       console.error("Error submitting appeal:", err);
       
@@ -167,6 +199,8 @@ export default function AppealPage() {
         toast.error("The appeal period for this return has expired");
       } else if (err.message?.includes("Only denied return requests")) {
         toast.error("Appeals can only be submitted for denied return requests");
+      } else if (err.message?.includes("Invalid or expired tracking token")) {
+        toast.error("Your access token has expired. Please request a new tracking link.");
       } else {
         toast.error(err.message || "Failed to submit appeal");
       }
@@ -175,14 +209,16 @@ export default function AppealPage() {
     }
   };
 
-  if (loading) {
+  if (!authChecked || loading) {
     return (
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading return information...</p>
+              <p className="text-muted-foreground">
+                {!authChecked ? 'Initializing...' : 'Loading return information...'}
+              </p>
             </div>
           </div>
         </div>
@@ -219,7 +255,12 @@ export default function AppealPage() {
           <span>/</span>
           <Link href="/track-order" className="hover:text-foreground">Track Order</Link>
           <span>/</span>
-          <Link href={`/returns/info?returnId=${returnId}`} className="hover:text-foreground">Return Information</Link>
+          <Link 
+            href={`/returns/info?returnId=${returnId}${trackingToken ? `&token=${trackingToken}` : ''}`} 
+            className="hover:text-foreground"
+          >
+            Return Information
+          </Link>
           <span>/</span>
           <span className="text-foreground">Submit Appeal</span>
         </nav>
@@ -232,9 +273,19 @@ export default function AppealPage() {
           </Button>
           <div className="flex-1">
             <h1 className="text-3xl font-bold">Submit Appeal</h1>
-            <p className="text-muted-foreground">
-              Return Request #{returnRequest?.id} • Order #{returnRequest?.orderNumber}
-            </p>
+            <div className="flex items-center gap-3 mt-1">
+              <p className="text-muted-foreground">
+                Return Request #{returnRequest?.id} • Order #{returnRequest?.orderNumber}
+              </p>
+              {/* Access Type Badge */}
+              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                isAuthenticated 
+                  ? 'bg-blue-100 text-blue-800' 
+                  : 'bg-green-100 text-green-800'
+              }`}>
+                {isAuthenticated ? 'Authenticated' : 'Guest Access'}
+              </span>
+            </div>
           </div>
         </div>
 

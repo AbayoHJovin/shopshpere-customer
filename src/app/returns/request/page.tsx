@@ -39,9 +39,24 @@ export default function ReturnRequestPage() {
   
   // URL parameters
   const orderNumber = searchParams.get('orderNumber');
+  const orderId = searchParams.get('orderId');
   const pickupToken = searchParams.get('pickupToken');
   const trackingToken = searchParams.get('token');
-  const isGuest = !localStorage.getItem('authToken');
+  
+  // Fix hydration mismatch by using state for authentication check
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isGuest, setIsGuest] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  // Check authentication status on client side only
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('authToken');
+      setIsAuthenticated(!!token);
+      setIsGuest(!token);
+      setAuthChecked(true);
+    }
+  }, []);
 
   // State
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
@@ -55,12 +70,16 @@ export default function ReturnRequestPage() {
 
   // Load order details on component mount
   useEffect(() => {
-    loadOrderDetails();
-  }, [orderNumber, pickupToken, trackingToken]);
+    // Only load order details after authentication state is determined
+    if (authChecked) {
+      loadOrderDetails();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderNumber, orderId, pickupToken, trackingToken, authChecked, isAuthenticated]);
 
   const loadOrderDetails = async () => {
-    if (!orderNumber && !pickupToken && !trackingToken) {
-      setError('Order number, pickup token, or tracking token is required');
+    if (!orderNumber && !orderId && !pickupToken && !trackingToken) {
+      setError('Order information is required');
       setLoading(false);
       return;
     }
@@ -69,7 +88,10 @@ export default function ReturnRequestPage() {
       setLoading(true);
       let order: OrderDetails;
 
-      if (trackingToken && orderNumber) {
+      if (isAuthenticated && orderId) {
+        // Authenticated user with order ID
+        order = await ReturnService.getOrderByIdForAuthenticated(orderId);
+      } else if (trackingToken && orderNumber) {
         // Use tokenized order lookup for secure access
         order = await ReturnService.getOrderByTrackingToken(trackingToken, orderNumber);
       } else if (pickupToken) {
@@ -77,10 +99,38 @@ export default function ReturnRequestPage() {
       } else if (orderNumber) {
         order = await ReturnService.getOrderByOrderNumber(orderNumber);
       } else {
-        throw new Error('Order number, pickup token, or tracking token is required');
+        throw new Error('Order information is required');
       }
 
-      setOrderDetails(order);
+      // Normalize the order data to ensure consistent structure
+      const normalizedOrder = {
+        ...order,
+        id: order.id?.toString() || '',
+        items: order.items?.map(item => ({
+          ...item,
+          id: item.id?.toString() || '',
+          product: {
+            ...item.product,
+            id: item.product?.id || item.product?.productId || '',
+            productId: item.product?.productId || item.product?.id || '',
+            price: item.product?.price || item.price || 0,
+          },
+          variant: item.variant ? {
+            ...item.variant,
+            id: item.variant.id?.toString() || '',
+            productId: item.variant?.productId || item.product?.id || '',
+            price: item.variant?.price || item.price || 0,
+          } : undefined,
+        })) || [],
+        customerInfo: order.customerInfo ? {
+          firstName: order.customerInfo.name?.split(' ')[0] || order.customerInfo.firstName || '',
+          lastName: order.customerInfo.name?.split(' ').slice(1).join(' ') || order.customerInfo.lastName || '',
+          email: order.customerInfo.email || '',
+          phoneNumber: order.customerInfo.phone || order.customerInfo.phoneNumber || '',
+        } : undefined,
+      };
+
+      setOrderDetails(normalizedOrder);
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Failed to load order details');
@@ -91,11 +141,12 @@ export default function ReturnRequestPage() {
   };
 
   const handleItemSelection = (item: OrderItem, checked: boolean) => {
+    const itemId = item.id.toString();
     if (checked) {
       setSelectedItems(prev => ({
         ...prev,
-        [item.id]: {
-          orderItemId: item.id,
+        [itemId]: {
+          orderItemId: itemId,
           returnQuantity: 1,
           itemReason: ''
         }
@@ -103,7 +154,7 @@ export default function ReturnRequestPage() {
     } else {
       setSelectedItems(prev => {
         const newSelected = { ...prev };
-        delete newSelected[item.id];
+        delete newSelected[itemId];
         return newSelected;
       });
     }
@@ -112,7 +163,7 @@ export default function ReturnRequestPage() {
   const handleQuantityChange = (itemId: string, returnQuantity: number) => {
     if (returnQuantity < 1) return;
     
-    const item = orderDetails?.items.find(i => i.id === itemId);
+    const item = orderDetails?.items.find(i => i.id.toString() === itemId);
     if (!item || returnQuantity > item.quantity) return;
 
     setSelectedItems(prev => ({
@@ -192,13 +243,21 @@ export default function ReturnRequestPage() {
       setSubmitting(true);
 
       const returnItems: ReturnItem[] = Object.values(selectedItems).map(item => ({
-        orderItemId: item.orderItemId,
+        orderItemId: item.orderItemId.toString(),
         returnQuantity: item.returnQuantity,
         itemReason: item.itemReason
       }));
 
       let response;
-      if (trackingToken && orderNumber) {
+      if (isAuthenticated && orderDetails?.userId && orderDetails?.id) {
+        // Authenticated user return request
+        response = await ReturnService.submitReturnRequest({
+          customerId: orderDetails.userId,
+          orderId: orderDetails.id.toString(),
+          reason: generalReason,
+          returnItems
+        }, mediaFiles);
+      } else if (trackingToken && orderNumber) {
         // Use tokenized return request submission
         response = await ReturnService.submitTokenizedReturnRequest({
           orderNumber,
@@ -210,13 +269,6 @@ export default function ReturnRequestPage() {
         response = await ReturnService.submitGuestReturnRequest({
           orderNumber,
           pickupToken,
-          reason: generalReason,
-          returnItems
-        }, mediaFiles);
-      } else if (orderDetails?.userId && orderDetails?.id) {
-        response = await ReturnService.submitReturnRequest({
-          customerId: orderDetails.userId,
-          orderId: orderDetails.id,
           reason: generalReason,
           returnItems
         }, mediaFiles);
@@ -247,13 +299,15 @@ export default function ReturnRequestPage() {
     }
   };
 
-  if (loading) {
+  if (!authChecked || loading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading order details...</p>
+            <p className="text-gray-600">
+              {!authChecked ? 'Initializing...' : 'Loading order details...'}
+            </p>
           </div>
         </div>
       </div>
@@ -276,8 +330,8 @@ export default function ReturnRequestPage() {
     );
   }
 
-  const eligibleItems = orderDetails.items.filter(item => item.returnEligible);
-  const ineligibleItems = orderDetails.items.filter(item => !item.returnEligible);
+  const eligibleItems = orderDetails?.items?.filter(item => item.returnEligible) || [];
+  const ineligibleItems = orderDetails?.items?.filter(item => !item.returnEligible) || [];
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -286,6 +340,13 @@ export default function ReturnRequestPage() {
         <p className="text-gray-600">
           Select the items you'd like to return from order #{orderDetails.orderNumber}
         </p>
+        {isAuthenticated && (
+          <div className="mt-2">
+            <Badge variant="outline" className="text-green-600 border-green-300">
+              Authenticated User
+            </Badge>
+          </div>
+        )}
       </div>
 
       {/* Order Summary */}
@@ -297,7 +358,7 @@ export default function ReturnRequestPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <Label className="text-sm text-gray-500">Order Number</Label>
               <p className="font-semibold">{orderDetails.orderNumber}</p>
@@ -311,6 +372,20 @@ export default function ReturnRequestPage() {
               <p className="font-semibold">
                 {new Date(orderDetails.createdAt).toLocaleDateString()}
               </p>
+            </div>
+            <div>
+              <Label className="text-sm text-gray-500">Access Type</Label>
+              <div className="flex items-center gap-2">
+                {isAuthenticated ? (
+                  <Badge variant="outline" className="text-green-600 border-green-300">
+                    Authenticated
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-blue-600 border-blue-300">
+                    Guest Access
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
@@ -327,7 +402,8 @@ export default function ReturnRequestPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {eligibleItems.map((item) => {
-              const isSelected = selectedItems[item.id];
+              const itemId = item.id.toString();
+              const isSelected = selectedItems[itemId];
               const displayProduct = item.variant || item.product;
               
               return (
@@ -378,7 +454,7 @@ export default function ReturnRequestPage() {
                       {isSelected && (
                         <div className="mt-4 space-y-3 bg-gray-50 p-3 rounded-lg">
                           <div>
-                            <Label htmlFor={`quantity-${item.id}`} className="text-sm font-medium">
+                            <Label htmlFor={`quantity-${itemId}`} className="text-sm font-medium">
                               Quantity to Return
                             </Label>
                             <div className="flex items-center gap-2 mt-1">
@@ -386,25 +462,25 @@ export default function ReturnRequestPage() {
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleQuantityChange(item.id, isSelected.returnQuantity - 1)}
+                                onClick={() => handleQuantityChange(itemId, isSelected.returnQuantity - 1)}
                                 disabled={isSelected.returnQuantity <= 1}
                               >
                                 -
                               </Button>
                               <Input
-                                id={`quantity-${item.id}`}
+                                id={`quantity-${itemId}`}
                                 type="number"
                                 min="1"
                                 max={item.quantity}
                                 value={isSelected.returnQuantity}
-                                onChange={(e) => handleQuantityChange(item.id, parseInt(e.target.value) || 1)}
+                                onChange={(e) => handleQuantityChange(itemId, parseInt(e.target.value) || 1)}
                                 className="w-20 text-center"
                               />
                               <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleQuantityChange(item.id, isSelected.returnQuantity + 1)}
+                                onClick={() => handleQuantityChange(itemId, isSelected.returnQuantity + 1)}
                                 disabled={isSelected.returnQuantity >= item.quantity}
                               >
                                 +
@@ -416,14 +492,14 @@ export default function ReturnRequestPage() {
                           </div>
 
                           <div>
-                            <Label htmlFor={`reason-${item.id}`} className="text-sm font-medium">
+                            <Label htmlFor={`reason-${itemId}`} className="text-sm font-medium">
                               Reason for Return *
                             </Label>
                             <Textarea
-                              id={`reason-${item.id}`}
+                              id={`reason-${itemId}`}
                               placeholder="Please explain why you want to return this item..."
                               value={isSelected.itemReason}
-                              onChange={(e) => handleReasonChange(item.id, e.target.value)}
+                              onChange={(e) => handleReasonChange(itemId, e.target.value)}
                               maxLength={500}
                               className="mt-1"
                               rows={3}

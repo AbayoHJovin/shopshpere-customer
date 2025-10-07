@@ -1,18 +1,20 @@
 export interface OrderItem {
-  id: string;
-  productId: string;
+  id: string | number;
+  productId?: string;
   variantId?: string;
   product: {
-    productId: string;
+    id?: string;
+    productId?: string;
     name: string;
     description?: string;
-    price: number;
+    price?: number;
     images?: string[];
   };
   variant?: {
-    productId: string;
+    id?: string | number;
+    productId?: string;
     name: string;
-    price: number;
+    price?: number;
     images?: string[];
   };
   quantity: number;
@@ -27,7 +29,7 @@ export interface OrderItem {
 }
 
 export interface OrderDetails {
-  id: string;
+  id: string | number;
   userId?: string;
   orderNumber: string;
   pickupToken?: string;
@@ -40,7 +42,7 @@ export interface OrderDetails {
   discount: number;
   total: number;
   shippingAddress: {
-    id: string;
+    id?: string;
     street: string;
     city: string;
     state: string;
@@ -48,16 +50,23 @@ export interface OrderDetails {
     latitude?: number;
     longitude?: number;
   };
+  billingAddress?: any;
   customerInfo?: {
-    firstName: string;
-    lastName: string;
+    name?: string;
+    firstName?: string;
+    lastName?: string;
     email: string;
-    phoneNumber: string;
+    phone?: string;
+    phoneNumber?: string;
   };
   paymentMethod?: string;
   paymentStatus?: string;
+  notes?: string;
   createdAt: string;
   updatedAt: string;
+  estimatedDelivery?: string;
+  trackingNumber?: string;
+  transaction?: any;
 }
 
 export interface ReturnItem {

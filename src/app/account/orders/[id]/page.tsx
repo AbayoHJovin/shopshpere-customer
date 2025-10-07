@@ -18,6 +18,11 @@ import {
   QrCode,
   Download,
   CheckCircle,
+  RotateCcw,
+  Info,
+  AlertCircle,
+  ExternalLink,
+  Navigation,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,8 +34,10 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { OrderService, OrderDetailsResponse } from "@/lib/orderService";
+import { ReturnService } from "@/lib/services/returnService";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import Link from "next/link";
@@ -45,6 +52,8 @@ export default function AccountOrderDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
+  const [hasReturnRequest, setHasReturnRequest] = useState<boolean>(false);
+  const [checkingReturn, setCheckingReturn] = useState<boolean>(false);
 
   const generateQRCode = async (pickupToken: string) => {
     try {
@@ -73,6 +82,19 @@ export default function AccountOrderDetailsPage() {
     toast.success("QR code downloaded successfully");
   };
 
+  const checkForReturnRequest = async (orderNumber: string) => {
+    try {
+      setCheckingReturn(true);
+      const returnRequest = await ReturnService.getReturnByOrderNumber(orderNumber);
+      setHasReturnRequest(!!returnRequest);
+    } catch (error) {
+      // No return request found or error - that's okay
+      setHasReturnRequest(false);
+    } finally {
+      setCheckingReturn(false);
+    }
+  };
+
   useEffect(() => {
     const fetchOrder = async () => {
       try {
@@ -84,6 +106,11 @@ export default function AccountOrderDetailsPage() {
         // Generate QR code if pickup token exists
         if (orderData.pickupToken) {
           await generateQRCode(orderData.pickupToken);
+        }
+
+        // Check for return request
+        if (orderData.orderNumber) {
+          await checkForReturnRequest(orderData.orderNumber);
         }
       } catch (err: any) {
         console.error("Error fetching order:", err);
@@ -103,6 +130,34 @@ export default function AccountOrderDetailsPage() {
       fetchOrder();
     }
   }, [orderId]);
+
+  const getDaysRemainingBadge = (item: any) => {
+    if (!item.returnEligible) {
+      return <Badge variant="destructive" className="ml-2">Return Expired</Badge>;
+    }
+    
+    if (item.daysRemainingForReturn <= 3) {
+      return <Badge variant="destructive" className="ml-2">{item.daysRemainingForReturn} days left</Badge>;
+    } else if (item.daysRemainingForReturn <= 7) {
+      return <Badge variant="secondary" className="ml-2">{item.daysRemainingForReturn} days left</Badge>;
+    } else {
+      return <Badge variant="outline" className="ml-2">{item.daysRemainingForReturn} days left</Badge>;
+    }
+  };
+
+  const openInGoogleMaps = () => {
+    if (order?.shippingAddress?.latitude && order?.shippingAddress?.longitude) {
+      const url = `https://www.google.com/maps?q=${order.shippingAddress.latitude},${order.shippingAddress.longitude}`;
+      window.open(url, '_blank');
+    }
+  };
+
+  const getDirections = () => {
+    if (order?.shippingAddress?.latitude && order?.shippingAddress?.longitude) {
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${order.shippingAddress.latitude},${order.shippingAddress.longitude}`;
+      window.open(url, '_blank');
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status.toUpperCase()) {
@@ -141,6 +196,12 @@ export default function AccountOrderDetailsPage() {
       currency: "USD",
     }).format(amount);
   };
+
+  // Return eligibility logic
+  const hasEligibleItems = order?.items?.some(item => item.returnEligible) || false;
+  const isDelivered = order?.status?.toLowerCase() === 'delivered';
+  const isProcessing = order?.status?.toLowerCase() === 'processing';
+  const canRequestReturn = (isDelivered || isProcessing) && hasEligibleItems;
 
   if (loading) {
     return (
@@ -259,6 +320,11 @@ export default function AccountOrderDetailsPage() {
               <Badge className={getStatusColor(order.status)}>
                 {order.status.replace(/_/g, " ")}
               </Badge>
+              {hasReturnRequest && (
+                <Badge variant="outline" className="text-orange-600 border-orange-300">
+                  Return Active
+                </Badge>
+              )}
             </div>
           </div>
         </div>
@@ -360,9 +426,97 @@ export default function AccountOrderDetailsPage() {
                           <p className="text-sm text-muted-foreground">
                             Total: {formatCurrency(item.totalPrice)}
                           </p>
+                          {getDaysRemainingBadge(item)}
                         </div>
                       </div>
                     ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Return Request Section */}
+            {canRequestReturn && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <RotateCcw className="h-5 w-5" />
+                    Return Request
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {hasReturnRequest ? (
+                    <Alert>
+                      <CheckCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        You have an active return request for this order.
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <div className="space-y-4">
+                      <p className="text-muted-foreground">
+                        You can return eligible items from this order within the return window.
+                      </p>
+                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Info className="h-4 w-4 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-800">Return Policy</span>
+                        </div>
+                        <p className="text-sm text-blue-700">
+                          Items can be returned within 30 days. Items must be in original condition with tags attached.
+                        </p>
+                      </div>
+                      <Button 
+                        onClick={() => {
+                          router.push(`/returns/request?orderId=${order.id}`);
+                        }}
+                        className="w-full"
+                      >
+                        <RotateCcw className="h-4 w-4 mr-2" />
+                        Request Return
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Return Information for Non-Eligible Orders */}
+            {!canRequestReturn && order?.items && order.items.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Info className="h-5 w-5" />
+                    Return Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {!hasEligibleItems && (isDelivered || isProcessing) && (
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>
+                          The return window for this order has expired. Items can only be returned within 30 days of the order date.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    {!isDelivered && !isProcessing && (
+                      <Alert>
+                        <Info className="h-4 w-4" />
+                        <AlertDescription>
+                          Returns can be requested once your order is processing or delivered.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Info className="h-4 w-4 text-gray-600" />
+                        <span className="text-sm font-medium text-gray-800">Return Policy</span>
+                      </div>
+                      <p className="text-sm text-gray-700">
+                        Items can be returned within 30 days of the order date. Items must be in original condition with tags attached.
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -377,8 +531,8 @@ export default function AccountOrderDetailsPage() {
                     Shipping Address
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
+                <CardContent className="space-y-4">
+                  <div className="text-sm">
                     <p className="font-medium">
                       {order.shippingAddress.street}
                     </p>
@@ -390,6 +544,48 @@ export default function AccountOrderDetailsPage() {
                       {order.shippingAddress.country}
                     </p>
                   </div>
+
+                  {/* Google Maps Integration */}
+                  {order.shippingAddress.latitude && order.shippingAddress.longitude && (
+                    <div className="space-y-3">
+                      <div className="relative w-full h-48 rounded-lg overflow-hidden border">
+                        <iframe
+                          src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&q=${order.shippingAddress.latitude},${order.shippingAddress.longitude}&zoom=15`}
+                          width="100%"
+                          height="100%"
+                          style={{ border: 0 }}
+                          allowFullScreen
+                          loading="lazy"
+                          referrerPolicy="no-referrer-when-downgrade"
+                        />
+                      </div>
+                      
+                      <div className="text-xs text-muted-foreground">
+                        Coordinates: {order.shippingAddress.latitude}, {order.shippingAddress.longitude}
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={openInGoogleMaps}
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                        >
+                          <ExternalLink className="h-3 w-3 mr-1" />
+                          Open in Maps
+                        </Button>
+                        <Button
+                          onClick={getDirections}
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                        >
+                          <Navigation className="h-3 w-3 mr-1" />
+                          Get Directions
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

@@ -64,6 +64,28 @@ export class ReturnService {
   }
 
   /**
+   * Get order details by order ID for authenticated users
+   */
+  static async getOrderByIdForAuthenticated(orderId: string): Promise<OrderDetails> {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch(`${API_BASE_URL}/api/v1/orders/${orderId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to fetch order details');
+    }
+
+    const result = await response.json();
+    return result.data || result; // Handle both wrapped and direct responses
+  }
+
+  /**
    * Submit return request for authenticated users
    */
   static async submitReturnRequest(

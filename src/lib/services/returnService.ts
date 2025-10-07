@@ -163,7 +163,7 @@ export class ReturnService {
   }
 
   /**
-   * Submit a return request
+   * Submit a return request for authenticated users
    */
   static async submitReturnRequest(returnData: any): Promise<ReturnRequest> {
     try {
@@ -186,7 +186,29 @@ export class ReturnService {
   }
 
   /**
-   * Submit an appeal for a denied return
+   * Submit a return request using tokenized access (for guest users)
+   */
+  static async submitTokenizedReturnRequest(returnData: FormData): Promise<ReturnRequest> {
+    try {
+      const response = await fetch(`${this.baseUrl}/submit/tokenized`, {
+        method: "POST",
+        body: returnData, // FormData for multipart/form-data
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to submit return request");
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error submitting tokenized return request:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Submit an appeal for a denied return (authenticated users)
    */
   static async submitAppeal(appealData: FormData | any): Promise<ReturnAppeal> {
     try {
@@ -210,6 +232,28 @@ export class ReturnService {
       return await response.json();
     } catch (error) {
       console.error("Error submitting appeal:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Submit an appeal using tracking token (for guest users)
+   */
+  static async submitTokenizedAppeal(appealData: FormData): Promise<ReturnAppeal> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/appeals/submit/tokenized`, {
+        method: "POST",
+        body: appealData, // FormData for multipart/form-data
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to submit appeal");
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error submitting tokenized appeal:", error);
       throw error;
     }
   }
