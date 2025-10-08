@@ -40,8 +40,9 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
   const [filterErrors, setFilterErrors] = useState<FilterError[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
-  const [localPriceRange, setLocalPriceRange] = useState(filters.priceRange);
+  const [localPriceRange, setLocalPriceRange] = useState(filters.priceRange || [0, 1000]);
   const priceRangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isUpdatingPriceRef = useRef(false);
 
   // Discount state
   const [activeDiscounts, setActiveDiscounts] = useState<DiscountInfo[]>([]);
@@ -54,9 +55,10 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
     loadActiveDiscounts();
   }, []);
 
-  // Sync local price range with filters
   useEffect(() => {
-    setLocalPriceRange(filters.priceRange);
+    if (!isUpdatingPriceRef.current && filters.priceRange) {
+      setLocalPriceRange(filters.priceRange);
+    }
   }, [filters.priceRange]);
 
   const loadFilterOptions = async () => {
@@ -140,25 +142,24 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
     [onFiltersChange]
   );
 
-  // Debounced price range update
   const updatePriceRange = useCallback(
     (value: number[]) => {
+      
+      isUpdatingPriceRef.current = true;
       setLocalPriceRange(value);
-
-      // Clear existing timeout
       if (priceRangeTimeoutRef.current) {
         clearTimeout(priceRangeTimeoutRef.current);
       }
-
-      // Set new timeout
       priceRangeTimeoutRef.current = setTimeout(() => {
         updateFilters("priceRange", value);
-      }, 500); // Increased debounce to 500ms
+        setTimeout(() => {
+          isUpdatingPriceRef.current = false;
+        }, 100);
+      }, 300);
     },
     [updateFilters]
   );
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (priceRangeTimeoutRef.current) {
@@ -515,17 +516,17 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
         "Price Range",
         <div className="space-y-4">
           <Slider
-            value={localPriceRange}
+            value={localPriceRange || [0, 1000]}
             onValueChange={updatePriceRange}
             max={1000}
             step={10}
             className="w-full"
           />
           <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>${localPriceRange[0]}</span>
+            <span>${(localPriceRange || [0, 1000])[0]}</span>
             <span>
-              ${localPriceRange[1]}
-              {localPriceRange[1] === 1000 && "+"}
+              ${(localPriceRange || [0, 1000])[1]}
+              {(localPriceRange || [0, 1000])[1] === 1000 && "+"}
             </span>
           </div>
         </div>

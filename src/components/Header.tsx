@@ -209,7 +209,7 @@ const Header = () => {
                 ShopSphere
               </h1>
             </Link>
-            
+
             {/* Navigation links close to logo */}
             <nav className="hidden md:flex items-center gap-4 ml-6">
               <Link
