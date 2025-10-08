@@ -358,7 +358,7 @@ const ProductCard = ({
             <div className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
               <div className="flex flex-col gap-2">
                 <Button
-                  className={`w-full h-9 text-sm ${
+                  className={`w-full h-10 sm:h-9 text-sm ${
                     isInCart ? "bg-success hover:bg-success/90" : ""
                   }`}
                   onClick={handleCartToggle}
@@ -385,7 +385,7 @@ const ProductCard = ({
                 <Link href={`/product/${id}`} className="w-full">
                   <Button
                     variant="outline"
-                    className="w-full h-9 text-sm border-background/80 bg-background/80 backdrop-blur-sm hover:bg-background hover:border-primary"
+                    className="w-full h-10 sm:h-9 text-sm border-background/80 bg-background/80 backdrop-blur-sm hover:bg-background hover:border-primary"
                   >
                     <Eye className="h-4 w-4 mr-2" />
                     View Product

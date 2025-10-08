@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ManyProductsDto } from "@/lib/productService";
+import { ManyProductsDto, ProductService } from "@/lib/productService";
 import {
   similarProductsService,
   SimilarProductsRequest,
@@ -237,24 +237,35 @@ export default function SimilarProducts({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {products.map((product) => (
-          <ProductCard
-            key={product.productId}
-            id={product.productId}
-            name={product.productName}
-            price={product.price}
-            discountedPrice={product.discountedPrice}
-            image={product.primaryImage?.imageUrl || ""}
-            rating={product.averageRating || 0}
-            reviewCount={product.reviewCount || 0}
-            hasActiveDiscount={product.hasActiveDiscount}
-            discount={product.discountInfo?.percentage}
-            discountName={product.discountInfo?.name}
-            discountEndDate={product.discountInfo?.endDate}
-            hasVariantDiscounts={false}
-            maxVariantDiscount={0}
-          />
-        ))}
+        {products.map((product) => {
+          const convertedProduct = ProductService.convertToProductCardFormat(product);
+          
+          return (
+            <ProductCard
+              key={product.productId}
+              id={convertedProduct.id}
+              name={convertedProduct.name}
+              price={convertedProduct.price}
+              originalPrice={convertedProduct.originalPrice}
+              discountedPrice={convertedProduct.discountedPrice}
+              image={convertedProduct.image}
+              rating={convertedProduct.rating}
+              reviewCount={convertedProduct.reviewCount}
+              hasActiveDiscount={convertedProduct.hasActiveDiscount}
+              discount={convertedProduct.discount}
+              discountName={convertedProduct.discountName}
+              discountEndDate={convertedProduct.discountEndDate}
+              hasVariantDiscounts={convertedProduct.hasVariantDiscounts}
+              maxVariantDiscount={convertedProduct.maxVariantDiscount}
+              isNew={convertedProduct.isNew}
+              isBestseller={convertedProduct.isBestseller}
+              isFeatured={convertedProduct.isFeatured}
+              category={convertedProduct.category}
+              brand={convertedProduct.brand}
+              shortDescription={convertedProduct.shortDescription}
+            />
+          );
+        })}
       </div>
 
       {totalPages > 1 && (

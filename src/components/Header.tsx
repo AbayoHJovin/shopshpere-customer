@@ -322,7 +322,7 @@ const Header = () => {
                 </Button>
                 <Button
                   size="sm"
-                  className="text-xs sm:text-sm px-2 sm:px-4"
+                  className="text-xs hidden sm:flex sm:text-sm px-2 sm:px-4"
                   onClick={() => router.push("/auth/register")}
                 >
                   Sign Up

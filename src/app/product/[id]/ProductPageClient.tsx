@@ -23,7 +23,11 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import ProductCard from "@/components/ProductCard";
-import { ProductService, ProductDTO, ProductVariantDTO } from "@/lib/productService";
+import {
+  ProductService,
+  ProductDTO,
+  ProductVariantDTO,
+} from "@/lib/productService";
 import { CartService, CartItemRequest } from "@/lib/cartService";
 import { WishlistService, AddToWishlistRequest } from "@/lib/wishlistService";
 import { useToast } from "@/hooks/use-toast";
@@ -167,7 +171,9 @@ export function ProductPageClient({ productId }: { productId: string }) {
         // Use product images and data
         setDisplayImages(product.images || []);
         setDisplayPrice(product.discountedPrice || product.basePrice || 0);
-        setDisplayStock(product.totalWarehouseStock || product.stockQuantity || 0);
+        setDisplayStock(
+          product.totalWarehouseStock || product.stockQuantity || 0
+        );
       }
       // Reset selected image when switching between product and variant images
       setSelectedImage(0);
@@ -654,7 +660,9 @@ export function ProductPageClient({ productId }: { productId: string }) {
             {/* Variant Selection */}
             {product.variants && product.variants.length > 0 && (
               <>
-                {product.variants.every((v) => ProductService.getVariantTotalStock(v) === 0) && (
+                {product.variants.every(
+                  (v) => ProductService.getVariantTotalStock(v) === 0
+                ) && (
                   <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                     <div className="text-sm font-medium text-red-800">
                       All variants are currently out of stock
@@ -680,7 +688,11 @@ export function ProductPageClient({ productId }: { productId: string }) {
                             selectedVariant?.variantId === variant.variantId
                               ? "border-primary bg-primary/5 ring-2 ring-primary/20"
                               : "hover:border-primary/50"
-                          } ${ProductService.getVariantTotalStock(variant) === 0 ? "opacity-50" : ""}`}
+                          } ${
+                            ProductService.getVariantTotalStock(variant) === 0
+                              ? "opacity-50"
+                              : ""
+                          }`}
                           onClick={() => setSelectedVariant(variant)}
                         >
                           <div className="text-sm font-medium">
@@ -690,7 +702,9 @@ export function ProductPageClient({ productId }: { productId: string }) {
                             {effectiveDiscount ? (
                               <div className="flex flex-col">
                                 <span className="font-semibold text-green-600">
-                                  {formatPrice(effectiveDiscount.discountedPrice)}
+                                  {formatPrice(
+                                    effectiveDiscount.discountedPrice
+                                  )}
                                 </span>
                                 <span className="line-through">
                                   {formatPrice(variant.price || 0)}
@@ -727,7 +741,9 @@ export function ProductPageClient({ productId }: { productId: string }) {
                             }`}
                           >
                             {ProductService.getVariantTotalStock(variant) > 0
-                              ? `Stock: ${ProductService.getVariantTotalStock(variant)}`
+                              ? `Stock: ${ProductService.getVariantTotalStock(
+                                  variant
+                                )}`
                               : "Out of Stock"}
                           </div>
                           {/* Show variant attributes */}
@@ -761,7 +777,10 @@ export function ProductPageClient({ productId }: { productId: string }) {
                             return (
                               <div className="flex flex-col">
                                 <span className="font-semibold">
-                                  Price: {formatPrice(effectiveDiscount.discountedPrice)}
+                                  Price:{" "}
+                                  {formatPrice(
+                                    effectiveDiscount.discountedPrice
+                                  )}
                                 </span>
                                 <span className="line-through">
                                   Original: {formatPrice(selectedVariant.price)}
@@ -776,11 +795,15 @@ export function ProductPageClient({ productId }: { productId: string }) {
                               </div>
                             );
                           }
-                          return `Price: ${formatPrice(selectedVariant.price || 0, { showCurrency: false })}`;
+                          return `Price: ${formatPrice(
+                            selectedVariant.price || 0,
+                            { showCurrency: false }
+                          )}`;
                         })()}
                         <span className="ml-2">|</span>
                         <span className="ml-2">
-                          Stock: {ProductService.getVariantTotalStock(selectedVariant)}
+                          Stock:{" "}
+                          {ProductService.getVariantTotalStock(selectedVariant)}
                         </span>
                       </div>
                       <div className="mt-2 flex gap-2">
@@ -801,7 +824,11 @@ export function ProductPageClient({ productId }: { productId: string }) {
                                 ? effectiveDiscount.discountedPrice
                                 : selectedVariant.price || 0
                             );
-                            setDisplayStock(ProductService.getVariantTotalStock(selectedVariant));
+                            setDisplayStock(
+                              ProductService.getVariantTotalStock(
+                                selectedVariant
+                              )
+                            );
                           }}
                           className="text-xs"
                         >
@@ -879,7 +906,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <Button
                 size="lg"
-                className={`flex-1 ${
+                className={`flex-1 h-12 sm:h-10 ${
                   isInCart ? "bg-success hover:bg-success/90" : ""
                 }`}
                 onClick={handleCartToggle}
@@ -887,7 +914,8 @@ export function ProductPageClient({ productId }: { productId: string }) {
                   (displayStock || 0) === 0 ||
                   isCartLoading ||
                   (ProductService.hasVariants(product) && !selectedVariant) ||
-                  (selectedVariant && ProductService.getVariantTotalStock(selectedVariant) === 0)
+                  (selectedVariant &&
+                    ProductService.getVariantTotalStock(selectedVariant) === 0)
                 }
               >
                 {isCartLoading ? (
@@ -900,7 +928,8 @@ export function ProductPageClient({ productId }: { productId: string }) {
                     <Check className="h-5 w-5 mr-2" />
                     Added to Cart
                   </>
-                ) : selectedVariant && ProductService.getVariantTotalStock(selectedVariant) === 0 ? (
+                ) : selectedVariant &&
+                  ProductService.getVariantTotalStock(selectedVariant) === 0 ? (
                   <>
                     <AlertCircle className="h-5 w-5 mr-2" />
                     Out of Stock
@@ -911,10 +940,10 @@ export function ProductPageClient({ productId }: { productId: string }) {
                     Select Variant
                   </>
                 ) : (
-                  <>
+                  <Button>
                     <ShoppingCart className="h-5 w-5 mr-2" />
-                    Add to Cart
-                  </>
+                    Adds to Cart
+                  </Button>
                 )}
               </Button>
               <Button
@@ -946,13 +975,21 @@ export function ProductPageClient({ productId }: { productId: string }) {
       <section className="container mx-auto px-4 py-8 border-t">
         <Tabs defaultValue="description" className="w-full">
           <TabsList className="grid grid-cols-3 mb-6 md:w-fit md:grid-cols-none md:flex md:gap-2">
-            <TabsTrigger value="description" className="md:px-6">Description</TabsTrigger>
-            <TabsTrigger value="specifications" className="md:px-6">Specifications</TabsTrigger>
-            <TabsTrigger value="reviews" className="md:px-6">Reviews</TabsTrigger>
+            <TabsTrigger value="description" className="md:px-6">
+              Description
+            </TabsTrigger>
+            <TabsTrigger value="specifications" className="md:px-6">
+              Specifications
+            </TabsTrigger>
+            <TabsTrigger value="reviews" className="md:px-6">
+              Reviews
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="description" className="text-muted-foreground">
             <div className="prose prose-sm max-w-none">
-              <p className="whitespace-pre-line">{product.fullDescription || product.description}</p>
+              <p className="whitespace-pre-line">
+                {product.fullDescription || product.description}
+              </p>
             </div>
           </TabsContent>
           <TabsContent value="specifications">
@@ -967,7 +1004,9 @@ export function ProductPageClient({ productId }: { productId: string }) {
                     </div>
                     {product.dimensionsCm && (
                       <div className="grid grid-cols-2 gap-4 py-2 border-b">
-                        <span className="text-muted-foreground">Dimensions</span>
+                        <span className="text-muted-foreground">
+                          Dimensions
+                        </span>
                         <span>{product.dimensionsCm}</span>
                       </div>
                     )}
@@ -990,12 +1029,14 @@ export function ProductPageClient({ productId }: { productId: string }) {
                   <div className="space-y-4">
                     <h3 className="text-lg font-medium">Care Instructions</h3>
                     <div className="prose prose-sm max-w-none">
-                      <p className="text-muted-foreground whitespace-pre-line">{product.careInstructions}</p>
+                      <p className="text-muted-foreground whitespace-pre-line">
+                        {product.careInstructions}
+                      </p>
                     </div>
                   </div>
                 )}
               </div>
-              
+
               <div className="space-y-6">
                 {product.warrantyInfo && (
                   <div className="space-y-4">
@@ -1004,7 +1045,9 @@ export function ProductPageClient({ productId }: { productId: string }) {
                       Warranty Information
                     </h3>
                     <div className="prose prose-sm max-w-none">
-                      <p className="text-muted-foreground whitespace-pre-line">{product.warrantyInfo}</p>
+                      <p className="text-muted-foreground whitespace-pre-line">
+                        {product.warrantyInfo}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -1016,7 +1059,9 @@ export function ProductPageClient({ productId }: { productId: string }) {
                       Shipping Information
                     </h3>
                     <div className="prose prose-sm max-w-none">
-                      <p className="text-muted-foreground whitespace-pre-line">{product.shippingInfo}</p>
+                      <p className="text-muted-foreground whitespace-pre-line">
+                        {product.shippingInfo}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -1028,7 +1073,9 @@ export function ProductPageClient({ productId }: { productId: string }) {
                       Return Policy
                     </h3>
                     <div className="prose prose-sm max-w-none">
-                      <p className="text-muted-foreground whitespace-pre-line">{product.returnPolicy}</p>
+                      <p className="text-muted-foreground whitespace-pre-line">
+                        {product.returnPolicy}
+                      </p>
                     </div>
                   </div>
                 )}
