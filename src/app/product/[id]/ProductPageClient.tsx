@@ -938,41 +938,6 @@ export function ProductPageClient({ productId }: { productId: string }) {
                 <Share2 className="h-5 w-5" />
               </Button>
             </div>
-
-            {/* Product Features */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t">
-              <div className="flex items-center gap-3">
-                <div className="bg-muted rounded-full p-2">
-                  <Truck className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Free Shipping</p>
-                  <p className="text-xs text-muted-foreground">
-                    On orders over $50
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="bg-muted rounded-full p-2">
-                  <Clock className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">30 Day Returns</p>
-                  <p className="text-xs text-muted-foreground">
-                    Hassle-free returns
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="bg-muted rounded-full p-2">
-                  <Shield className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">2 Year Warranty</p>
-                  <p className="text-xs text-muted-foreground">Full coverage</p>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -980,43 +945,101 @@ export function ProductPageClient({ productId }: { productId: string }) {
       {/* Product Details Tabs */}
       <section className="container mx-auto px-4 py-8 border-t">
         <Tabs defaultValue="description" className="w-full">
-          <TabsList className="grid grid-cols-3 mb-6">
-            <TabsTrigger value="description">Description</TabsTrigger>
-            <TabsTrigger value="specifications">Specifications</TabsTrigger>
-            <TabsTrigger value="reviews">Reviews</TabsTrigger>
+          <TabsList className="grid grid-cols-3 mb-6 md:w-fit md:grid-cols-none md:flex md:gap-2">
+            <TabsTrigger value="description" className="md:px-6">Description</TabsTrigger>
+            <TabsTrigger value="specifications" className="md:px-6">Specifications</TabsTrigger>
+            <TabsTrigger value="reviews" className="md:px-6">Reviews</TabsTrigger>
           </TabsList>
           <TabsContent value="description" className="text-muted-foreground">
-            <p>{product.description}</p>
+            <div className="prose prose-sm max-w-none">
+              <p className="whitespace-pre-line">{product.fullDescription || product.description}</p>
+            </div>
           </TabsContent>
           <TabsContent value="specifications">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Product Details</h3>
-                <div className="space-y-2">
-                  <div className="grid grid-cols-2 gap-4 py-2 border-b">
-                    <span className="text-muted-foreground">SKU</span>
-                    <span>{product.sku}</span>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Product Details</h3>
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-4 py-2 border-b">
+                      <span className="text-muted-foreground">SKU</span>
+                      <span>{product.sku}</span>
+                    </div>
+                    {product.dimensionsCm && (
+                      <div className="grid grid-cols-2 gap-4 py-2 border-b">
+                        <span className="text-muted-foreground">Dimensions</span>
+                        <span>{product.dimensionsCm}</span>
+                      </div>
+                    )}
+                    {product.weightKg && (
+                      <div className="grid grid-cols-2 gap-4 py-2 border-b">
+                        <span className="text-muted-foreground">Weight</span>
+                        <span>{product.weightKg} kg</span>
+                      </div>
+                    )}
+                    {product.material && (
+                      <div className="grid grid-cols-2 gap-4 py-2 border-b">
+                        <span className="text-muted-foreground">Material</span>
+                        <span>{product.material}</span>
+                      </div>
+                    )}
                   </div>
-                  {product.dimensionsCm && (
-                    <div className="grid grid-cols-2 gap-4 py-2 border-b">
-                      <span className="text-muted-foreground">Dimensions</span>
-                      <span>{product.dimensionsCm}</span>
-                    </div>
-                  )}
-                  {product.weightKg && (
-                    <div className="grid grid-cols-2 gap-4 py-2 border-b">
-                      <span className="text-muted-foreground">Weight</span>
-                      <span>{product.weightKg} kg</span>
-                    </div>
-                  )}
                 </div>
+
+                {product.careInstructions && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Care Instructions</h3>
+                    <div className="prose prose-sm max-w-none">
+                      <p className="text-muted-foreground whitespace-pre-line">{product.careInstructions}</p>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Product Information</h3>
-                <p className="text-muted-foreground">
-                  This product is part of the {product.categoryName} category
-                  and manufactured by {product.brandName}.
-                </p>
+              
+              <div className="space-y-6">
+                {product.warrantyInfo && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium flex items-center gap-2">
+                      <Shield className="h-5 w-5 text-primary" />
+                      Warranty Information
+                    </h3>
+                    <div className="prose prose-sm max-w-none">
+                      <p className="text-muted-foreground whitespace-pre-line">{product.warrantyInfo}</p>
+                    </div>
+                  </div>
+                )}
+
+                {product.shippingInfo && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium flex items-center gap-2">
+                      <Truck className="h-5 w-5 text-primary" />
+                      Shipping Information
+                    </h3>
+                    <div className="prose prose-sm max-w-none">
+                      <p className="text-muted-foreground whitespace-pre-line">{product.shippingInfo}</p>
+                    </div>
+                  </div>
+                )}
+
+                {product.returnPolicy && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-primary" />
+                      Return Policy
+                    </h3>
+                    <div className="prose prose-sm max-w-none">
+                      <p className="text-muted-foreground whitespace-pre-line">{product.returnPolicy}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Product Information</h3>
+                  <p className="text-muted-foreground">
+                    This product is part of the {product.categoryName} category
+                    and manufactured by {product.brandName}.
+                  </p>
+                </div>
               </div>
             </div>
           </TabsContent>

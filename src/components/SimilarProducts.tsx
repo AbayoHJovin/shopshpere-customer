@@ -9,7 +9,14 @@ import {
 import ProductCard from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, RefreshCw, Users, Star, TrendingUp, Tag } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2, RefreshCw, Users, Star, TrendingUp, Tag, ChevronDown } from "lucide-react";
 
 interface SimilarProductsProps {
   productId: string;
@@ -137,18 +144,36 @@ export default function SimilarProducts({
 
   return (
     <div className="py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold">{title}</h2>
-          <Badge variant="secondary" className="flex items-center gap-1">
-            <AlgorithmIcon className="h-3 w-3" />
-            {algorithmLabels[currentAlgorithm as keyof typeof algorithmLabels]}
-          </Badge>
+      {/* Header Section */}
+      <div className="flex flex-col gap-4 mb-6">
+        {/* Title and Badge */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl sm:text-2xl font-bold">{title}</h2>
+            <Badge variant="secondary" className="hidden sm:flex items-center gap-1">
+              <AlgorithmIcon className="h-3 w-3" />
+              {algorithmLabels[currentAlgorithm as keyof typeof algorithmLabels]}
+            </Badge>
+          </div>
+          
+          <Button onClick={handleRefresh} variant="outline" size="sm">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
         </div>
 
-        <div className="flex items-center gap-2">
-          {showAlgorithmSelector && (
-            <div className="flex gap-1">
+        {/* Algorithm Selector - Responsive */}
+        {showAlgorithmSelector && (
+          <>
+            {/* Mobile Badge - Show current algorithm on small screens */}
+            <div className="sm:hidden">
+              <Badge variant="secondary" className="flex items-center gap-1 w-fit">
+                <AlgorithmIcon className="h-3 w-3" />
+                {algorithmLabels[currentAlgorithm as keyof typeof algorithmLabels]}
+              </Badge>
+            </div>
+
+            {/* Desktop - Horizontal buttons (hidden on mobile) */}
+            <div className="hidden lg:flex gap-1">
               {Object.keys(algorithmLabels).map((algo) => (
                 <Button
                   key={algo}
@@ -161,12 +186,54 @@ export default function SimilarProducts({
                 </Button>
               ))}
             </div>
-          )}
 
-          <Button onClick={handleRefresh} variant="outline" size="sm">
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-        </div>
+            {/* Tablet - Scrollable tabs */}
+            <div className="hidden sm:block lg:hidden">
+              <div className="flex gap-1 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+                <div className="flex gap-1 min-w-max px-1">
+                  {Object.keys(algorithmLabels).map((algo) => (
+                    <Button
+                      key={algo}
+                      variant={currentAlgorithm === algo ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleAlgorithmChange(algo)}
+                      className="text-xs whitespace-nowrap flex-shrink-0"
+                    >
+                      {algorithmLabels[algo as keyof typeof algorithmLabels]}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile - Dropdown selector */}
+            <div className="sm:hidden">
+              <Select value={currentAlgorithm} onValueChange={handleAlgorithmChange}>
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    <div className="flex items-center gap-2">
+                      <AlgorithmIcon className="h-4 w-4" />
+                      {algorithmLabels[currentAlgorithm as keyof typeof algorithmLabels]}
+                    </div>
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(algorithmLabels).map(([algo, label]) => {
+                    const Icon = algorithmIcons[algo as keyof typeof algorithmIcons];
+                    return (
+                      <SelectItem key={algo} value={algo}>
+                        <div className="flex items-center gap-2">
+                          <Icon className="h-4 w-4" />
+                          {label}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">

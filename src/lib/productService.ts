@@ -60,15 +60,20 @@ export interface ProductDTO {
   images: ProductImageDTO[];
   videos: ProductVideoDTO[];
   variants: ProductVariantDTO[];
-  warehouseStock: ProductWarehouseStockDTO[];
-  totalWarehouseStock: number;
-  totalWarehouses: number;
+  warehouseStock?: ProductWarehouseStockDTO[];
+  totalWarehouseStock?: number;
+  totalWarehouses?: number;
   fullDescription?: string;
   metaTitle?: string;
   metaDescription?: string;
   metaKeywords?: string;
   dimensionsCm?: string;
   weightKg?: number;
+  material?: string;
+  careInstructions?: string;
+  warrantyInfo?: string;
+  shippingInfo?: string;
+  returnPolicy?: string;
 }
 
 export interface ProductImageDTO {
@@ -113,7 +118,7 @@ export interface ProductVariantDTO {
   updatedAt: string;
   images: VariantImageDTO[];
   attributes: VariantAttributeDTO[];
-  warehouseStocks: WarehouseStockDTO[];
+  warehouseStocks?: WarehouseStockDTO[];
 
   // Discount information
   discount?: DiscountDTO;
