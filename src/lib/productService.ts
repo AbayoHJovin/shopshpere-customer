@@ -455,19 +455,50 @@ export const ProductService = {
 
   /**
    * Calculate total stock quantity for a variant from all warehouses
+   * Falls back to using isInStock boolean when warehouseStocks is not available
    */
   getVariantTotalStock: (variant: ProductVariantDTO): number => {
-    if (!variant.warehouseStocks || variant.warehouseStocks.length === 0) {
-      return 0;
+    // If warehouseStocks is available, use it for accurate stock count
+    if (variant.warehouseStocks && variant.warehouseStocks.length > 0) {
+      return variant.warehouseStocks.reduce((total, stock) => total + stock.stockQuantity, 0);
     }
-    return variant.warehouseStocks.reduce((total, stock) => total + stock.stockQuantity, 0);
+    
+    // If stockQuantity is directly available (backward compatibility)
+    if (variant.stockQuantity !== undefined) {
+      return variant.stockQuantity;
+    }
+    
+    // Fall back to isInStock boolean - return 1 if in stock, 0 if not
+    // This is for customer-facing APIs that don't expose exact stock quantities
+    if (variant.isInStock !== undefined) {
+      return variant.isInStock ? 1 : 0;
+    }
+    
+    // Default to 0 if no stock information is available
+    return 0;
   },
 
   /**
    * Check if variant is in stock (has stock in any warehouse)
    */
   isVariantInStock: (variant: ProductVariantDTO): boolean => {
-    return ProductService.getVariantTotalStock(variant) > 0;
+    // If warehouseStocks is available, check if total stock > 0
+    if (variant.warehouseStocks && variant.warehouseStocks.length > 0) {
+      return ProductService.getVariantTotalStock(variant) > 0;
+    }
+    
+    // If stockQuantity is directly available
+    if (variant.stockQuantity !== undefined) {
+      return variant.stockQuantity > 0;
+    }
+    
+    // Fall back to isInStock boolean
+    if (variant.isInStock !== undefined) {
+      return variant.isInStock;
+    }
+    
+    // Default to false if no stock information is available
+    return false;
   },
 
   /**

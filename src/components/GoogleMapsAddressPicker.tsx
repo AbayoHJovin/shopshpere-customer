@@ -5,19 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { MapPin, Search, Loader2, Navigation, Check } from "lucide-react";
 import { toast } from "sonner";
 
@@ -59,6 +46,7 @@ export function GoogleMapsAddressPicker({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
   
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any>(null);
@@ -67,6 +55,7 @@ export function GoogleMapsAddressPicker({
   const autocompleteService = useRef<any>(null);
   const placesService = useRef<any>(null);
   const geocoderInstance = useRef<any>(null);
+  const suggestionContainerRef = useRef<HTMLDivElement>(null);
 
   // Load Google Maps script
   useEffect(() => {
@@ -100,12 +89,20 @@ export function GoogleMapsAddressPicker({
     }
   }, [isLoaded]);
 
-  // Handle click outside to close suggestions
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (searchInputRef.current && !searchInputRef.current.contains(event.target as Node)) {
-        setShowSuggestions(false);
+      const target = event.target as Node;
+      
+      if (
+        searchInputRef.current?.contains(target) ||
+        suggestionContainerRef.current?.contains(target)
+      ) {
+        return;
       }
+      
+      setShowSuggestions(false);
+      setPopoverOpen(false);
+      setInputFocused(false);
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -352,7 +349,6 @@ export function GoogleMapsAddressPicker({
     
     if (value.length > 2 && autocompleteService.current) {
       setIsSearching(true);
-      setPopoverOpen(true);
       
       autocompleteService.current.getPlacePredictions(
         {
@@ -366,6 +362,10 @@ export function GoogleMapsAddressPicker({
             console.log("Got predictions:", predictions);
             setSearchSuggestions(predictions);
             setShowSuggestions(true);
+            // Only open popover if input is focused
+            if (inputFocused) {
+              setPopoverOpen(true);
+            }
           } else {
             console.log("No predictions:", status);
             setSearchSuggestions([]);
@@ -387,6 +387,13 @@ export function GoogleMapsAddressPicker({
     setShowSuggestions(false);
     setSearchSuggestions([]);
     setPopoverOpen(false);
+    
+    // Keep focus on input after selection
+    setTimeout(() => {
+      if (searchInputRef.current) {
+        searchInputRef.current.focus();
+      }
+    }, 100);
     
     // Show loading state
     setIsLoadingLocation(true);
@@ -602,94 +609,104 @@ export function GoogleMapsAddressPicker({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Search Box with Shadcn Command */}
+        {/* Search Box with Custom Dropdown */}
         <div className="flex gap-2">
-          <div className="flex-1">
-            <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-              <PopoverTrigger asChild>
-                <div className="relative">
-                  <Input
-                    ref={searchInputRef}
-                    value={searchValue}
-                    onChange={(e) => handleSearchInputChange(e.target.value)}
-                    onKeyPress={handleSearchKeyPress}
-                    placeholder="Search for an address, landmark, or area..."
-                    className="w-full pr-8"
-                    onFocus={() => {
-                      if (searchSuggestions.length > 0) {
-                        setPopoverOpen(true);
-                      }
-                    }}
-                  />
-                  {isSearching && (
-                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
-                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                    </div>
-                  )}
+          <div className="flex-1 relative">
+            <div className="relative">
+              <Input
+                ref={searchInputRef}
+                value={searchValue}
+                onChange={(e) => handleSearchInputChange(e.target.value)}
+                onKeyPress={handleSearchKeyPress}
+                placeholder="Search for an address, landmark, or area..."
+                className="w-full pr-8"
+                onFocus={() => {
+                  setInputFocused(true);
+                  if (searchSuggestions.length > 0) {
+                    setShowSuggestions(true);
+                  }
+                }}
+                onBlur={(e) => {
+                  // Only blur if not clicking on suggestions
+                  const relatedTarget = e.relatedTarget as HTMLElement;
+                  if (!suggestionContainerRef.current?.contains(relatedTarget)) {
+                    setTimeout(() => {
+                      setInputFocused(false);
+                      setShowSuggestions(false);
+                    }, 150);
+                  }
+                }}
+              />
+              {isSearching && (
+                <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                 </div>
-              </PopoverTrigger>
-              <PopoverContent className="w-full p-0" align="start">
-                <Command>
-                  <CommandList>
-                    {isSearching ? (
-                      <div className="flex items-center justify-center py-6">
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        <span className="text-sm text-muted-foreground">Searching...</span>
-                      </div>
-                    ) : searchSuggestions.length > 0 ? (
-                      <CommandGroup heading="Suggestions">
-                        {searchSuggestions.map((suggestion) => (
-                          <CommandItem
-                            key={suggestion.place_id}
-                            value={suggestion.description}
-                            onSelect={() => {
-                              console.log("CommandItem selected:", suggestion.structured_formatting?.main_text);
-                              handleSuggestionSelect(suggestion);
-                            }}
-                            className="cursor-pointer"
-                          >
-                            <div className="flex items-start gap-3 w-full">
-                              <MapPin className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">
-                                  {suggestion.structured_formatting?.main_text || suggestion.description}
-                                </p>
-                                <p className="text-xs text-muted-foreground truncate">
-                                  {suggestion.structured_formatting?.secondary_text || suggestion.description}
-                                </p>
-                                {suggestion.types && suggestion.types.length > 0 && (
-                                  <div className="flex gap-1 mt-1">
-                                    {suggestion.types.slice(0, 2).map((type: string, idx: number) => (
-                                      <span key={idx} className="text-xs px-1.5 py-0.5 bg-muted text-muted-foreground rounded">
-                                        {type.replace(/_/g, ' ')}
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
+              )}
+            </div>
+            
+            {/* Custom Suggestions Dropdown */}
+            {showSuggestions && (searchSuggestions.length > 0 || isSearching) && (
+              <div 
+                ref={suggestionContainerRef}
+                className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-80 overflow-y-auto"
+              >
+                {isSearching ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <span className="text-sm text-muted-foreground">Searching...</span>
+                  </div>
+                ) : searchSuggestions.length > 0 ? (
+                  <div className="py-2">
+                    <div className="px-3 py-1 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                      Suggestions
+                    </div>
+                    {searchSuggestions.map((suggestion) => (
+                      <button
+                        key={suggestion.place_id}
+                        onClick={() => {
+                          console.log("Suggestion clicked:", suggestion.structured_formatting?.main_text);
+                          handleSuggestionSelect(suggestion);
+                        }}
+                        className="w-full text-left px-3 py-3 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none transition-colors"
+                        onMouseDown={(e) => {
+                          // Prevent input blur when clicking suggestion
+                          e.preventDefault();
+                        }}
+                      >
+                        <div className="flex items-start gap-3 w-full">
+                          <MapPin className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">
+                              {suggestion.structured_formatting?.main_text || suggestion.description}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {suggestion.structured_formatting?.secondary_text || suggestion.description}
+                            </p>
+                            {suggestion.types && suggestion.types.length > 0 && (
+                              <div className="flex gap-1 mt-1">
+                                {suggestion.types.slice(0, 2).map((type: string, idx: number) => (
+                                  <span key={idx} className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
+                                    {type.replace(/_/g, ' ')}
+                                  </span>
+                                ))}
                               </div>
-                              <div className="text-xs text-muted-foreground mt-0.5">
-                                Click to navigate
-                              </div>
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    ) : searchValue.length > 2 ? (
-                      <CommandEmpty>
-                        <div className="flex items-center gap-3 py-6">
-                          <MapPin className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">No locations found for "{searchValue}"</span>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            Click to navigate
+                          </div>
                         </div>
-                      </CommandEmpty>
-                    ) : (
-                      <div className="flex items-center justify-center py-6">
-                        <span className="text-sm text-muted-foreground">Type to search for locations...</span>
-                      </div>
-                    )}
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+                      </button>
+                    ))}
+                  </div>
+                ) : searchValue.length > 2 ? (
+                  <div className="flex items-center gap-3 py-6 px-3">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">No locations found for "{searchValue}"</span>
+                  </div>
+                ) : null}
+              </div>
+            )}
           </div>
           <Button onClick={handleSearch} variant="outline" size="icon">
             <Search className="h-4 w-4" />
