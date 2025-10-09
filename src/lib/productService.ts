@@ -2,6 +2,35 @@
 import { API_ENDPOINTS } from "./api";
 
 // Product DTOs matching the backend
+export interface ProductWarehouseStockDTO {
+  stockId: number;
+  warehouseId: number;
+  warehouseName: string;
+  warehouseAddress: string;
+  warehouseCity: string;
+  warehouseState: string;
+  warehouseCountry: string;
+  warehouseContactNumber: string;
+  warehouseEmail: string;
+  quantity: number;
+  lowStockThreshold: number;
+  isInStock: boolean;
+  isLowStock: boolean;
+  isOutOfStock: boolean;
+  createdAt: string;
+  updatedAt: string;
+  variantId?: number;
+  variantSku?: string;
+  variantName?: string;
+  isVariantBased: boolean;
+  batches: any[];
+  totalBatches: number;
+  activeBatches: number;
+  expiredBatches: number;
+  recalledBatches: number;
+  stockQuantity: number;
+}
+
 export interface ProductDTO {
   productId: string;
   name: string;
@@ -31,12 +60,20 @@ export interface ProductDTO {
   images: ProductImageDTO[];
   videos: ProductVideoDTO[];
   variants: ProductVariantDTO[];
+  warehouseStock?: ProductWarehouseStockDTO[];
+  totalWarehouseStock?: number;
+  totalWarehouses?: number;
   fullDescription?: string;
   metaTitle?: string;
   metaDescription?: string;
   metaKeywords?: string;
   dimensionsCm?: string;
   weightKg?: number;
+  material?: string;
+  careInstructions?: string;
+  warrantyInfo?: string;
+  shippingInfo?: string;
+  returnPolicy?: string;
 }
 
 export interface ProductImageDTO {
@@ -56,6 +93,16 @@ export interface ProductVideoDTO {
   durationSeconds?: number;
 }
 
+export interface WarehouseStockDTO {
+  warehouseId: number;
+  warehouseName: string;
+  warehouseLocation: string;
+  stockQuantity: number;
+  lowStockThreshold: number;
+  isLowStock: boolean;
+  lastUpdated: string;
+}
+
 export interface ProductVariantDTO {
   variantId: number;
   variantSku: string;
@@ -64,7 +111,6 @@ export interface ProductVariantDTO {
   price: number;
   salePrice?: number;
   costPrice?: number;
-  stockQuantity: number;
   isActive: boolean;
   isInStock?: boolean;
   isLowStock?: boolean;
@@ -72,11 +118,15 @@ export interface ProductVariantDTO {
   updatedAt: string;
   images: VariantImageDTO[];
   attributes: VariantAttributeDTO[];
+  warehouseStocks?: WarehouseStockDTO[];
 
   // Discount information
   discount?: DiscountDTO;
   discountedPrice?: number;
   hasActiveDiscount?: boolean;
+
+  // Computed properties for backward compatibility
+  stockQuantity?: number; // Will be calculated from warehouseStocks
 }
 
 export interface VariantImageDTO {
@@ -404,6 +454,64 @@ export const ProductService = {
   },
 
   /**
+   * Calculate total stock quantity for a variant from all warehouses
+   * Falls back to using isInStock boolean when warehouseStocks is not available
+   */
+  getVariantTotalStock: (variant: ProductVariantDTO): number => {
+    // If warehouseStocks is available, use it for accurate stock count
+    if (variant.warehouseStocks && variant.warehouseStocks.length > 0) {
+      return variant.warehouseStocks.reduce((total, stock) => total + stock.stockQuantity, 0);
+    }
+    
+    // If stockQuantity is directly available (backward compatibility)
+    if (variant.stockQuantity !== undefined) {
+      return variant.stockQuantity;
+    }
+    
+    // Fall back to isInStock boolean - return 1 if in stock, 0 if not
+    // This is for customer-facing APIs that don't expose exact stock quantities
+    if (variant.isInStock !== undefined) {
+      return variant.isInStock ? 1 : 0;
+    }
+    
+    // Default to 0 if no stock information is available
+    return 0;
+  },
+
+  /**
+   * Check if variant is in stock (has stock in any warehouse)
+   */
+  isVariantInStock: (variant: ProductVariantDTO): boolean => {
+    // If warehouseStocks is available, check if total stock > 0
+    if (variant.warehouseStocks && variant.warehouseStocks.length > 0) {
+      return ProductService.getVariantTotalStock(variant) > 0;
+    }
+    
+    // If stockQuantity is directly available
+    if (variant.stockQuantity !== undefined) {
+      return variant.stockQuantity > 0;
+    }
+    
+    // Fall back to isInStock boolean
+    if (variant.isInStock !== undefined) {
+      return variant.isInStock;
+    }
+    
+    // Default to false if no stock information is available
+    return false;
+  },
+
+  /**
+   * Check if variant is low stock (any warehouse is low stock)
+   */
+  isVariantLowStock: (variant: ProductVariantDTO): boolean => {
+    if (!variant.warehouseStocks || variant.warehouseStocks.length === 0) {
+      return false;
+    }
+    return variant.warehouseStocks.some(stock => stock.isLowStock);
+  },
+
+  /**
    * Add item to cart (this would typically go to a cart service)
    */
   addToCart: async (request: AddToCartRequest): Promise<any> => {
@@ -580,6 +688,162 @@ export const ProductService = {
       };
     } catch (error) {
       console.error("Error fetching product reviews:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get featured products for customers
+   */
+  getFeaturedProducts: async (
+    page = 0,
+    size = 12
+  ): Promise<Page<ManyProductsDto>> => {
+    try {
+      const response = await fetch(
+        `${API_ENDPOINTS.FEATURED_PRODUCTS}?page=${page}&size=${size}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch featured products: ${response.status}`);
+      }
+
+      const products: Page<ManyProductsDto> = await response.json();
+      return products;
+    } catch (error) {
+      console.error("Error fetching featured products:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get bestseller products for customers
+   */
+  getBestsellerProducts: async (
+    page = 0,
+    size = 12
+  ): Promise<Page<ManyProductsDto>> => {
+    try {
+      const response = await fetch(
+        `${API_ENDPOINTS.BESTSELLER_PRODUCTS}?page=${page}&size=${size}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch bestseller products: ${response.status}`);
+      }
+
+      const products: Page<ManyProductsDto> = await response.json();
+      return products;
+    } catch (error) {
+      console.error("Error fetching bestseller products:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get new arrival products for customers
+   */
+  getNewArrivalProducts: async (
+    page = 0,
+    size = 12
+  ): Promise<Page<ManyProductsDto>> => {
+    try {
+      const response = await fetch(
+        `${API_ENDPOINTS.NEW_ARRIVAL_PRODUCTS}?page=${page}&size=${size}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch new arrival products: ${response.status}`);
+      }
+
+      const products: Page<ManyProductsDto> = await response.json();
+      return products;
+    } catch (error) {
+      console.error("Error fetching new arrival products:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get products by category for customers
+   */
+  getProductsByCategory: async (
+    categoryId: string,
+    page = 0,
+    size = 12,
+    sortBy = "createdAt",
+    sortDirection = "desc"
+  ): Promise<Page<ManyProductsDto>> => {
+    try {
+      const response = await fetch(
+        `${API_ENDPOINTS.PRODUCTS_BY_CATEGORY(categoryId)}?page=${page}&size=${size}&sortBy=${sortBy}&sortDirection=${sortDirection}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch products by category: ${response.status}`);
+      }
+
+      const products: Page<ManyProductsDto> = await response.json();
+      return products;
+    } catch (error) {
+      console.error("Error fetching products by category:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get products by brand for customers
+   */
+  getProductsByBrand: async (
+    brandId: string,
+    page = 0,
+    size = 12,
+    sortBy = "createdAt",
+    sortDirection = "desc"
+  ): Promise<Page<ManyProductsDto>> => {
+    try {
+      const response = await fetch(
+        `${API_ENDPOINTS.PRODUCTS_BY_BRAND(brandId)}?page=${page}&size=${size}&sortBy=${sortBy}&sortDirection=${sortDirection}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch products by brand: ${response.status}`);
+      }
+
+      const products: Page<ManyProductsDto> = await response.json();
+      return products;
+    } catch (error) {
+      console.error("Error fetching products by brand:", error);
       throw error;
     }
   },

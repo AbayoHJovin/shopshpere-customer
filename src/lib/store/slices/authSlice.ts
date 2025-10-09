@@ -164,7 +164,9 @@ const authSlice = createSlice({
       })
       .addCase(register.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.signupResponse = action.payload;
+        if (action.payload) {
+          state.signupResponse = action.payload;
+        }
         state.error = null;
       })
       .addCase(register.rejected, (state, action) => {
@@ -178,9 +180,11 @@ const authSlice = createSlice({
       })
       .addCase(login.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.user = action.payload.user;
-        state.token = action.payload.token;
-        state.isAuthenticated = true;
+        if (action.payload) {
+          state.user = action.payload.user;
+          state.token = action.payload.token;
+          state.isAuthenticated = true;
+        }
         state.error = null;
       })
       .addCase(login.rejected, (state, action) => {
@@ -194,8 +198,10 @@ const authSlice = createSlice({
       })
       .addCase(getCurrentUser.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.user = action.payload;
-        state.isAuthenticated = true;
+        if (action.payload) {
+          state.user = action.payload;
+          state.isAuthenticated = true;
+        }
         state.error = null;
       })
       .addCase(getCurrentUser.rejected, (state, action) => {

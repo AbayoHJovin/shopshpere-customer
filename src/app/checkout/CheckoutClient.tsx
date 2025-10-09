@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, CreditCard, LockIcon, Loader2 } from "lucide-react";
+import { ArrowLeft, Coins, CreditCard, LockIcon, Loader2, MapPin } from "lucide-react";
 
 // Components
 import { Button } from "@/components/ui/button";
@@ -36,8 +36,10 @@ import {
 } from "@/components/ui/accordion";
 import { toast } from "sonner";
 import { PaymentIcons } from "@/components/PaymentIcons";
-import { AddressInput } from "@/components/AddressInput";
+import { GoogleMapsAddressPicker } from "@/components/GoogleMapsAddressPicker";
 import { CountrySelector } from "@/components/CountrySelector";
+import { PointsPaymentModal } from "@/components/PointsPaymentModal";
+import { formatStockErrorMessage, extractErrorDetails } from "@/lib/utils/errorParser";
 
 // Services
 import { CartService, CartResponse } from "@/lib/cartService";
@@ -45,15 +47,16 @@ import {
   OrderService,
   CheckoutRequest,
   GuestCheckoutRequest,
-  CartItemDTO,
   AddressDto,
+  CartItemDTO,
 } from "@/lib/orderService";
 import {
   checkoutService,
   PaymentSummaryDTO,
 } from "@/lib/services/checkout-service";
+import { formatPrice, formatPriceForInput } from "@/lib/utils/priceFormatter";
 import { useAppSelector } from "@/lib/store/hooks";
-import { API_ENDPOINTS } from "@/lib/api";
+import { PointsPaymentRequest } from "@/lib/services/points-payment-service";
 
 // Constants
 const PAYMENT_METHODS = [
@@ -86,6 +89,7 @@ export function CheckoutClient() {
   const [paymentSummary, setPaymentSummary] =
     useState<PaymentSummaryDTO | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
+  const [showPointsModal, setShowPointsModal] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -96,10 +100,12 @@ export function CheckoutClient() {
     streetAddress: "",
     city: "",
     stateProvince: "",
-    postalCode: "",
     country: "",
+    latitude: undefined as number | undefined,
+    longitude: undefined as number | undefined,
     notes: "",
   });
+  const [addressSelected, setAddressSelected] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -179,15 +185,22 @@ export function CheckoutClient() {
     }));
   };
 
-  const handleAddressSelect = (addressComponents: any) => {
+  const handleGoogleMapsAddressSelect = (address: any) => {
     setFormData((prev) => ({
       ...prev,
-      streetAddress: addressComponents.streetAddress || prev.streetAddress,
-      city: addressComponents.city || prev.city,
-      stateProvince: addressComponents.state || prev.stateProvince,
-      postalCode: addressComponents.postalCode || prev.postalCode,
-      country: addressComponents.country || prev.country,
+      streetAddress: `${address.streetNumber} ${address.streetName}`.trim() || address.formattedAddress,
+      city: address.city,
+      stateProvince: address.state,
+      country: address.country,
+      latitude: address.latitude,
+      longitude: address.longitude,
     }));
+    setAddressSelected(true);
+    
+    // Automatically fetch payment summary after address selection
+    setTimeout(() => {
+      fetchPaymentSummary();
+    }, 500);
   };
 
   const fetchPaymentSummary = async () => {
@@ -240,8 +253,9 @@ export function CheckoutClient() {
 
           const cartItem: CartItemDTO = {
             productId: item.productId,
+            productName: item.name,
             quantity: item.quantity || 1,
-            weight: 0, // Default weight - could be enhanced later
+            price: item.price,
           };
 
           // Only include variantId if it exists and is valid
@@ -260,8 +274,9 @@ export function CheckoutClient() {
         streetAddress: formData.streetAddress,
         city: formData.city,
         state: formData.stateProvince,
-        postalCode: formData.postalCode,
         country: formData.country,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
       };
 
       console.log("Sending payment summary request:", {
@@ -280,11 +295,51 @@ export function CheckoutClient() {
 
       console.log("Payment summary received:", summary);
       setPaymentSummary(summary);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching payment summary:", error);
-      toast.error(
-        "Error calculating shipping and taxes. Please check your address and try again."
-      );
+      
+      const errorDetails = extractErrorDetails(error);
+      
+      // Check for country validation errors first
+      if (errorDetails.errorCode === "VALIDATION_ERROR" && 
+          (errorDetails.message?.includes("don't deliver to") || errorDetails.details?.includes("don't deliver to"))) {
+        const countryMessage = errorDetails.message || errorDetails.details || "We don't deliver to this country.";
+        toast.error(countryMessage, {
+          duration: 10000, // Longer duration for important country validation messages
+          style: {
+            backgroundColor: '#fef2f2',
+            borderColor: '#fecaca',
+            color: '#991b1b',
+          },
+        });
+        // Clear the address selection to force user to select a different address
+        setAddressSelected(false);
+        setFormData(prev => ({
+          ...prev,
+          country: "",
+          city: "",
+          stateProvince: "",
+          streetAddress: "",
+          latitude: undefined,
+          longitude: undefined,
+        }));
+      }
+      // Check if this is a stock-related error
+      else if (errorDetails.details && (errorDetails.details.includes("not available") || errorDetails.details.includes("out of stock"))) {
+        const stockMessage = formatStockErrorMessage(errorDetails.details);
+        toast.error(stockMessage, {
+          duration: 8000,
+        });
+      } else if (errorDetails.message && (errorDetails.message.includes("not available") || errorDetails.message.includes("out of stock"))) {
+        const stockMessage = formatStockErrorMessage(errorDetails.message);
+        toast.error(stockMessage, {
+          duration: 8000,
+        });
+      } else {
+        toast.error(
+          errorDetails.message || "Error calculating shipping and taxes. Please check your address and try again."
+        );
+      }
       setPaymentSummary(null);
     } finally {
       setLoadingSummary(false);
@@ -339,12 +394,10 @@ export function CheckoutClient() {
             weight: item.weight || 0, // Add weight field for shipping calculation
           };
 
-          // Only include id for authenticated users
           if (isAuthenticated && itemId !== undefined) {
             cartItem.id = itemId;
           }
 
-          // Only include variantId if it exists
           if (variantId !== undefined) {
             cartItem.variantId = variantId;
           }
@@ -367,8 +420,9 @@ export function CheckoutClient() {
         streetAddress: formData.streetAddress,
         city: formData.city,
         state: formData.stateProvince,
-        postalCode: formData.postalCode,
         country: formData.country,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
       };
 
       let sessionUrl: string;
@@ -389,11 +443,6 @@ export function CheckoutClient() {
           platform: "web",
         };
 
-        console.log(
-          "Using AUTHENTICATED checkout - sending to:",
-          API_ENDPOINTS.CHECKOUT_CREATE_SESSION
-        );
-        console.log("Sending checkout request:", checkoutRequest);
         const response = await OrderService.createCheckoutSession(
           checkoutRequest
         );
@@ -410,10 +459,6 @@ export function CheckoutClient() {
           platform: "web",
         };
 
-        console.log(
-          "Using GUEST checkout - sending to:",
-          API_ENDPOINTS.CHECKOUT_GUEST_CREATE_SESSION
-        );
         console.log("Sending guest checkout request:", guestCheckoutRequest);
         const response = await OrderService.createGuestCheckoutSession(
           guestCheckoutRequest
@@ -423,12 +468,203 @@ export function CheckoutClient() {
 
       // Redirect to Stripe checkout
       window.location.href = sessionUrl;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating checkout session:", error);
-      toast.error("Error processing checkout. Please try again later.");
+      console.error("Error response data:", error.response?.data);
+      console.error("Error response status:", error.response?.status);
+      
+      const errorDetails = extractErrorDetails(error);
+      console.error("Extracted error details:", errorDetails);
+      
+      if (errorDetails.errorCode) {
+        console.log("🔍 DEBUG: Error code detected:", errorDetails.errorCode);
+        switch (errorDetails.errorCode) {
+          case "VALIDATION_ERROR":
+            // Handle country validation errors
+            if (errorDetails.message?.includes("don't deliver to") || errorDetails.details?.includes("don't deliver to")) {
+              const countryMessage = errorDetails.message || errorDetails.details || "We don't deliver to this country.";
+              toast.error(countryMessage, {
+                duration: 10000, // Longer duration for important country validation messages
+                style: {
+                  backgroundColor: '#fef2f2',
+                  borderColor: '#fecaca',
+                  color: '#991b1b',
+                },
+              });
+              // Clear the address selection to force user to select a different address
+              setAddressSelected(false);
+              setFormData(prev => ({
+                ...prev,
+                country: "",
+                city: "",
+                stateProvince: "",
+                streetAddress: "",
+                latitude: undefined,
+                longitude: undefined,
+              }));
+            } else {
+              // Other validation errors
+              toast.error(errorDetails.message || errorDetails.details || "Please check your information and try again.");
+            }
+            break;
+          case "PRODUCT_NOT_FOUND":
+          case "VARIANT_NOT_FOUND":
+            toast.error("One or more products in your cart are no longer available. Please refresh and try again.");
+            break;
+          case "PRODUCT_INACTIVE":
+          case "PRODUCT_NOT_AVAILABLE":
+          case "VARIANT_INACTIVE":
+          case "VARIANT_NOT_AVAILABLE":
+            // Use the enhanced error parser for stock-related issues
+            if (errorDetails.details || errorDetails.message) {
+              const stockMessage = formatStockErrorMessage(errorDetails.details || errorDetails.message || "");
+              toast.error(stockMessage, {
+                duration: 8000, // Longer duration for important stock messages
+              });
+            } else {
+              toast.error("Some products in your cart are no longer available for purchase. Please remove them and try again.");
+            }
+            break;
+          case "INSUFFICIENT_STOCK":
+            // Enhanced stock error handling
+            if (errorDetails.details || errorDetails.message) {
+              const stockMessage = formatStockErrorMessage(errorDetails.details || errorDetails.message || "");
+              toast.error(stockMessage, {
+                duration: 8000,
+              });
+            } else {
+              toast.error("Insufficient stock for one or more items in your cart. Please review your cart and try again.");
+            }
+            break;
+          case "INTERNAL_ERROR":
+            console.log("🔍 DEBUG: INTERNAL_ERROR case triggered");
+            console.log("🔍 DEBUG: errorDetails.details:", errorDetails.details);
+            console.log("🔍 DEBUG: errorDetails.message:", errorDetails.message);
+            
+            // Handle internal errors that might contain stock information
+            if (errorDetails.details && (errorDetails.details.includes("not available") || errorDetails.details.includes("out of stock"))) {
+              console.log("🔍 DEBUG: Stock error detected in details, formatting message...");
+              const stockMessage = formatStockErrorMessage(errorDetails.details);
+              console.log("🔍 DEBUG: Formatted stock message:", stockMessage);
+              toast.error(stockMessage, {
+                duration: 8000,
+              });
+            } else if (errorDetails.message && (errorDetails.message.includes("not available") || errorDetails.message.includes("out of stock"))) {
+              console.log("🔍 DEBUG: Stock error detected in message, formatting message...");
+              const stockMessage = formatStockErrorMessage(errorDetails.message);
+              console.log("🔍 DEBUG: Formatted stock message:", stockMessage);
+              toast.error(stockMessage, {
+                duration: 8000,
+              });
+            } else {
+              console.log("🔍 DEBUG: No stock error detected, showing generic message");
+              toast.error(errorDetails.message || "An unexpected error occurred while processing checkout. Please try again later.");
+            }
+            break;
+          default:
+            console.log("🔍 DEBUG: Default case triggered for error code:", errorDetails.errorCode);
+            // Check if the default case also contains stock information
+            if ((errorDetails.details && (errorDetails.details.includes("not available") || errorDetails.details.includes("out of stock"))) ||
+                (errorDetails.message && (errorDetails.message.includes("not available") || errorDetails.message.includes("out of stock")))) {
+              console.log("🔍 DEBUG: Stock error detected in default case");
+              const stockMessage = formatStockErrorMessage(errorDetails.details || errorDetails.message || "");
+              toast.error(stockMessage, {
+                duration: 8000,
+              });
+            } else {
+              toast.error(errorDetails.message || "Error processing checkout. Please try again later.");
+            }
+        }
+      } else {
+        console.log("🔍 DEBUG: No error code detected, showing generic message");
+        // Even without error code, check if there's stock information
+        const errorMessage = errorDetails.message || error.message || "";
+        if (errorMessage.includes("not available") || errorMessage.includes("out of stock")) {
+          console.log("🔍 DEBUG: Stock error detected without error code");
+          const stockMessage = formatStockErrorMessage(errorMessage);
+          toast.error(stockMessage, {
+            duration: 8000,
+          });
+        } else {
+          toast.error("Error processing checkout. Please try again later.");
+        }
+      }
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handlePointsPayment = () => {
+    if (!isAuthenticated || !user) {
+      toast.error("Please log in to use points payment");
+      return;
+    }
+
+    if (!cart || cart.items.length === 0) {
+      toast.error("Your cart is empty");
+      return;
+    }
+
+    if (!formData.streetAddress || !formData.city || !formData.country) {
+      toast.error("Please complete your shipping address first");
+      return;
+    }
+
+    setShowPointsModal(true);
+  };
+
+  const handlePointsSuccess = (orderId: number, orderNumber?: string, pointsUsed?: number, pointsValue?: number) => {
+    setShowPointsModal(false);
+    toast.success("Order placed successfully!");
+    
+    // Build URL with orderNumber and points information
+    const params = new URLSearchParams();
+    if (orderNumber) {
+      params.set('orderNumber', orderNumber);
+    } else {
+      params.set('orderId', orderId.toString()); // Fallback to orderId if orderNumber not available
+    }
+    if (pointsUsed) {
+      params.set('pointsUsed', pointsUsed.toString());
+    }
+    if (pointsValue) {
+      params.set('pointsValue', pointsValue.toString());
+    }
+    
+    router.push(`/payment-success?${params.toString()}`);
+  };
+
+  const handleHybridPayment = (stripeSessionId: string, orderId: number) => {
+    setShowPointsModal(false);
+    // stripeSessionId is actually the complete Stripe checkout URL from backend
+    window.location.href = stripeSessionId;
+  };
+
+  const createPointsPaymentRequest = (): PointsPaymentRequest | null => {
+    if (!cart || !user) return null;
+
+    const cartItems = cart.items.map((item) => ({
+      productId: item.productId,
+      variantId: item.variantId ? parseInt(item.variantId) : undefined,
+      quantity: item.quantity,
+      price: item.price,
+    }));
+
+    const address = {
+      streetAddress: formData.streetAddress,
+      city: formData.city,
+      state: formData.stateProvince,
+      country: formData.country,
+      latitude: formData.latitude,
+      longitude: formData.longitude,
+    };
+
+    return {
+      userId: user.id,
+      items: cartItems,
+      shippingAddress: address,
+      useAllAvailablePoints: true,
+    };
   };
 
   const validateForm = () => {
@@ -441,14 +677,12 @@ export function CheckoutClient() {
       "streetAddress",
       "city",
       "stateProvince",
-      "postalCode",
       "country",
     ];
 
     let isValid = true;
     const errors: string[] = [];
 
-    // Check required fields
     requiredFields.forEach((field) => {
       if (!formData[field as keyof typeof formData]) {
         isValid = false;
@@ -527,11 +761,7 @@ export function CheckoutClient() {
   };
 
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-    }).format(price);
+    return formatPriceForInput(price);
   };
 
   if (loading) {
@@ -637,63 +867,46 @@ export function CheckoutClient() {
               <CardDescription>
                 Where should we deliver your order?
               </CardDescription>
+              
             </CardHeader>
             <CardContent className="p-6 space-y-4">
-              <AddressInput
-                value={formData.streetAddress}
-                onChange={(value) =>
-                  setFormData((prev) => ({ ...prev, streetAddress: value }))
-                }
-                onAddressSelect={handleAddressSelect}
-                label="Street Address"
-                placeholder="123 Main St, Apt 4B"
-                required
-              />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="city">City*</Label>
-                  <Input
-                    id="city"
-                    name="city"
-                    value={formData.city}
-                    onChange={handleInputChange}
-                    placeholder="Washington"
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Enter the city name (e.g., Washington, New York, London)
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="stateProvince">State/Province*</Label>
-                  <Input
-                    id="stateProvince"
-                    name="stateProvince"
-                    value={formData.stateProvince}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="postalCode">Postal Code*</Label>
-                  <Input
-                    id="postalCode"
-                    name="postalCode"
-                    value={formData.postalCode}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <CountrySelector
-                  value={formData.country}
-                  onChange={handleCountryChange}
-                  label="Country"
-                  required
-                  placeholder="Select a country"
+              {!addressSelected ? (
+                <GoogleMapsAddressPicker
+                  onAddressSelect={handleGoogleMapsAddressSelect}
+                  apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}
                 />
-              </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <MapPin className="h-5 w-5 text-green-600" />
+                      <h4 className="font-medium text-green-800">Selected Delivery Address</h4>
+                    </div>
+                    <p className="text-sm text-green-700 mb-2">
+                      {formData.streetAddress}
+                    </p>
+                    <p className="text-xs text-green-600">
+                      {formData.city}, {formData.stateProvince}  {formData.country}
+                    </p>
+                    <div className="mt-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setAddressSelected(false);
+                          setPaymentSummary(null);
+                        }}
+                        className="text-green-700 border-green-300 hover:bg-green-100"
+                      >
+                        <MapPin className="h-4 w-4 mr-2" />
+                        Change Address
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div className="space-y-2">
                 <Label htmlFor="notes">Order Notes (Optional)</Label>
                 <Textarea
@@ -853,10 +1066,10 @@ export function CheckoutClient() {
                             </p>
                             <div className="flex justify-between mt-1">
                               <span className="text-sm text-muted-foreground">
-                                {item.quantity} × ${item.price.toFixed(2)}
+                                {item.quantity} × {formatPrice(item.price)}
                               </span>
                               <span className="text-sm font-medium">
-                                ${(item.price * item.quantity).toFixed(2)}
+                                {formatPrice(item.price * item.quantity)}
                               </span>
                             </div>
                           </div>
@@ -1021,6 +1234,29 @@ export function CheckoutClient() {
                 </div>
               </CardContent>
               <CardFooter className="bg-muted/30 px-6 py-4 flex flex-col gap-4">
+                {isAuthenticated && user && (
+                  <Button
+                    variant="outline"
+                    className="w-full border-yellow-300 bg-yellow-50 hover:bg-yellow-100 text-yellow-800"
+                    size="lg"
+                    onClick={handlePointsPayment}
+                    disabled={
+                      submitting ||
+                      loadingSummary ||
+                      !paymentSummary ||
+                      !formData.streetAddress.trim() ||
+                      !formData.city.trim() ||
+                      !formData.country.trim() ||
+                      !formData.email.trim() ||
+                      !formData.firstName.trim() ||
+                      !formData.lastName.trim()
+                    }
+                  >
+                    <Coins className="h-4 w-4 mr-2" />
+                    Pay with Points
+                  </Button>
+                )}
+
                 <Button
                   className="w-full"
                   size="lg"
@@ -1028,10 +1264,13 @@ export function CheckoutClient() {
                   disabled={
                     submitting ||
                     loadingSummary ||
-                    (!paymentSummary &&
-                      formData.streetAddress &&
-                      formData.city &&
-                      formData.country)
+                    !paymentSummary ||
+                    !formData.streetAddress.trim() ||
+                    !formData.city.trim() ||
+                    !formData.country.trim() ||
+                    !formData.email.trim() ||
+                    !formData.firstName.trim() ||
+                    !formData.lastName.trim()
                   }
                 >
                   {submitting ? (
@@ -1119,6 +1358,24 @@ export function CheckoutClient() {
           </div>
         </div>
       </div>
+
+      <PointsPaymentModal
+        isOpen={showPointsModal}
+        onClose={() => setShowPointsModal(false)}
+        onSuccess={handlePointsSuccess}
+        onHybridPayment={handleHybridPayment}
+        paymentRequest={createPointsPaymentRequest() || {
+          userId: "",
+          items: [],
+          shippingAddress: {
+            streetAddress: "",
+            city: "",
+            state: "",
+            country: "",
+          },
+          useAllAvailablePoints: true,
+        }}
+      />
     </div>
   );
 }

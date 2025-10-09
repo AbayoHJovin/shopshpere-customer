@@ -1,15 +1,22 @@
 // API Configuration
 export const API_BASE_URL =
-  // process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
-  "http://44.201.73.159:8081/api/v1";
+  process.env.NODE_ENV === "production"
+    ? "http://44.201.73.159:8081/api/v1"
+    : "http://localhost:8080/api/v1";
 
 // API Endpoints
 export const API_ENDPOINTS = {
-  // Product endpoints
-  PRODUCTS: `${API_BASE_URL}/products`,
-  PRODUCT_BY_ID: (id: string) => `${API_BASE_URL}/products/${id}`,
-  PRODUCT_BY_SLUG: (slug: string) => `${API_BASE_URL}/products/slug/${slug}`,
-  SEARCH_PRODUCTS: `${API_BASE_URL}/products/search`,
+  // Customer Product endpoints (filtered for customers)
+  PRODUCTS: `${API_BASE_URL}/customer/products`,
+  PRODUCT_BY_ID: (id: string) => `${API_BASE_URL}/customer/products/${id}`,
+  PRODUCT_BY_SLUG: (slug: string) => `${API_BASE_URL}/customer/products/slug/${slug}`,
+  SEARCH_PRODUCTS: `${API_BASE_URL}/customer/products/search`,
+  FEATURED_PRODUCTS: `${API_BASE_URL}/customer/products/featured`,
+  BESTSELLER_PRODUCTS: `${API_BASE_URL}/customer/products/bestsellers`,
+  NEW_ARRIVAL_PRODUCTS: `${API_BASE_URL}/customer/products/new-arrivals`,
+  PRODUCTS_BY_CATEGORY: (categoryId: string) => `${API_BASE_URL}/customer/products/category/${categoryId}`,
+  PRODUCTS_BY_BRAND: (brandId: string) => `${API_BASE_URL}/customer/products/brand/${brandId}`,
+  SIMILAR_PRODUCTS: (productId: string) => `${API_BASE_URL}/customer/products/${productId}/similar`,
   PRODUCT_REVIEWS: (productId: string) =>
     `${API_BASE_URL}/reviews/product/${productId}`,
   REVIEWS: `${API_BASE_URL}/reviews`,
@@ -78,6 +85,29 @@ export const API_ENDPOINTS = {
   DISCOUNTS: `${API_BASE_URL}/discounts`,
   DISCOUNTS_ACTIVE: `${API_BASE_URL}/discounts/active`,
   DISCOUNT_BY_ID: (id: string) => `${API_BASE_URL}/discounts/${id}`,
+
+  // Points Payment endpoints
+  POINTS_PAYMENT_PREVIEW: `${API_BASE_URL}/points-payment/preview`,
+  POINTS_PAYMENT_PROCESS: `${API_BASE_URL}/points-payment/process`,
+  POINTS_PAYMENT_COMPLETE_HYBRID: (userId: string, orderId: string) => 
+    `${API_BASE_URL}/points-payment/complete-hybrid/${userId}/${orderId}`,
+
+  // Return endpoints
+  RETURNS: `${API_BASE_URL}/returns`,
+  RETURN_BY_ID: (returnId: string) => `${API_BASE_URL}/returns/${returnId}`,
+  RETURN_BY_ORDER_ID: (orderId: string) => `${API_BASE_URL}/returns/order/${orderId}`,
+  RETURN_BY_ORDER_NUMBER: (orderNumber: string) => `${API_BASE_URL}/returns/order-number/${orderNumber}`,
+  RETURN_SUBMIT: `${API_BASE_URL}/returns/submit`,
+
+  // Appeal endpoints
+  APPEALS: `${API_BASE_URL}/appeals`,
+  APPEAL_SUBMIT: `${API_BASE_URL}/appeals/submit`,
+  APPEAL_BY_RETURN_ID: (returnId: string) => `${API_BASE_URL}/appeals/return/${returnId}`,
+
+  // Public Delivery endpoints (no authentication required)
+  DELIVERY_CHECK_AVAILABILITY: (country: string) => 
+    `${API_BASE_URL}/public/delivery/check-availability?country=${encodeURIComponent(country)}`,
+  DELIVERY_AVAILABLE_COUNTRIES: `${API_BASE_URL}/public/delivery/available-countries`,
 } as const;
 
 // HTTP Headers
@@ -102,3 +132,39 @@ export interface ApiError {
   status: number;
   timestamp: string;
 }
+
+// API Helper functions
+export const apiCall = async <T>(
+  url: string,
+  options: RequestInit = {}
+): Promise<T> => {
+  const defaultOptions: RequestInit = {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  };
+
+  const config = { ...defaultOptions, ...options };
+  
+  try {
+    const response = await fetch(url, config);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('API call failed:', error);
+    throw error;
+  }
+};
+
+// Public API call (no authentication required)
+export const publicApiCall = async <T>(
+  url: string,
+  options: RequestInit = {}
+): Promise<T> => {
+  return apiCall<T>(url, options);
+};

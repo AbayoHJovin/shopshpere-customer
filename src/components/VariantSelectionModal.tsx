@@ -25,8 +25,9 @@ import {
   AlertCircle,
   ExternalLink,
 } from "lucide-react";
-import { ProductDTO, ProductVariantDTO } from "@/lib/productService";
+import { ProductDTO, ProductVariantDTO, ProductService } from "@/lib/productService";
 import { CartItemRequest } from "@/lib/cartService";
+import { formatPrice as formatPriceUtil, formatDiscountedPrice } from "@/lib/utils/priceFormatter";
 import Link from "next/link";
 
 interface VariantSelectionModalProps {
@@ -72,12 +73,25 @@ const VariantSelectionModal = ({
   // Handle quantity change
   const handleQuantityChange = (newQuantity: number) => {
     if (newQuantity < 1) return;
-    if (
-      selectedVariant &&
-      selectedVariant.stockQuantity > 0 &&
-      newQuantity > selectedVariant.stockQuantity
-    )
-      return;
+    
+    if (selectedVariant) {
+      const totalStock = ProductService.getVariantTotalStock(selectedVariant);
+      const isInStock = ProductService.isVariantInStock(selectedVariant);
+      
+      // If not in stock, don't allow any quantity
+      if (!isInStock) return;
+      
+      // If we have exact stock quantity, enforce the limit
+      if ((selectedVariant.warehouseStocks || selectedVariant.stockQuantity !== undefined) && totalStock > 0) {
+        if (newQuantity > totalStock) return;
+      }
+      
+      // For boolean isInStock without exact quantities, allow reasonable quantities (up to 10)
+      if (!selectedVariant.warehouseStocks && selectedVariant.stockQuantity === undefined) {
+        if (newQuantity > 10) return;
+      }
+    }
+    
     setQuantity(newQuantity);
   };
 
@@ -138,33 +152,28 @@ const VariantSelectionModal = ({
 
   // Format price with discount
   const formatPrice = (price: number, variant?: ProductVariantDTO) => {
-    const basePrice = new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
-
     if (variant) {
       const effectiveDiscount = getEffectiveDiscount(variant);
       if (effectiveDiscount) {
-        const discountedPrice = new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "USD",
-        }).format(effectiveDiscount.discountedPrice);
+        const priceInfo = formatDiscountedPrice(
+          price,
+          effectiveDiscount.discountedPrice
+        );
 
         return (
           <div className="flex flex-col">
             <span className="font-semibold text-green-600">
-              {discountedPrice}
+              {formatPriceUtil(effectiveDiscount.discountedPrice)}
             </span>
             <span className="text-xs text-muted-foreground line-through">
-              {basePrice}
+              {formatPriceUtil(price)}
             </span>
           </div>
         );
       }
     }
 
-    return <span className="font-semibold">{basePrice}</span>;
+    return <span className="font-semibold">{formatPriceUtil(price)}</span>;
   };
 
   // Get main product image
@@ -293,15 +302,28 @@ const VariantSelectionModal = ({
                               <div className="flex items-center gap-4 text-xs text-muted-foreground mb-2">
                                 <span
                                   className={`flex items-center gap-1 ${
-                                    variant.stockQuantity > 0
+                                    ProductService.isVariantInStock(variant)
                                       ? "text-green-600"
                                       : "text-red-600"
                                   }`}
                                 >
                                   <Package className="h-3 w-3" />
-                                  {variant.stockQuantity > 0
-                                    ? `${variant.stockQuantity} in stock`
-                                    : "Out of stock"}
+                                  {(() => {
+                                    const totalStock = ProductService.getVariantTotalStock(variant);
+                                    const isInStock = ProductService.isVariantInStock(variant);
+                                    
+                                    if (!isInStock) {
+                                      return "Out of stock";
+                                    }
+                                    
+                                    // If we have exact stock quantity (from warehouseStocks or stockQuantity)
+                                    if (variant.warehouseStocks || variant.stockQuantity !== undefined) {
+                                      return `${totalStock} in stock`;
+                                    }
+                                    
+                                    // If we only have isInStock boolean, show generic message
+                                    return "In stock";
+                                  })()}
                                 </span>
                                 {(() => {
                                   const effectiveDiscount =
@@ -378,7 +400,7 @@ const VariantSelectionModal = ({
                     size="icon"
                     onClick={() => handleQuantityChange(quantity - 1)}
                     disabled={
-                      quantity <= 1 || selectedVariant.stockQuantity === 0
+                      quantity <= 1 || !ProductService.isVariantInStock(selectedVariant)
                     }
                   >
                     <Minus className="h-4 w-4" />
@@ -386,40 +408,72 @@ const VariantSelectionModal = ({
                   <Input
                     type="number"
                     min="1"
-                    max={
-                      selectedVariant.stockQuantity > 0
-                        ? selectedVariant.stockQuantity
-                        : undefined
-                    }
+                    max={(() => {
+                      const totalStock = ProductService.getVariantTotalStock(selectedVariant);
+                      const isInStock = ProductService.isVariantInStock(selectedVariant);
+                      
+                      if (!isInStock) return 0;
+                      
+                      // If we have exact stock quantity
+                      if (selectedVariant.warehouseStocks || selectedVariant.stockQuantity !== undefined) {
+                        return totalStock > 0 ? totalStock : undefined;
+                      }
+                      
+                      // For boolean isInStock, allow up to 10
+                      return 10;
+                    })()}
                     value={quantity}
                     onChange={(e) =>
                       handleQuantityChange(parseInt(e.target.value) || 1)
                     }
                     className="w-20 text-center"
-                    disabled={selectedVariant.stockQuantity === 0}
+                    disabled={!ProductService.isVariantInStock(selectedVariant)}
                   />
                   <Button
                     variant="outline"
                     size="icon"
                     onClick={() => handleQuantityChange(quantity + 1)}
-                    disabled={
-                      quantity >= selectedVariant.stockQuantity ||
-                      selectedVariant.stockQuantity === 0
-                    }
+                    disabled={(() => {
+                      const totalStock = ProductService.getVariantTotalStock(selectedVariant);
+                      const isInStock = ProductService.isVariantInStock(selectedVariant);
+                      
+                      if (!isInStock) return true;
+                      
+                      // If we have exact stock quantity
+                      if (selectedVariant.warehouseStocks || selectedVariant.stockQuantity !== undefined) {
+                        return quantity >= totalStock;
+                      }
+                      
+                      // For boolean isInStock, limit to 10
+                      return quantity >= 10;
+                    })()}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
                 <p
                   className={`text-xs ${
-                    selectedVariant.stockQuantity > 0
+                    ProductService.isVariantInStock(selectedVariant)
                       ? "text-muted-foreground"
                       : "text-red-600"
                   }`}
                 >
-                  {selectedVariant.stockQuantity > 0
-                    ? `${selectedVariant.stockQuantity} available`
-                    : "Out of stock"}
+                  {(() => {
+                    const totalStock = ProductService.getVariantTotalStock(selectedVariant);
+                    const isInStock = ProductService.isVariantInStock(selectedVariant);
+                    
+                    if (!isInStock) {
+                      return "Out of stock";
+                    }
+                    
+                    // If we have exact stock quantity
+                    if (selectedVariant.warehouseStocks || selectedVariant.stockQuantity !== undefined) {
+                      return `${totalStock} available`;
+                    }
+                    
+                    // For boolean isInStock, show generic message
+                    return "Available";
+                  })()}
                 </p>
               </div>
             )}
@@ -488,7 +542,7 @@ const VariantSelectionModal = ({
               disabled={
                 !selectedVariant ||
                 isLoading ||
-                selectedVariant.stockQuantity === 0
+                !ProductService.isVariantInStock(selectedVariant)
               }
               className="w-full"
             >
@@ -497,7 +551,7 @@ const VariantSelectionModal = ({
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                   Adding to Cart...
                 </>
-              ) : selectedVariant && selectedVariant.stockQuantity === 0 ? (
+              ) : selectedVariant && !ProductService.isVariantInStock(selectedVariant) ? (
                 <>
                   <AlertCircle className="h-4 w-4 mr-2" />
                   Out of Stock

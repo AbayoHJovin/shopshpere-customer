@@ -95,7 +95,6 @@ class AddressService {
       }`.trim(),
       city: address.city || "",
       state: address.state || "",
-      postalCode: address.postcode || "",
       country: address.country || "",
       coordinates: {
         lat: parseFloat(suggestion.lat),

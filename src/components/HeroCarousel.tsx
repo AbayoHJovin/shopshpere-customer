@@ -32,7 +32,6 @@ const HeroCarousel = ({ landingData }: HeroCarouselProps) => {
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
       hash = (hash << 5) - hash + char;
-      hash = hash & hash; // Convert to 32bit integer
     }
     return hash;
   };
@@ -40,42 +39,40 @@ const HeroCarousel = ({ landingData }: HeroCarouselProps) => {
   useEffect(() => {
     const items: CarouselItem[] = [];
 
-    // Add top performing categories (limit to 4)
-    const topCategories = landingData.popularCategories
+    // Add featured categories (limit to 4)
+    const featuredCategories = landingData.featuredCategories || [];
+    featuredCategories
       .filter((cat) => cat.productCount > 0)
-      .sort((a, b) => b.productCount - a.productCount)
-      .slice(0, 4);
-
-    topCategories.forEach((category) => {
-      items.push({
-        id: `category-${category.id}`,
-        type: "category",
-        title: category.name,
-        subtitle: `${category.productCount} products`,
-        image: category.image,
-        productCount: category.productCount,
-        link: `/shop?categories=${encodeURIComponent(category.name)}`,
+      .slice(0, 4)
+      .forEach((category) => {
+        items.push({
+          id: `category-${category.id}`,
+          type: "category",
+          title: category.name,
+          subtitle: `${category.productCount} products`,
+          image: category.image,
+          productCount: category.productCount,
+          link: `/shop?categories=${encodeURIComponent(category.slug || category.name)}`,
+        });
       });
-    });
 
-    // Add top performing brands (limit to 3)
-    const topBrands = landingData.popularBrands
+    // Add featured brands (limit to 3)
+    const featuredBrands = landingData.featuredBrands || [];
+    featuredBrands
       .filter((brand) => brand.productCount > 0)
-      .sort((a, b) => b.productCount - a.productCount)
-      .slice(0, 3);
-
-    topBrands.forEach((brand) => {
-      items.push({
-        id: `brand-${brand.id}`,
-        type: "brand",
-        title: brand.name,
-        subtitle: `${brand.productCount} products`,
-        image: brand.image,
-        productCount: brand.productCount,
-        isTopSelling: true,
-        link: `/shop?brands=${encodeURIComponent(brand.name)}`,
+      .slice(0, 3)
+      .forEach((brand) => {
+        items.push({
+          id: `brand-${brand.id}`,
+          type: "brand",
+          title: brand.name,
+          subtitle: `${brand.productCount} products`,
+          image: brand.image,
+          productCount: brand.productCount,
+          isTopSelling: true,
+          link: `/shop?brands=${encodeURIComponent(brand.slug || brand.name)}`,
+        });
       });
-    });
 
     setCarouselItems(items);
   }, [landingData]);
@@ -191,7 +188,7 @@ const HeroCarousel = ({ landingData }: HeroCarouselProps) => {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-white text-white hover:bg-white hover:text-blue-600 font-semibold px-8 py-3 text-lg"
+                  className="border-white text-blue-500 font-semibold px-8 py-3 text-lg"
                 >
                   Shop All
                 </Button>
@@ -201,7 +198,6 @@ const HeroCarousel = ({ landingData }: HeroCarouselProps) => {
         </div>
       </div>
 
-      {/* Navigation Arrows */}
       <button
         onClick={goToPrevious}
         className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white p-2 rounded-full transition-all duration-200"

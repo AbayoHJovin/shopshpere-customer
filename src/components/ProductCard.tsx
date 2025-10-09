@@ -10,6 +10,7 @@ import { CartService, CartItemRequest } from "@/lib/cartService";
 import { WishlistService, AddToWishlistRequest } from "@/lib/wishlistService";
 import { useToast } from "@/hooks/use-toast";
 import { useAppSelector } from "@/lib/store/hooks";
+import { formatPrice, formatDiscountedPrice } from "@/lib/utils/priceFormatter";
 
 interface ProductCardProps {
   id: string;
@@ -301,9 +302,9 @@ const ProductCard = ({
             />
 
             {/* Badges */}
-            <div className="absolute top-2 left-2 flex flex-col gap-1">
+            <div className="absolute top-2 left-2 flex flex-col gap-1 max-w-[calc(100%-4rem)]">
               {hasActiveDiscount && discount && (
-                <Badge variant="destructive" className="text-xs">
+                <Badge variant="destructive" className="text-xs w-fit px-2 py-1 whitespace-nowrap">
                   -{discount}% OFF
                 </Badge>
               )}
@@ -312,21 +313,21 @@ const ProductCard = ({
                 variantDiscountInfo.maxVariantDiscount > 0 && (
                   <Badge
                     variant="secondary"
-                    className="text-xs bg-orange-500 text-white"
+                    className="text-xs bg-orange-500 text-white w-fit px-2 py-1 whitespace-nowrap"
                   >
-                    Up to -{variantDiscountInfo.maxVariantDiscount}% OFF
+                    Up to -{Math.round(variantDiscountInfo.maxVariantDiscount)}%
                   </Badge>
                 )}
               {isNew && (
-                <Badge className="bg-green-500 text-white text-xs">New</Badge>
+                <Badge className="bg-green-500 text-white text-xs w-fit px-2 py-1 whitespace-nowrap">New</Badge>
               )}
               {isBestseller && (
-                <Badge className="bg-blue-500 text-white text-xs">
+                <Badge className="bg-blue-500 text-white text-xs w-fit px-2 py-1 whitespace-nowrap">
                   Bestseller
                 </Badge>
               )}
               {isFeatured && (
-                <Badge className="bg-purple-500 text-white text-xs">
+                <Badge className="bg-purple-500 text-white text-xs w-fit px-2 py-1 whitespace-nowrap">
                   Featured
                 </Badge>
               )}
@@ -357,7 +358,7 @@ const ProductCard = ({
             <div className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
               <div className="flex flex-col gap-2">
                 <Button
-                  className={`w-full h-9 text-sm ${
+                  className={`w-full h-10 sm:h-9 text-sm ${
                     isInCart ? "bg-success hover:bg-success/90" : ""
                   }`}
                   onClick={handleCartToggle}
@@ -384,7 +385,7 @@ const ProductCard = ({
                 <Link href={`/product/${id}`} className="w-full">
                   <Button
                     variant="outline"
-                    className="w-full h-9 text-sm border-background/80 bg-background/80 backdrop-blur-sm hover:bg-background hover:border-primary"
+                    className="w-full h-10 sm:h-9 text-sm border-background/80 bg-background/80 backdrop-blur-sm hover:bg-background hover:border-primary"
                   >
                     <Eye className="h-4 w-4 mr-2" />
                     View Product
@@ -434,23 +435,33 @@ const ProductCard = ({
 
           {/* Price */}
           <div className="flex items-center gap-2">
-            <span className="font-bold text-lg">
-              ${discountedPrice ? discountedPrice.toFixed(2) : price.toFixed(2)}
-            </span>
-            {(originalPrice && originalPrice > price) ||
-            (discountedPrice && discountedPrice < price) ? (
-              <span className="text-sm text-muted-foreground line-through">
-                ${originalPrice ? originalPrice.toFixed(2) : price.toFixed(2)}
-              </span>
-            ) : null}
-            {hasActiveDiscount && discount && (
-              <span className="text-xs text-green-600 font-medium">
-                Save $
-                {(
-                  (originalPrice || price) - (discountedPrice || price)
-                ).toFixed(2)}
-              </span>
-            )}
+            {(() => {
+              const priceInfo = formatDiscountedPrice(
+                originalPrice || price,
+                discountedPrice || price
+              );
+              
+              return (
+                <>
+                  <span className="font-bold text-lg">
+                    {formatPrice(discountedPrice || price)}
+                  </span>
+                  {priceInfo.hasDiscount && (
+                    <span className="text-sm text-muted-foreground line-through">
+                      {formatPrice(originalPrice || price)}
+                    </span>
+                  )}
+                  {hasActiveDiscount && discount && priceInfo.hasDiscount && (
+                    <span className="text-xs text-green-600 font-medium">
+                      Save {formatPrice(
+                        (originalPrice || price) - (discountedPrice || price),
+                        { showCurrency: false }
+                      )}
+                    </span>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       </CardContent>

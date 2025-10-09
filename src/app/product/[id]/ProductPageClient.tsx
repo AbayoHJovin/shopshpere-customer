@@ -23,11 +23,16 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import ProductCard from "@/components/ProductCard";
-import { ProductService, ProductDTO } from "@/lib/productService";
+import {
+  ProductService,
+  ProductDTO,
+  ProductVariantDTO,
+} from "@/lib/productService";
 import { CartService, CartItemRequest } from "@/lib/cartService";
 import { WishlistService, AddToWishlistRequest } from "@/lib/wishlistService";
 import { useToast } from "@/hooks/use-toast";
 import { useAppSelector } from "@/lib/store/hooks";
+import { formatPrice } from "@/lib/utils/priceFormatter";
 import VariantSelectionModal from "@/components/VariantSelectionModal";
 import SimilarProducts from "@/components/SimilarProducts";
 import ReviewSection from "@/components/ReviewSection";
@@ -160,12 +165,15 @@ export function ProductPageClient({ productId }: { productId: string }) {
             ? effectiveDiscount.discountedPrice
             : selectedVariant.price || 0
         );
-        setDisplayStock(selectedVariant.stockQuantity || 0);
+        // Calculate total stock from all warehouses for this variant
+        setDisplayStock(ProductService.getVariantTotalStock(selectedVariant));
       } else {
         // Use product images and data
         setDisplayImages(product.images || []);
         setDisplayPrice(product.discountedPrice || product.basePrice || 0);
-        setDisplayStock(product.stockQuantity || 0);
+        setDisplayStock(
+          product.totalWarehouseStock || product.stockQuantity || 0
+        );
       }
       // Reset selected image when switching between product and variant images
       setSelectedImage(0);
@@ -577,7 +585,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
               {/* Price */}
               <div className="mt-4 flex items-center gap-3">
                 <span className="text-3xl font-bold text-price">
-                  ${displayPrice.toFixed(2)}
+                  {formatPrice(displayPrice)}
                 </span>
                 {selectedVariant ? (
                   // Show variant price with discount info
@@ -589,7 +597,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                         return (
                           <>
                             <span className="text-xl text-muted-foreground line-through">
-                              ${selectedVariant.price.toFixed(2)}
+                              {formatPrice(selectedVariant.price)}
                             </span>
                             <Badge
                               variant={
@@ -625,7 +633,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                       product.salePrice < product.basePrice &&
                       product.basePrice && (
                         <span className="text-xl text-muted-foreground line-through">
-                          ${product.basePrice.toFixed(2)}
+                          {formatPrice(product.basePrice)}
                         </span>
                       )}
                     {product.salePrice &&
@@ -652,7 +660,9 @@ export function ProductPageClient({ productId }: { productId: string }) {
             {/* Variant Selection */}
             {product.variants && product.variants.length > 0 && (
               <>
-                {product.variants.every((v) => v.stockQuantity === 0) && (
+                {product.variants.every(
+                  (v) => ProductService.getVariantTotalStock(v) === 0
+                ) && (
                   <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                     <div className="text-sm font-medium text-red-800">
                       All variants are currently out of stock
@@ -678,7 +688,11 @@ export function ProductPageClient({ productId }: { productId: string }) {
                             selectedVariant?.variantId === variant.variantId
                               ? "border-primary bg-primary/5 ring-2 ring-primary/20"
                               : "hover:border-primary/50"
-                          } ${variant.stockQuantity === 0 ? "opacity-50" : ""}`}
+                          } ${
+                            ProductService.getVariantTotalStock(variant) === 0
+                              ? "opacity-50"
+                              : ""
+                          }`}
                           onClick={() => setSelectedVariant(variant)}
                         >
                           <div className="text-sm font-medium">
@@ -688,15 +702,16 @@ export function ProductPageClient({ productId }: { productId: string }) {
                             {effectiveDiscount ? (
                               <div className="flex flex-col">
                                 <span className="font-semibold text-green-600">
-                                  $
-                                  {effectiveDiscount.discountedPrice.toFixed(2)}
+                                  {formatPrice(
+                                    effectiveDiscount.discountedPrice
+                                  )}
                                 </span>
                                 <span className="line-through">
-                                  ${(variant.price || 0).toFixed(2)}
+                                  {formatPrice(variant.price || 0)}
                                 </span>
                               </div>
                             ) : (
-                              `$${(variant.price || 0).toFixed(2)}`
+                              formatPrice(variant.price || 0)
                             )}
                           </div>
                           {effectiveDiscount && (
@@ -720,13 +735,15 @@ export function ProductPageClient({ productId }: { productId: string }) {
                           )}
                           <div
                             className={`text-xs ${
-                              variant.stockQuantity > 0
+                              ProductService.getVariantTotalStock(variant) > 0
                                 ? "text-green-600"
                                 : "text-red-600"
                             }`}
                           >
-                            {variant.stockQuantity > 0
-                              ? `Stock: ${variant.stockQuantity}`
+                            {ProductService.getVariantTotalStock(variant) > 0
+                              ? `Stock: ${ProductService.getVariantTotalStock(
+                                  variant
+                                )}`
                               : "Out of Stock"}
                           </div>
                           {/* Show variant attributes */}
@@ -760,11 +777,13 @@ export function ProductPageClient({ productId }: { productId: string }) {
                             return (
                               <div className="flex flex-col">
                                 <span className="font-semibold">
-                                  Price: $
-                                  {effectiveDiscount.discountedPrice.toFixed(2)}
+                                  Price:{" "}
+                                  {formatPrice(
+                                    effectiveDiscount.discountedPrice
+                                  )}
                                 </span>
                                 <span className="line-through">
-                                  Original: ${selectedVariant.price.toFixed(2)}
+                                  Original: {formatPrice(selectedVariant.price)}
                                 </span>
                                 <span className="text-orange-600 font-medium">
                                   -{Math.round(effectiveDiscount.percentage)}%
@@ -776,13 +795,15 @@ export function ProductPageClient({ productId }: { productId: string }) {
                               </div>
                             );
                           }
-                          return `Price: $${(
-                            selectedVariant.price || 0
-                          ).toFixed(2)}`;
+                          return `Price: ${formatPrice(
+                            selectedVariant.price || 0,
+                            { showCurrency: false }
+                          )}`;
                         })()}
                         <span className="ml-2">|</span>
                         <span className="ml-2">
-                          Stock: {selectedVariant.stockQuantity || 0}
+                          Stock:{" "}
+                          {ProductService.getVariantTotalStock(selectedVariant)}
                         </span>
                       </div>
                       <div className="mt-2 flex gap-2">
@@ -803,7 +824,11 @@ export function ProductPageClient({ productId }: { productId: string }) {
                                 ? effectiveDiscount.discountedPrice
                                 : selectedVariant.price || 0
                             );
-                            setDisplayStock(selectedVariant.stockQuantity || 0);
+                            setDisplayStock(
+                              ProductService.getVariantTotalStock(
+                                selectedVariant
+                              )
+                            );
                           }}
                           className="text-xs"
                         >
@@ -881,7 +906,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <Button
                 size="lg"
-                className={`flex-1 ${
+                className={`flex-1 h-12 sm:h-10 ${
                   isInCart ? "bg-success hover:bg-success/90" : ""
                 }`}
                 onClick={handleCartToggle}
@@ -889,7 +914,8 @@ export function ProductPageClient({ productId }: { productId: string }) {
                   (displayStock || 0) === 0 ||
                   isCartLoading ||
                   (ProductService.hasVariants(product) && !selectedVariant) ||
-                  (selectedVariant && selectedVariant.stockQuantity === 0)
+                  (selectedVariant &&
+                    ProductService.getVariantTotalStock(selectedVariant) === 0)
                 }
               >
                 {isCartLoading ? (
@@ -902,7 +928,8 @@ export function ProductPageClient({ productId }: { productId: string }) {
                     <Check className="h-5 w-5 mr-2" />
                     Added to Cart
                   </>
-                ) : selectedVariant && selectedVariant.stockQuantity === 0 ? (
+                ) : selectedVariant &&
+                  ProductService.getVariantTotalStock(selectedVariant) === 0 ? (
                   <>
                     <AlertCircle className="h-5 w-5 mr-2" />
                     Out of Stock
@@ -913,10 +940,10 @@ export function ProductPageClient({ productId }: { productId: string }) {
                     Select Variant
                   </>
                 ) : (
-                  <>
+                  <Button>
                     <ShoppingCart className="h-5 w-5 mr-2" />
-                    Add to Cart
-                  </>
+                    Adds to Cart
+                  </Button>
                 )}
               </Button>
               <Button
@@ -940,41 +967,6 @@ export function ProductPageClient({ productId }: { productId: string }) {
                 <Share2 className="h-5 w-5" />
               </Button>
             </div>
-
-            {/* Product Features */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t">
-              <div className="flex items-center gap-3">
-                <div className="bg-muted rounded-full p-2">
-                  <Truck className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Free Shipping</p>
-                  <p className="text-xs text-muted-foreground">
-                    On orders over $50
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="bg-muted rounded-full p-2">
-                  <Clock className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">30 Day Returns</p>
-                  <p className="text-xs text-muted-foreground">
-                    Hassle-free returns
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="bg-muted rounded-full p-2">
-                  <Shield className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">2 Year Warranty</p>
-                  <p className="text-xs text-muted-foreground">Full coverage</p>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -982,43 +974,119 @@ export function ProductPageClient({ productId }: { productId: string }) {
       {/* Product Details Tabs */}
       <section className="container mx-auto px-4 py-8 border-t">
         <Tabs defaultValue="description" className="w-full">
-          <TabsList className="grid grid-cols-3 mb-6">
-            <TabsTrigger value="description">Description</TabsTrigger>
-            <TabsTrigger value="specifications">Specifications</TabsTrigger>
-            <TabsTrigger value="reviews">Reviews</TabsTrigger>
+          <TabsList className="grid grid-cols-3 mb-6 md:w-fit md:grid-cols-none md:flex md:gap-2">
+            <TabsTrigger value="description" className="md:px-6">
+              Description
+            </TabsTrigger>
+            <TabsTrigger value="specifications" className="md:px-6">
+              Specifications
+            </TabsTrigger>
+            <TabsTrigger value="reviews" className="md:px-6">
+              Reviews
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="description" className="text-muted-foreground">
-            <p>{product.description}</p>
+            <div className="prose prose-sm max-w-none">
+              <p className="whitespace-pre-line">
+                {product.fullDescription || product.description}
+              </p>
+            </div>
           </TabsContent>
           <TabsContent value="specifications">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Product Details</h3>
-                <div className="space-y-2">
-                  <div className="grid grid-cols-2 gap-4 py-2 border-b">
-                    <span className="text-muted-foreground">SKU</span>
-                    <span>{product.sku}</span>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Product Details</h3>
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-4 py-2 border-b">
+                      <span className="text-muted-foreground">SKU</span>
+                      <span>{product.sku}</span>
+                    </div>
+                    {product.dimensionsCm && (
+                      <div className="grid grid-cols-2 gap-4 py-2 border-b">
+                        <span className="text-muted-foreground">
+                          Dimensions
+                        </span>
+                        <span>{product.dimensionsCm}</span>
+                      </div>
+                    )}
+                    {product.weightKg && (
+                      <div className="grid grid-cols-2 gap-4 py-2 border-b">
+                        <span className="text-muted-foreground">Weight</span>
+                        <span>{product.weightKg} kg</span>
+                      </div>
+                    )}
+                    {product.material && (
+                      <div className="grid grid-cols-2 gap-4 py-2 border-b">
+                        <span className="text-muted-foreground">Material</span>
+                        <span>{product.material}</span>
+                      </div>
+                    )}
                   </div>
-                  {product.dimensionsCm && (
-                    <div className="grid grid-cols-2 gap-4 py-2 border-b">
-                      <span className="text-muted-foreground">Dimensions</span>
-                      <span>{product.dimensionsCm}</span>
-                    </div>
-                  )}
-                  {product.weightKg && (
-                    <div className="grid grid-cols-2 gap-4 py-2 border-b">
-                      <span className="text-muted-foreground">Weight</span>
-                      <span>{product.weightKg} kg</span>
-                    </div>
-                  )}
                 </div>
+
+                {product.careInstructions && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Care Instructions</h3>
+                    <div className="prose prose-sm max-w-none">
+                      <p className="text-muted-foreground whitespace-pre-line">
+                        {product.careInstructions}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Product Information</h3>
-                <p className="text-muted-foreground">
-                  This product is part of the {product.categoryName} category
-                  and manufactured by {product.brandName}.
-                </p>
+
+              <div className="space-y-6">
+                {product.warrantyInfo && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium flex items-center gap-2">
+                      <Shield className="h-5 w-5 text-primary" />
+                      Warranty Information
+                    </h3>
+                    <div className="prose prose-sm max-w-none">
+                      <p className="text-muted-foreground whitespace-pre-line">
+                        {product.warrantyInfo}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {product.shippingInfo && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium flex items-center gap-2">
+                      <Truck className="h-5 w-5 text-primary" />
+                      Shipping Information
+                    </h3>
+                    <div className="prose prose-sm max-w-none">
+                      <p className="text-muted-foreground whitespace-pre-line">
+                        {product.shippingInfo}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {product.returnPolicy && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-primary" />
+                      Return Policy
+                    </h3>
+                    <div className="prose prose-sm max-w-none">
+                      <p className="text-muted-foreground whitespace-pre-line">
+                        {product.returnPolicy}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Product Information</h3>
+                  <p className="text-muted-foreground">
+                    This product is part of the {product.categoryName} category
+                    and manufactured by {product.brandName}.
+                  </p>
+                </div>
               </div>
             </div>
           </TabsContent>

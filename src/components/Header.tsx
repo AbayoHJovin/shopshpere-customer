@@ -37,6 +37,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { CartService } from "@/lib/cartService";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import { logout } from "@/lib/store/slices/authSlice";
+import { DeliveryStatus } from "@/components/DeliveryStatus";
 
 const Header = () => {
   const router = useRouter();
@@ -116,10 +117,11 @@ const Header = () => {
         <div className="hidden sm:flex items-center justify-between py-2 text-sm border-b">
           <div className="flex items-center gap-4">
             <span className="text-muted-foreground">
-              Free shipping on orders over $50
+              Free shipping on orders over $60
             </span>
           </div>
           <div className="flex items-center gap-4">
+            <DeliveryStatus />
             <span className="text-muted-foreground">Help</span>
             <Link
               href="/track-order"
@@ -155,18 +157,6 @@ const Header = () => {
                     className="text-lg font-medium px-2 py-1 hover:text-primary transition-colors"
                   >
                     Shop
-                  </Link>
-                  <Link
-                    href="/categories"
-                    className="text-lg font-medium px-2 py-1 hover:text-primary transition-colors"
-                  >
-                    Categories
-                  </Link>
-                  <Link
-                    href="/discounts"
-                    className="text-lg font-medium px-2 py-1 hover:text-primary transition-colors"
-                  >
-                    Discounts
                   </Link>
                   <Link
                     href="/track-order"
@@ -219,37 +209,33 @@ const Header = () => {
                 ShopSphere
               </h1>
             </Link>
+
+            {/* Navigation links close to logo */}
+            <nav className="hidden md:flex items-center gap-4 ml-6">
+              <Link
+                href="/"
+                className="text-sm font-medium hover:text-primary transition-colors"
+              >
+                Home
+              </Link>
+              <Link
+                href="/shop"
+                className="text-sm font-medium hover:text-primary transition-colors"
+              >
+                Shop
+              </Link>
+            </nav>
           </div>
 
-          <div className="hidden md:block flex-1 max-w-3xl mx-4 lg:mx-8">
-            <div className="flex items-center gap-4 lg:gap-6">
-              <nav className="hidden lg:flex items-center gap-6">
-                <Link
-                  href="/"
-                  className="text-sm font-medium hover:text-primary transition-colors"
-                >
-                  Home
-                </Link>
-                <Link
-                  href="/shop"
-                  className="text-sm font-medium hover:text-primary transition-colors"
-                >
-                  Shop
-                </Link>
-                <Link
-                  href="/categories"
-                  className="text-sm font-medium hover:text-primary transition-colors"
-                >
-                  Categories
-                </Link>
-                <Link
-                  href="/discounts"
-                  className="text-sm font-medium hover:text-primary transition-colors"
-                >
-                  Discounts
-                </Link>
-              </nav>
-            </div>
+          {/* Search Bar - Full width between navigation and actions */}
+          <div className="hidden md:flex flex-1 mx-6">
+            <SearchBarWithSuggestions
+              value={searchTerm}
+              onChange={setSearchTerm}
+              onSubmit={(e, term) => handleSearch(e, term)}
+              placeholder="Search products..."
+              className="w-full"
+            />
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
@@ -336,7 +322,7 @@ const Header = () => {
                 </Button>
                 <Button
                   size="sm"
-                  className="text-xs sm:text-sm px-2 sm:px-4"
+                  className="text-xs hidden sm:flex sm:text-sm px-2 sm:px-4"
                   onClick={() => router.push("/auth/register")}
                 >
                   Sign Up
@@ -346,8 +332,9 @@ const Header = () => {
           </div>
         </div>
 
+        {/* Mobile Navigation and Search */}
         <div className="pb-2 border-t pt-2 md:hidden">
-          <div className="flex items-center justify-around">
+          <div className="flex items-center justify-around mb-3">
             <Link
               href="/"
               className="text-xs font-medium text-center hover:text-primary transition-colors"
@@ -360,30 +347,16 @@ const Header = () => {
             >
               Shop
             </Link>
-            <Link
-              href="/categories"
-              className="text-xs font-medium text-center hover:text-primary transition-colors"
-            >
-              Categories
-            </Link>
-            <Link
-              href="/discounts"
-              className="text-xs font-medium text-center hover:text-primary transition-colors"
-            >
-              Discounts
-            </Link>
           </div>
-        </div>
 
-        {/* Permanent Search Bar Section - Always Visible */}
-        <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="container mx-auto px-4 py-4">
+          {/* Mobile Search Bar */}
+          <div className="px-2">
             <SearchBarWithSuggestions
               value={searchTerm}
               onChange={setSearchTerm}
               onSubmit={(e, term) => handleSearch(e, term)}
-              placeholder="Search products, brands, and more..."
-              className="max-w-4xl mx-auto"
+              placeholder="Search products..."
+              className="w-full"
             />
           </div>
         </div>

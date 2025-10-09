@@ -17,24 +17,41 @@ export interface LandingPageProduct {
   discountEndDate?: string;
   discountName?: string;
   hasActiveDiscount?: boolean;
+  hasVariantDiscounts?: boolean;
+  maxVariantDiscount?: number;
+  discountedVariantsCount?: number;
+}
+
+export interface CategoryWithProducts {
+  id: number;
+  name: string;
+  description?: string;
+  image: string;
+  slug: string;
+  productCount: number;
+  isActive: boolean;
+  isFeatured: boolean;
+  products: LandingPageProduct[];
+}
+
+export interface BrandWithProducts {
+  id: string;
+  name: string;
+  description?: string;
+  image: string;
+  slug: string;
+  productCount: number;
+  isActive: boolean;
+  isFeatured: boolean;
+  products: LandingPageProduct[];
 }
 
 export interface LandingPageData {
   topSellingProducts: LandingPageProduct[];
   newProducts: LandingPageProduct[];
   discountedProducts: LandingPageProduct[];
-  popularCategories: Array<{
-    id: number;
-    name: string;
-    productCount: number;
-    image: string;
-  }>;
-  popularBrands: Array<{
-    id: string;
-    name: string;
-    productCount: number;
-    image: string;
-  }>;
+  featuredCategories: CategoryWithProducts[];
+  featuredBrands: BrandWithProducts[];
 }
 
 class LandingPageService {
@@ -69,13 +86,13 @@ class LandingPageService {
   private transformBackendData(backendData: any): LandingPageData {
     return {
       topSellingProducts:
-        backendData.topSellingProducts?.map(this.transformProduct) || [],
-      newProducts: backendData.newProducts?.map(this.transformProduct) || [],
+        backendData.topSellingProducts?.map((product: any) => this.transformProduct(product)) || [],
+      newProducts: backendData.newProducts?.map((product: any) => this.transformProduct(product)) || [],
       discountedProducts:
-        backendData.discountedProducts?.map(this.transformProduct) || [],
-      popularCategories:
-        backendData.popularCategories?.map(this.transformCategory) || [],
-      popularBrands: backendData.popularBrands?.map(this.transformBrand) || [],
+        backendData.discountedProducts?.map((product: any) => this.transformProduct(product)) || [],
+      featuredCategories:
+        backendData.featuredCategories?.map((category: any) => this.transformCategoryWithProducts(category)) || [],
+      featuredBrands: backendData.featuredBrands?.map((brand: any) => this.transformBrandWithProducts(brand)) || [],
     };
   }
 
@@ -99,6 +116,37 @@ class LandingPageService {
       discountEndDate: product.discountEndDate,
       discountName: product.discountName,
       hasActiveDiscount: product.hasActiveDiscount,
+      hasVariantDiscounts: product.hasVariantDiscounts,
+      maxVariantDiscount: product.maxVariantDiscount,
+      discountedVariantsCount: product.discountedVariantsCount,
+    };
+  }
+
+  private transformCategoryWithProducts(category: any): CategoryWithProducts {
+    return {
+      id: category.categoryId,
+      name: category.categoryName,
+      description: category.description,
+      image: category.imageUrl || `https://via.placeholder.com/400x300/cccccc/ffffff?text=${encodeURIComponent(category.categoryName)}`,
+      slug: category.slug,
+      productCount: category.productCount || 0,
+      isActive: category.isActive,
+      isFeatured: category.isFeatured,
+      products: category.products?.map((product: any) => this.transformProduct(product)) || [],
+    };
+  }
+
+  private transformBrandWithProducts(brand: any): BrandWithProducts {
+    return {
+      id: brand.brandId,
+      name: brand.brandName,
+      description: brand.description,
+      image: brand.logoUrl || `https://via.placeholder.com/400x300/cccccc/ffffff?text=${encodeURIComponent(brand.brandName)}`,
+      slug: brand.slug,
+      productCount: brand.productCount || 0,
+      isActive: brand.isActive,
+      isFeatured: brand.isFeatured,
+      products: brand.products?.map((product: any) => this.transformProduct(product)) || [],
     };
   }
 

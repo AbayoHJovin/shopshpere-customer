@@ -1,10 +1,11 @@
 "use client";
 import { useState, useEffect, useRef, FormEvent } from "react";
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2, SearchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { API_BASE_URL } from "@/lib/api";
 
 interface SearchSuggestion {
   id: string;
@@ -68,12 +69,12 @@ export function SearchBarWithSuggestions({
       setIsLoading(true);
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
 
         const response = await fetch(
-          `${
-            process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
-          }/api/v1/products/search/suggestions?q=${encodeURIComponent(value)}`,
+          `${API_BASE_URL}/products/search/suggestions?q=${encodeURIComponent(
+            value
+          )}`,
           {
             method: "GET",
             headers: {
@@ -172,7 +173,7 @@ export function SearchBarWithSuggestions({
                 setShowSuggestions(true);
               }
             }}
-            className="w-full pl-14 pr-24 h-14 text-lg rounded-xl border-2 focus:border-primary bg-background shadow-sm transition-all duration-200 focus:shadow-md"
+            className="w-full pl-14 pr-24 h-14 text-lg rounded-sm border-2 focus:border-primary bg-background shadow-sm transition-all duration-200 focus:shadow-md"
           />
           <Search className="absolute left-4 h-6 w-6 text-muted-foreground" />
           {isLoading && (
@@ -181,14 +182,13 @@ export function SearchBarWithSuggestions({
           <Button
             type="submit"
             size="lg"
-            className="absolute right-2 h-10 px-6 rounded-lg transition-all duration-200 hover:scale-105"
+            className="absolute right-2 h-10 px-6 rounded-sm transition-all duration-200 hover:scale-105"
           >
-            Search
+            <SearchIcon />
           </Button>
         </div>
       </form>
 
-      {/* Search suggestions dropdown */}
       {showSuggestions && (
         <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-xl shadow-xl z-50 max-h-80 overflow-y-auto">
           {isLoading ? (

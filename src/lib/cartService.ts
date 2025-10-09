@@ -11,6 +11,7 @@ export interface CartItemResponse {
   quantity: number;
   stock: number;
   totalPrice: number;
+  weight?: number; 
   averageRating: number;
   ratingCount: number;
 
@@ -596,20 +597,34 @@ async function getCartFromBackend(): Promise<CartResponse> {
     return {
       cartId: "local-cart",
       userId: "local-user",
-      items: cartData.items.map((item) => ({
-        id: item.itemId,
-        productId: item.productId.toString(),
-        variantId: item.variantId?.toString(),
-        name: item.productName,
-        price: item.price,
-        previousPrice: item.previousPrice || null,
-        url: item.productImage || "",
-        quantity: item.quantity,
-        stock: item.availableStock,
-        totalPrice: item.totalPrice,
-        averageRating: item.averageRating || 0,
-        ratingCount: item.reviewCount || 0,
-      })),
+      items: cartData.items.map((item) => {
+        const originalPrice = item.previousPrice || item.price;
+        const currentPrice = item.price;
+        const hasDiscount = item.previousPrice && item.previousPrice > item.price;
+        const discountAmount = hasDiscount ? (originalPrice - currentPrice) * item.quantity : 0;
+        const discountPercentage = hasDiscount ? ((originalPrice - currentPrice) / originalPrice) * 100 : 0;
+        
+        return {
+          id: item.itemId,
+          productId: item.productId.toString(),
+          variantId: item.variantId?.toString(),
+          name: item.productName,
+          price: currentPrice,
+          originalPrice: originalPrice,
+          previousPrice: item.previousPrice || null,
+          url: item.productImage || "",
+          quantity: item.quantity,
+          stock: item.availableStock,
+          totalPrice: item.totalPrice,
+          averageRating: item.averageRating || 0,
+          ratingCount: item.reviewCount || 0,
+          // Discount information
+          hasDiscount: hasDiscount || false,
+          discountAmount: discountAmount,
+          discountPercentage: discountPercentage,
+          discountName: hasDiscount ? "Discount" : undefined,
+        };
+      }),
       totalItems: cartData.totalItems,
       subtotal: cartData.subtotal,
       totalPages: 1,

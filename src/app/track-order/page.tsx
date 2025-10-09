@@ -1,687 +1,355 @@
-"use client";
+'use client';
 
-import { useState, useRef, useEffect } from "react";
-import Link from "next/link";
-import {
-  QrCode,
-  Search,
-  Upload,
-  ArrowRight,
-  CheckCircle,
-  Package,
+import React, { useEffect, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { 
+  Package, 
+  Calendar, 
+  Eye, 
+  AlertCircle, 
+  CheckCircle, 
+  Clock, 
   Truck,
-  MapPin,
-  Calendar,
-  CreditCard,
-  User,
-  Phone,
-  Mail,
-  Download,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { toast } from "sonner";
-import QRCode from "qrcode";
-import QrScanner from "qr-scanner";
-import { OrderService, OrderDetailsResponse } from "@/lib/orderService";
+  Search,
+  Mail
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { 
+  OrderService, 
+  OrderSummary, 
+  OrderTrackingRequest, 
+  OrderListResponse 
+} from '@/lib/orderService';
 
-export default function TrackOrderPage() {
-  const [orderNumber, setOrderNumber] = useState("");
-  const [isUploading, setIsUploading] = useState(false);
-  const [isTracking, setIsTracking] = useState(false);
-  const [orderDetails, setOrderDetails] = useState<OrderDetailsResponse | null>(
-    null
-  );
+const TrackOrderPage: React.FC = () => {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  
+  const token = searchParams.get('token');
+  
+  const [orders, setOrders] = useState<OrderSummary[]>([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
-  const [scanner, setScanner] = useState<QrScanner | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const [emailInput, setEmailInput] = useState('');
+  const [isRequestingAccess, setIsRequestingAccess] = useState(false);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!orderNumber.trim()) {
-      toast.error("Please enter an order number");
+  useEffect(() => {
+    if (token) {
+      fetchOrders();
+    }
+  }, [token, currentPage]);
+
+  const fetchOrders = async () => {
+    if (!token) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const data: OrderListResponse = await OrderService.getOrdersByToken(token, currentPage, 10);
+
+      if (data.success) {
+        setOrders(data.data);
+        setTotalOrders(data.totalElements);
+        setTotalPages(data.totalPages);
+      } else {
+        throw new Error('Failed to fetch orders');
+      }
+    } catch (err) {
+      console.error('Error fetching orders:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch orders';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const requestTrackingAccess = async () => {
+    if (!emailInput.trim()) {
+      toast.error('Please enter your email address');
       return;
     }
 
-    setIsTracking(true);
-    setError(null);
-    setOrderDetails(null);
-
     try {
-      const order = await OrderService.trackOrderByNumber(orderNumber.trim());
-      setOrderDetails(order);
+      setIsRequestingAccess(true);
 
-      // Generate QR code for pickup token if available
-      if (order.pickupToken) {
-        const qrDataUrl = await QRCode.toDataURL(order.pickupToken, {
-          width: 200,
-          margin: 2,
-          color: {
-            dark: "#000000",
-            light: "#FFFFFF",
-          },
-        });
-        setQrCodeDataUrl(qrDataUrl);
-      }
+      const request: OrderTrackingRequest = {
+        email: emailInput.trim()
+      };
 
-      toast.success("Order found successfully!");
-    } catch (err: any) {
-      setError(err.message || "Order not found");
-      toast.error(err.message || "Order not found");
-    } finally {
-      setIsTracking(false);
-    }
-  };
+      const response = await OrderService.requestTrackingAccess(request);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    setError(null);
-    setOrderDetails(null);
-
-    try {
-      const result = await QrScanner.scanImage(file);
-      if (result) {
-        // Try to track order by pickup token
-        setIsTracking(true);
-        const order = await OrderService.trackOrderByToken(result);
-        setOrderDetails(order);
-
-        // Generate QR code for pickup token
-        if (order.pickupToken) {
-          const qrDataUrl = await QRCode.toDataURL(order.pickupToken, {
-            width: 200,
-            margin: 2,
-            color: {
-              dark: "#000000",
-              light: "#FFFFFF",
-            },
-          });
-          setQrCodeDataUrl(qrDataUrl);
-        }
-
-        toast.success("Order found from QR code!");
+      if (response.success) {
+        toast.success('Tracking access email sent! Please check your inbox.');
+        setEmailInput('');
       } else {
-        setError("No QR code found in the image");
-        toast.error("No QR code found in the image");
+        throw new Error(response.message || 'Failed to send tracking email');
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to scan QR code");
-      toast.error(err.message || "Failed to scan QR code");
+    } catch (err) {
+      console.error('Error requesting tracking access:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to send tracking email';
+      toast.error(errorMessage);
     } finally {
-      setIsUploading(false);
-      setIsTracking(false);
+      setIsRequestingAccess(false);
     }
   };
 
-  const downloadQRCode = (dataUrl: string, filename: string) => {
-    const link = document.createElement("a");
-    link.download = filename;
-    link.href = dataUrl;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("QR code downloaded successfully");
+  const viewOrderDetail = (orderId: number) => {
+    router.push(`/track-order/${orderId}?token=${encodeURIComponent(token!)}`);
   };
 
   const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case "pending":
-        return "bg-yellow-100 text-yellow-800";
-      case "confirmed":
-        return "bg-blue-100 text-blue-800";
-      case "processing":
-        return "bg-purple-100 text-purple-800";
-      case "shipped":
-        return "bg-indigo-100 text-indigo-800";
-      case "delivered":
-        return "bg-green-100 text-green-800";
-      case "cancelled":
-        return "bg-red-100 text-red-800";
+    switch (status.toUpperCase()) {
+      case 'COMPLETED':
+        return 'bg-green-100 text-green-800';
+      case 'PROCESSING':
+        return 'bg-blue-100 text-blue-800';
+      case 'SHIPPED':
+        return 'bg-purple-100 text-purple-800';
+      case 'DELIVERED':
+        return 'bg-green-100 text-green-800';
+      case 'CANCELLED':
+        return 'bg-red-100 text-red-800';
       default:
-        return "bg-gray-100 text-gray-800";
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount);
+  const getStatusIcon = (status: string) => {
+    switch (status.toUpperCase()) {
+      case 'COMPLETED':
+      case 'DELIVERED':
+        return <CheckCircle className="h-4 w-4" />;
+      case 'PROCESSING':
+        return <Clock className="h-4 w-4" />;
+      case 'SHIPPED':
+        return <Truck className="h-4 w-4" />;
+      case 'CANCELLED':
+        return <AlertCircle className="h-4 w-4" />;
+      default:
+        return <Package className="h-4 w-4" />;
+    }
   };
 
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+  };
+
+  // If no token, show email request form
+  if (!token) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="max-w-md w-full mx-4">
+          <div className="bg-white rounded-lg shadow-lg p-8">
+            <div className="text-center mb-6">
+              <Package className="h-12 w-12 text-blue-600 mx-auto mb-4" />
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">Track Your Orders</h1>
+              <p className="text-gray-600">
+                Enter your email address to receive a secure tracking link
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    id="email"
+                    type="email"
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
+                    placeholder="Enter your email address"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onKeyPress={(e) => e.key === 'Enter' && requestTrackingAccess()}
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={requestTrackingAccess}
+                disabled={isRequestingAccess}
+                className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isRequestingAccess ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Sending...
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-2">
+                    <Search className="h-4 w-4" />
+                    Get Tracking Access
+                  </div>
+                )}
+              </button>
+            </div>
+
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+              <h3 className="text-sm font-medium text-blue-900 mb-2">How it works:</h3>
+              <ol className="text-sm text-blue-800 space-y-1">
+                <li>1. Enter your email address</li>
+                <li>2. Check your inbox for a secure tracking link</li>
+                <li>3. Click the link to view all your orders</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="container mx-auto px-4 py-16">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-10 text-center">
-          <h1 className="text-3xl font-bold mb-3">Track Your Order</h1>
-          <p className="text-muted-foreground">
-            Check the status of your order using your order number or QR code
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Your Orders</h1>
+          <p className="text-gray-600">
+            {totalOrders > 0 ? `Found ${totalOrders} order${totalOrders !== 1 ? 's' : ''}` : 'No orders found'}
           </p>
         </div>
 
-        {/* Error Alert */}
-        {error && (
-          <Alert className="mb-6" variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Order Details Display */}
-        {orderDetails ? (
-          <div className="space-y-6">
-            {/* Order Summary */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Package className="h-5 w-5" />
-                      Order #{orderDetails.orderNumber}
-                    </CardTitle>
-                    <CardDescription>
-                      Placed on{" "}
-                      {new Date(orderDetails.createdAt).toLocaleDateString()}
-                    </CardDescription>
-                  </div>
-                  <Badge className={getStatusColor(orderDetails.status)}>
-                    {orderDetails.status}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">
-                      <strong>Order Date:</strong>{" "}
-                      {new Date(orderDetails.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">
-                      <strong>Total:</strong>{" "}
-                      {formatCurrency(orderDetails.total || 0)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Truck className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">
-                      <strong>Status:</strong> {orderDetails.status}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Order Items */}
-              <div className="lg:col-span-2 space-y-6">
-                {orderDetails.items && orderDetails.items.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Order Items</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {orderDetails.items.map((item, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center gap-4 p-4 border rounded-lg"
-                          >
-                            <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
-                              {item.product?.images &&
-                              item.product.images.length > 0 ? (
-                                <img
-                                  src={item.product.images[0]}
-                                  alt={item.product.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : item.variant?.images &&
-                                item.variant.images.length > 0 ? (
-                                <img
-                                  src={item.variant.images[0]}
-                                  alt={item.variant.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <Package className="h-8 w-8 text-gray-400" />
-                              )}
-                            </div>
-                            <div className="flex-1">
-                              <h4 className="font-medium">
-                                {item.variant?.name ||
-                                  item.product?.name ||
-                                  "Product"}
-                              </h4>
-                              <p className="text-sm text-muted-foreground">
-                                Quantity: {item.quantity}
-                              </p>
-                              <p className="text-sm font-medium">
-                                {formatCurrency(item.totalPrice)}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Shipping Address */}
-                {orderDetails.shippingAddress && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <MapPin className="h-5 w-5" />
-                        Shipping Address
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <p className="font-medium">
-                          {orderDetails.shippingAddress.fullName}
-                        </p>
-                        <p>{orderDetails.shippingAddress.addressLine1}</p>
-                        {orderDetails.shippingAddress.addressLine2 && (
-                          <p>{orderDetails.shippingAddress.addressLine2}</p>
-                        )}
-                        <p>
-                          {orderDetails.shippingAddress.city},{" "}
-                          {orderDetails.shippingAddress.state}{" "}
-                          {orderDetails.shippingAddress.postalCode}
-                        </p>
-                        <p>{orderDetails.shippingAddress.country}</p>
-                        {orderDetails.shippingAddress.phone && (
-                          <p className="flex items-center gap-2 mt-2">
-                            <Phone className="h-4 w-4" />
-                            {orderDetails.shippingAddress.phone}
-                          </p>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-
-              {/* Sidebar */}
-              <div className="space-y-6">
-                {/* Pickup Token QR Code */}
-                {orderDetails.pickupToken && qrCodeDataUrl && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <QrCode className="h-5 w-5" />
-                        Pickup Token QR Code
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <p className="text-sm text-muted-foreground">
-                          Show this QR code when picking up your order.
-                        </p>
-                        <div className="flex justify-center">
-                          <div className="relative">
-                            <img
-                              src={qrCodeDataUrl}
-                              alt="Pickup Token QR Code"
-                              className="border-2 border-gray-200 rounded-lg"
-                            />
-                            <div className="absolute -top-2 -right-2 bg-green-500 text-white rounded-full p-1">
-                              <CheckCircle className="h-4 w-4" />
-                            </div>
-                          </div>
-                        </div>
-                        <div className="space-y-2 text-center">
-                          <p className="text-sm font-medium">
-                            Order Number: {orderDetails.orderNumber}
-                          </p>
-                          <p className="text-xs text-muted-foreground font-mono break-all">
-                            Token: {orderDetails.pickupToken}
-                          </p>
-                        </div>
-                        <Button
-                          onClick={() =>
-                            downloadQRCode(
-                              qrCodeDataUrl,
-                              `pickup-token-${orderDetails.orderNumber}.png`
-                            )
-                          }
-                          variant="outline"
-                          className="w-full"
-                        >
-                          <Download className="h-4 w-4 mr-2" />
-                          Download QR Code
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Order Timeline */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Order Timeline</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <div>
-                          <p className="text-sm font-medium">Order Placed</p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(orderDetails.createdAt).toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-2 h-2 rounded-full ${
-                            orderDetails.status === "confirmed" ||
-                            orderDetails.status === "processing" ||
-                            orderDetails.status === "shipped" ||
-                            orderDetails.status === "delivered"
-                              ? "bg-green-500"
-                              : "bg-gray-300"
-                          }`}
-                        ></div>
-                        <div>
-                          <p className="text-sm font-medium">Confirmed</p>
-                          <p className="text-xs text-muted-foreground">
-                            Order confirmed
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-2 h-2 rounded-full ${
-                            orderDetails.status === "processing" ||
-                            orderDetails.status === "shipped" ||
-                            orderDetails.status === "delivered"
-                              ? "bg-green-500"
-                              : "bg-gray-300"
-                          }`}
-                        ></div>
-                        <div>
-                          <p className="text-sm font-medium">Processing</p>
-                          <p className="text-xs text-muted-foreground">
-                            Preparing your order
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-2 h-2 rounded-full ${
-                            orderDetails.status === "shipped" ||
-                            orderDetails.status === "delivered"
-                              ? "bg-green-500"
-                              : "bg-gray-300"
-                          }`}
-                        ></div>
-                        <div>
-                          <p className="text-sm font-medium">Shipped</p>
-                          <p className="text-xs text-muted-foreground">
-                            On its way to you
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-2 h-2 rounded-full ${
-                            orderDetails.status === "delivered"
-                              ? "bg-green-500"
-                              : "bg-gray-300"
-                          }`}
-                        ></div>
-                        <div>
-                          <p className="text-sm font-medium">Delivered</p>
-                          <p className="text-xs text-muted-foreground">
-                            Order delivered
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Payment Information */}
-                {(orderDetails.paymentMethod || orderDetails.paymentStatus) && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <CreditCard className="h-5 w-5" />
-                        Payment Information
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {orderDetails.paymentMethod && (
-                          <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">
-                              Method:
-                            </span>
-                            <span className="text-sm font-medium">
-                              {orderDetails.paymentMethod}
-                            </span>
-                          </div>
-                        )}
-                        {orderDetails.paymentStatus && (
-                          <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">
-                              Status:
-                            </span>
-                            <Badge variant="outline">
-                              {orderDetails.paymentStatus}
-                            </Badge>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex justify-center gap-4">
-              <Button variant="outline" asChild>
-                <Link href="/" className="flex items-center gap-2">
-                  Return to Home
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
-              <Button
-                onClick={() => {
-                  setOrderDetails(null);
-                  setError(null);
-                  setQrCodeDataUrl(null);
-                  setOrderNumber("");
-                }}
-              >
-                Track Another Order
-              </Button>
-            </div>
+        {/* Loading State */}
+        {loading && (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading your orders...</p>
           </div>
-        ) : (
-          /* Tracking Form */
-          <Tabs defaultValue="number" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-8">
-              <TabsTrigger value="number" className="flex items-center gap-2">
-                <Search className="h-4 w-4" />
-                <span>Track by Order Number</span>
-              </TabsTrigger>
-              <TabsTrigger value="qrcode" className="flex items-center gap-2">
-                <QrCode className="h-4 w-4" />
-                <span>Scan QR Code</span>
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="number">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Enter Your Order Number</CardTitle>
-                  <CardDescription>
-                    You can find your order number in the confirmation email we
-                    sent you
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleSearch} className="space-y-4">
-                    <div>
-                      <Input
-                        placeholder="Order number (e.g., ORD-12345678)"
-                        value={orderNumber}
-                        onChange={(e) => setOrderNumber(e.target.value)}
-                        className="w-full"
-                        disabled={isTracking}
-                      />
-                    </div>
-                    <Button
-                      type="submit"
-                      className="w-full"
-                      disabled={isTracking}
-                    >
-                      {isTracking ? "Tracking..." : "Track Order"}
-                    </Button>
-                  </form>
-                </CardContent>
-                <CardFooter className="flex justify-center border-t pt-6">
-                  <p className="text-sm text-muted-foreground">
-                    Don't have your order number?{" "}
-                    <Link
-                      href="/contact"
-                      className="text-primary hover:underline"
-                    >
-                      Contact support
-                    </Link>
-                  </p>
-                </CardFooter>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="qrcode">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Scan Your Order QR Code</CardTitle>
-                  <CardDescription>
-                    Upload the QR code image you received after placing your
-                    order
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 bg-muted/30">
-                    <div className="text-center space-y-4">
-                      <Upload className="mx-auto h-12 w-12 text-muted-foreground" />
-                      <div className="space-y-2">
-                        <p className="text-xl font-medium">Upload QR Code</p>
-                        <p className="text-sm text-muted-foreground pb-4">
-                          Drag and drop or click to upload
-                        </p>
-                        <div className="relative">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="sr-only"
-                            onChange={handleFileUpload}
-                            disabled={isUploading || isTracking}
-                            id="qr-file-input"
-                          />
-                          <Button
-                            variant="outline"
-                            className="relative"
-                            disabled={isUploading || isTracking}
-                            onClick={() => {
-                              const fileInput = document.getElementById(
-                                "qr-file-input"
-                              ) as HTMLInputElement;
-                              if (fileInput) {
-                                fileInput.click();
-                              }
-                            }}
-                          >
-                            {isUploading
-                              ? "Processing..."
-                              : isTracking
-                              ? "Tracking..."
-                              : "Select File"}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-center border-t pt-6">
-                  <p className="text-sm text-muted-foreground">
-                    Can't find your QR code?{" "}
-                    <Link
-                      href="/track-order"
-                      className="text-primary hover:underline"
-                    >
-                      Track by order number
-                    </Link>
-                  </p>
-                </CardFooter>
-              </Card>
-            </TabsContent>
-          </Tabs>
         )}
 
-        {/* How Tracking Works */}
-        {!orderDetails && (
-          <div className="mt-12">
-            <h2 className="text-xl font-semibold mb-4">How Tracking Works</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-card rounded-lg p-6 border">
-                <div className="bg-primary/10 rounded-full w-10 h-10 flex items-center justify-center mb-4">
-                  <span className="text-primary font-bold">1</span>
-                </div>
-                <h3 className="font-medium mb-2">Enter Your Details</h3>
-                <p className="text-sm text-muted-foreground">
-                  Use your order number or scan the QR code provided when you
-                  completed your purchase.
-                </p>
-              </div>
+        {/* Error State */}
+        {error && !loading && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-lg font-semibold text-red-900 mb-2">Error Loading Orders</h2>
+            <p className="text-red-700 mb-4">{error}</p>
+            <button
+              onClick={fetchOrders}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        )}
 
-              <div className="bg-card rounded-lg p-6 border">
-                <div className="bg-primary/10 rounded-full w-10 h-10 flex items-center justify-center mb-4">
-                  <span className="text-primary font-bold">2</span>
+        {/* Orders List */}
+        {!loading && !error && orders.length > 0 && (
+          <div className="space-y-4">
+            {orders.map((order) => (
+              <div key={order.id} className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow">
+                <div className="p-6">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                    <div className="flex-grow">
+                      <div className="flex items-center gap-4 mb-2">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Order #{order.orderNumber}
+                        </h3>
+                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                          {getStatusIcon(order.status)}
+                          {order.status}
+                        </div>
+                        {order.hasReturnRequest && (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-medium">
+                            Return Request
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4" />
+                          {new Date(order.createdAt).toLocaleDateString()}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Package className="h-4 w-4" />
+                          {order.itemCount} item{order.itemCount !== 1 ? 's' : ''}
+                        </span>
+                        <span className="font-semibold text-gray-900">
+                          ${order.total.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4 md:mt-0">
+                      <button
+                        onClick={() => viewOrderDetail(order.id)}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <Eye className="h-4 w-4" />
+                        View Details
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <h3 className="font-medium mb-2">View Status</h3>
-                <p className="text-sm text-muted-foreground">
-                  See real-time updates on processing, packaging, and shipping
-                  stages of your order.
-                </p>
               </div>
+            ))}
 
-              <div className="bg-card rounded-lg p-6 border">
-                <div className="bg-primary/10 rounded-full w-10 h-10 flex items-center justify-center mb-4">
-                  <span className="text-primary font-bold">3</span>
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-8">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 0}
+                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handlePageChange(i)}
+                      className={`px-3 py-2 text-sm rounded-lg ${
+                        currentPage === i
+                          ? 'bg-blue-600 text-white'
+                          : 'border border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
                 </div>
-                <h3 className="font-medium mb-2">Get Notifications</h3>
-                <p className="text-sm text-muted-foreground">
-                  Receive email updates when your order status changes until
-                  it's delivered.
-                </p>
+                
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage >= totalPages - 1}
+                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
               </div>
-            </div>
+            )}
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && !error && orders.length === 0 && (
+          <div className="text-center py-12">
+            <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">No Orders Found</h2>
+            <p className="text-gray-600 mb-6">
+              We couldn't find any orders associated with this tracking token.
+            </p>
+            <button
+              onClick={fetchOrders}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Search className="h-4 w-4" />
+              Refresh
+            </button>
           </div>
         )}
       </div>
     </div>
   );
-}
+};
+
+export default TrackOrderPage;
