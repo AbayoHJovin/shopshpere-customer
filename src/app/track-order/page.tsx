@@ -14,28 +14,12 @@ import {
   Mail
 } from 'lucide-react';
 import { toast } from 'sonner';
-
-interface OrderSummary {
-  id: number;
-  orderNumber: string;
-  status: string;
-  total: number;
-  createdAt: string;
-  itemCount: number;
-  hasReturnRequest: boolean;
-}
-
-interface ApiResponse {
-  success: boolean;
-  data?: {
-    content: OrderSummary[];
-    totalElements: number;
-    totalPages: number;
-    size: number;
-    number: number;
-  };
-  message?: string;
-}
+import { 
+  OrderService, 
+  OrderSummary, 
+  OrderTrackingRequest, 
+  OrderListResponse 
+} from '@/lib/orderService';
 
 const TrackOrderPage: React.FC = () => {
   const searchParams = useSearchParams();
@@ -65,28 +49,14 @@ const TrackOrderPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(
-        `http://localhost:8080/api/v1/order-tracking/orders?token=${encodeURIComponent(token)}&page=${currentPage}&size=10`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      const data: OrderListResponse = await OrderService.getOrdersByToken(token, currentPage, 10);
 
-      const data: ApiResponse = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || `HTTP error! status: ${response.status}`);
-      }
-
-      if (data.success && data.data) {
-        setOrders(data.data.content);
-        setTotalOrders(data.data.totalElements);
-        setTotalPages(data.data.totalPages);
+      if (data.success) {
+        setOrders(data.data);
+        setTotalOrders(data.totalElements);
+        setTotalPages(data.totalPages);
       } else {
-        throw new Error(data.message || 'Failed to fetch orders');
+        throw new Error('Failed to fetch orders');
       }
     } catch (err) {
       console.error('Error fetching orders:', err);
@@ -107,30 +77,17 @@ const TrackOrderPage: React.FC = () => {
     try {
       setIsRequestingAccess(true);
 
-      const response = await fetch(
-        'http://localhost:8080/api/v1/order-tracking/request',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: emailInput.trim()
-          }),
-        }
-      );
+      const request: OrderTrackingRequest = {
+        email: emailInput.trim()
+      };
 
-      const data = await response.json();
+      const response = await OrderService.requestTrackingAccess(request);
 
-      if (!response.ok) {
-        throw new Error(data.message || `HTTP error! status: ${response.status}`);
-      }
-
-      if (data.success) {
+      if (response.success) {
         toast.success('Tracking access email sent! Please check your inbox.');
         setEmailInput('');
       } else {
-        throw new Error(data.message || 'Failed to send tracking email');
+        throw new Error(response.message || 'Failed to send tracking email');
       }
     } catch (err) {
       console.error('Error requesting tracking access:', err);

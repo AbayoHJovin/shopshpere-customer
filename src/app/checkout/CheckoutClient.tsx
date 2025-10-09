@@ -300,8 +300,32 @@ export function CheckoutClient() {
       
       const errorDetails = extractErrorDetails(error);
       
+      // Check for country validation errors first
+      if (errorDetails.errorCode === "VALIDATION_ERROR" && 
+          (errorDetails.message?.includes("don't deliver to") || errorDetails.details?.includes("don't deliver to"))) {
+        const countryMessage = errorDetails.message || errorDetails.details || "We don't deliver to this country.";
+        toast.error(countryMessage, {
+          duration: 10000, // Longer duration for important country validation messages
+          style: {
+            backgroundColor: '#fef2f2',
+            borderColor: '#fecaca',
+            color: '#991b1b',
+          },
+        });
+        // Clear the address selection to force user to select a different address
+        setAddressSelected(false);
+        setFormData(prev => ({
+          ...prev,
+          country: "",
+          city: "",
+          stateProvince: "",
+          streetAddress: "",
+          latitude: undefined,
+          longitude: undefined,
+        }));
+      }
       // Check if this is a stock-related error
-      if (errorDetails.details && (errorDetails.details.includes("not available") || errorDetails.details.includes("out of stock"))) {
+      else if (errorDetails.details && (errorDetails.details.includes("not available") || errorDetails.details.includes("out of stock"))) {
         const stockMessage = formatStockErrorMessage(errorDetails.details);
         toast.error(stockMessage, {
           duration: 8000,
@@ -455,6 +479,34 @@ export function CheckoutClient() {
       if (errorDetails.errorCode) {
         console.log("🔍 DEBUG: Error code detected:", errorDetails.errorCode);
         switch (errorDetails.errorCode) {
+          case "VALIDATION_ERROR":
+            // Handle country validation errors
+            if (errorDetails.message?.includes("don't deliver to") || errorDetails.details?.includes("don't deliver to")) {
+              const countryMessage = errorDetails.message || errorDetails.details || "We don't deliver to this country.";
+              toast.error(countryMessage, {
+                duration: 10000, // Longer duration for important country validation messages
+                style: {
+                  backgroundColor: '#fef2f2',
+                  borderColor: '#fecaca',
+                  color: '#991b1b',
+                },
+              });
+              // Clear the address selection to force user to select a different address
+              setAddressSelected(false);
+              setFormData(prev => ({
+                ...prev,
+                country: "",
+                city: "",
+                stateProvince: "",
+                streetAddress: "",
+                latitude: undefined,
+                longitude: undefined,
+              }));
+            } else {
+              // Other validation errors
+              toast.error(errorDetails.message || errorDetails.details || "Please check your information and try again.");
+            }
+            break;
           case "PRODUCT_NOT_FOUND":
           case "VARIANT_NOT_FOUND":
             toast.error("One or more products in your cart are no longer available. Please refresh and try again.");
