@@ -1,11 +1,8 @@
-// API Configuration
 export const API_BASE_URL =
   process.env.NODE_ENV === "production"
     ? "/api/v1"
     : "http://localhost:8080/api/v1";
-// API Endpoints
 export const API_ENDPOINTS = {
-  // Customer Product endpoints (filtered for customers)
   PRODUCTS: `${API_BASE_URL}/customer/products`,
   PRODUCT_BY_ID: (id: string) => `${API_BASE_URL}/customer/products/${id}`,
   PRODUCT_BY_SLUG: (slug: string) => `${API_BASE_URL}/customer/products/slug/${slug}`,
@@ -20,19 +17,15 @@ export const API_ENDPOINTS = {
     `${API_BASE_URL}/reviews/product/${productId}`,
   REVIEWS: `${API_BASE_URL}/reviews`,
 
-  // Category endpoints
   CATEGORIES: `${API_BASE_URL}/categories`,
   CATEGORY_BY_ID: (id: string) => `${API_BASE_URL}/categories/${id}`,
 
-  // Brand endpoints
   BRANDS: `${API_BASE_URL}/brands`,
   BRAND_BY_ID: (id: string) => `${API_BASE_URL}/brands/${id}`,
 
-  // Attribute endpoints
   ATTRIBUTE_TYPES: `${API_BASE_URL}/product-attribute-types`,
   ATTRIBUTE_VALUES: `${API_BASE_URL}/product-attribute-values`,
 
-  // Cart endpoints
   CART: `${API_BASE_URL}/cart`,
   CART_VIEW: `${API_BASE_URL}/cart/view`,
   CART_ADD: `${API_BASE_URL}/cart/add`,
