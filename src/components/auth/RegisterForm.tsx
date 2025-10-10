@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import { register, clearError } from "@/lib/store/slices/authSlice";
@@ -39,6 +39,16 @@ export default function RegisterForm() {
   const { isLoading, error, signupResponse } = useAppSelector(
     (state) => state.auth
   );
+
+  useEffect(() => {
+    if (signupResponse && signupResponse.userId) {
+      const timer = setTimeout(() => {
+        router.push("/auth/login?message=signup-success");
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [signupResponse, router]);
 
   const validateForm = () => {
     const errors: { [key: string]: string } = {};
@@ -318,7 +328,10 @@ export default function RegisterForm() {
 
       <RewardDialog
         isOpen={!!signupResponse && signupResponse.awardedPoints > 0}
-        onClose={() => {}}
+        onClose={() => {
+          // Redirect immediately when user closes the dialog
+          router.push("/auth/login?message=signup-success");
+        }}
         awardedPoints={signupResponse?.awardedPoints || 0}
         pointsDescription={signupResponse?.pointsDescription}
       />
