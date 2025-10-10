@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import { login, clearError } from "@/lib/store/slices/authSlice";
 import { Button } from "@/components/ui/button";
@@ -24,10 +24,25 @@ export default function LoginForm() {
     password: "",
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const dispatch = useAppDispatch();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isLoading, error } = useAppSelector((state) => state.auth);
+
+  // Handle success message from signup redirect
+  useEffect(() => {
+    const message = searchParams?.get("message");
+    if (message === "signup-success") {
+      setSuccessMessage("Account created successfully! Please log in with your credentials.");
+      // Clear the message after 5 seconds
+      const timer = setTimeout(() => {
+        setSuccessMessage(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +79,12 @@ export default function LoginForm() {
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {successMessage && (
+              <Alert className="border-green-200 bg-green-50 text-green-800">
+                <AlertDescription>{successMessage}</AlertDescription>
               </Alert>
             )}
 
