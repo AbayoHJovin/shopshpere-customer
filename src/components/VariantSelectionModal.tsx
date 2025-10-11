@@ -26,8 +26,9 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { ProductDTO, ProductVariantDTO, ProductService } from "@/lib/productService";
-import { CartItemRequest } from "@/lib/cartService";
+import { CartItemRequest, CartService } from "@/lib/cartService";
 import { formatPrice as formatPriceUtil, formatDiscountedPrice } from "@/lib/utils/priceFormatter";
+import { triggerCartUpdate } from "@/lib/utils/cartUtils";
 import Link from "next/link";
 
 interface VariantSelectionModalProps {
@@ -47,6 +48,7 @@ const VariantSelectionModal = ({
     useState<ProductVariantDTO | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [variantsInCart, setVariantsInCart] = useState<Set<string>>(new Set());
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -54,8 +56,27 @@ const VariantSelectionModal = ({
       setSelectedVariant(null);
       setQuantity(1);
       setIsLoading(false);
+    } else {
+      // Check cart status when modal opens
+      checkVariantsInCart();
     }
   }, [isOpen]);
+
+  // Check which variants are in cart
+  const checkVariantsInCart = async () => {
+    try {
+      const cartItems = await CartService.getProductCartItems(product.productId);
+      const variantIds = new Set(
+        cartItems
+          .filter(item => item.variantId)
+          .map(item => item.variantId!)
+      );
+      setVariantsInCart(variantIds);
+    } catch (error) {
+      console.error("Error checking variants in cart:", error);
+      setVariantsInCart(new Set());
+    }
+  };
 
   // Get available variants - show all active variants regardless of stock status
   const availableVariants =
@@ -105,6 +126,13 @@ const VariantSelectionModal = ({
         variantId: selectedVariant.variantId.toString(),
         quantity,
       });
+      
+      // Update variants in cart after successful addition
+      await checkVariantsInCart();
+      
+      // Trigger cart update event for header
+      triggerCartUpdate();
+      
       onClose();
     } catch (error) {
       console.error("Error adding to cart:", error);
@@ -265,6 +293,8 @@ const VariantSelectionModal = ({
                         className={`cursor-pointer transition-all ${
                           selectedVariant?.variantId === variant.variantId
                             ? "ring-2 ring-primary border-primary"
+                            : variantsInCart.has(variant.variantId.toString())
+                            ? "border-green-500 bg-green-50"
                             : "hover:border-primary/50"
                         }`}
                         onClick={() => handleVariantSelect(variant)}
@@ -292,6 +322,11 @@ const VariantSelectionModal = ({
                                   {selectedVariant?.variantId ===
                                     variant.variantId && (
                                     <Check className="h-4 w-4 text-primary" />
+                                  )}
+                                  {variantsInCart.has(variant.variantId.toString()) && (
+                                    <Badge variant="secondary" className="text-xs bg-green-500 text-white">
+                                      In Cart
+                                    </Badge>
                                   )}
                                 </div>
                                 <span className="font-semibold text-sm">
