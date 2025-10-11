@@ -11,6 +11,7 @@ import { WishlistService, AddToWishlistRequest } from "@/lib/wishlistService";
 import { useToast } from "@/hooks/use-toast";
 import { useAppSelector } from "@/lib/store/hooks";
 import { formatPrice, formatDiscountedPrice } from "@/lib/utils/priceFormatter";
+import { triggerCartUpdate } from "@/lib/utils/cartUtils";
 
 interface ProductCardProps {
   id: string;
@@ -57,7 +58,7 @@ const ProductCard = ({
   hasVariantDiscounts,
   maxVariantDiscount,
 }: ProductCardProps) => {
-  const [isInCart, setIsInCart] = useState(false);
+  const [cartItems, setCartItems] = useState<string[]>([]);
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isWishlistLoading, setIsWishlistLoading] = useState(false);
@@ -67,6 +68,7 @@ const ProductCard = ({
     hasVariantDiscounts: boolean;
     maxVariantDiscount: number;
   }>({ hasVariantDiscounts: false, maxVariantDiscount: 0 });
+  const [productsWithVariants, setProductsWithVariants] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const { isAuthenticated } = useAppSelector((state) => state.auth);
 
@@ -75,40 +77,57 @@ const ProductCard = ({
     checkCartStatus();
     checkWishlistStatus();
 
-    // Fetch variant discount information
-    const fetchVariantDiscountInfo = async () => {
+    // Fetch variant discount information and check if product has variants
+    const fetchProductInfo = async () => {
       try {
         const product = await ProductService.getProductById(id);
         const hasVariantDiscounts = ProductService.hasVariantDiscounts(product);
-        const maxVariantDiscount =
-          ProductService.getMaxVariantDiscount(product);
+        const maxVariantDiscount = ProductService.getMaxVariantDiscount(product);
         setVariantDiscountInfo({ hasVariantDiscounts, maxVariantDiscount });
+
+        // Check if product has variants and update the set
+        if (ProductService.hasVariants(product)) {
+          setProductsWithVariants(prev => new Set(prev).add(id));
+        }
       } catch (error) {
-        console.error("Error fetching variant discount info:", error);
+        console.error("Error fetching product info:", error);
       }
     };
 
-    fetchVariantDiscountInfo();
+    fetchProductInfo();
+
+    // Listen for cart updates
+    const handleCartUpdate = () => {
+      checkCartStatus();
+    };
+
+    window.addEventListener("cartUpdated", handleCartUpdate);
+    window.addEventListener("storage", handleCartUpdate);
+
+    return () => {
+      window.removeEventListener("cartUpdated", handleCartUpdate);
+      window.removeEventListener("storage", handleCartUpdate);
+    };
   }, [id]);
 
   const checkCartStatus = async () => {
     try {
-      // First check if product has variants
-      const product = await ProductService.getProductById(id);
-
-      if (ProductService.hasVariants(product)) {
-        // For products with variants, don't show "Added to cart"
-        // since only specific variants can be added
-        setIsInCart(false);
-      } else {
-        // For simple products, check if the product itself is in cart
-        const isProductInCart = await CartService.isInCart(id);
-        setIsInCart(isProductInCart);
-      }
+      const cart = await CartService.getCart();
+      const productIds = cart.items.map((item) => item.productId);
+      setCartItems(productIds);
     } catch (error) {
       console.error("Error checking cart status:", error);
-      setIsInCart(false);
+      setCartItems([]);
     }
+  };
+
+  // Helper function to check if a product is in cart (same as ProductGrid)
+  const isInCart = (productId: string): boolean => {
+    // For products with variants, never show "Added to Cart"
+    if (productsWithVariants.has(productId)) {
+      return false;
+    }
+    return cartItems.includes(productId);
   };
 
   const checkWishlistStatus = async () => {
@@ -127,7 +146,7 @@ const ProductCard = ({
     e.preventDefault();
     e.stopPropagation();
 
-    if (isInCart) {
+    if (isInCart(id)) {
       // Remove from cart
       try {
         setIsLoading(true);
@@ -138,6 +157,10 @@ const ProductCard = ({
           await CartService.removeItemFromCart(cartItem.id);
           // Refresh cart status after removal
           await checkCartStatus();
+          
+          // Trigger cart update event for header
+          triggerCartUpdate();
+          
           toast({
             title: "Removed from cart",
             description: `${name} has been removed from your cart.`,
@@ -168,8 +191,7 @@ const ProductCard = ({
       } else {
         // Add product directly to cart
         await handleAddToCart({ productId: id, quantity: 1 });
-        // Update cart status after adding
-        await checkCartStatus();
+        // Cart status is updated within handleAddToCart
       }
     } catch (error) {
       console.error("Error fetching product details:", error);
@@ -191,16 +213,15 @@ const ProductCard = ({
 
       // Update cart status based on what was added
       if (request.variantId) {
-        // If a variant was added, don't update cart status for products with variants
-        // since the "Added to cart" button shouldn't appear for variant products
-        setIsInCart(false);
+        // If a variant was added, just refresh the cart status
+        await checkCartStatus();
       } else {
-        // If product was added, check if product is in cart
-        const isProductInCart = await CartService.isInCart(
-          request.productId || id
-        );
-        setIsInCart(isProductInCart);
+        // If product was added directly (no variants), add to cartItems immediately
+        setCartItems(prev => [...prev, request.productId || id]);
       }
+
+      // Trigger cart update event for header
+      triggerCartUpdate();
 
       toast({
         title: "Added to cart",
@@ -359,7 +380,7 @@ const ProductCard = ({
               <div className="flex flex-col gap-2">
                 <Button
                   className={`w-full h-10 sm:h-9 text-sm ${
-                    isInCart ? "bg-success hover:bg-success/90" : ""
+                    isInCart(id) ? "bg-success hover:bg-success/90" : ""
                   }`}
                   onClick={handleCartToggle}
                   disabled={isLoading}
@@ -369,7 +390,7 @@ const ProductCard = ({
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       Loading...
                     </>
-                  ) : isInCart ? (
+                  ) : isInCart(id) ? (
                     <>
                       <Check className="h-4 w-4 mr-2" />
                       Added to Cart

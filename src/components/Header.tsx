@@ -93,6 +93,7 @@ const Header = () => {
         setCartItemCount(count);
       } catch (error) {
         console.error("Error fetching cart count:", error);
+        setCartItemCount(0);
       }
     };
 
@@ -110,6 +111,21 @@ const Header = () => {
       window.removeEventListener("cartUpdated", handleStorageChange);
     };
   }, []);
+
+  // Refresh cart count when authentication state changes
+  useEffect(() => {
+    const getCartCount = async () => {
+      try {
+        const count = await CartService.getCartItemsCount();
+        setCartItemCount(count);
+      } catch (error) {
+        console.error("Error fetching cart count:", error);
+        setCartItemCount(0);
+      }
+    };
+
+    getCartCount();
+  }, [isAuthenticated]);
 
   return (
     <header className="border-b bg-background sticky top-0 z-50">

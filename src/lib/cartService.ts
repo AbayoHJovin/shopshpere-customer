@@ -422,30 +422,15 @@ export const CartService = {
       // No token = guest user, use localStorage
       const cartItems = localStorage.getItem("cart");
       if (!cartItems) return 0;
-      return JSON.parse(cartItems).length;
+      const cart = JSON.parse(cartItems) as LocalStorageCartItem[];
+      // Return total quantity of all items
+      return cart.reduce((total, item) => total + item.quantity, 0);
     }
 
     try {
-      const response = await fetch(`${API_ENDPOINTS.CART_HAS_ITEMS}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          // Token expired or invalid - clear it and treat as guest
-          localStorage.removeItem("authToken");
-          console.warn("Authentication token expired, treating as guest user");
-          const cartItems = localStorage.getItem("cart");
-          if (!cartItems) return 0;
-          return JSON.parse(cartItems).length;
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.data.hasItems ? 1 : 0;
+      // For authenticated users, get the full cart and count total items
+      const cart = await CartService.getCart();
+      return cart.totalItems || 0;
     } catch (error) {
       console.error("Error getting cart item count:", error);
       // For authenticated users, don't fallback to localStorage on network errors
@@ -481,6 +466,43 @@ export const CartService = {
       // For authenticated users, don't fallback to localStorage on network errors
       // Return false instead
       return false;
+    }
+  },
+
+  /**
+   * Check if a specific variant is in the cart
+   */
+  isVariantInCart: async (variantId: string): Promise<boolean> => {
+    const token = getAuthToken();
+
+    if (!token) {
+      // Check localStorage
+      const cartItems = localStorage.getItem("cart");
+      if (!cartItems) return false;
+
+      const cart = JSON.parse(cartItems) as LocalStorageCartItem[];
+      return cart.some((item) => item.variantId === variantId);
+    }
+
+    try {
+      const cart = await CartService.getCart();
+      return cart.items.some((item) => item.variantId === variantId);
+    } catch (error) {
+      console.error("Error checking if variant is in cart:", error);
+      return false;
+    }
+  },
+
+  /**
+   * Get cart items for a specific product (including variants)
+   */
+  getProductCartItems: async (productId: string): Promise<CartItemResponse[]> => {
+    try {
+      const cart = await CartService.getCart();
+      return cart.items.filter((item) => item.productId === productId);
+    } catch (error) {
+      console.error("Error getting product cart items:", error);
+      return [];
     }
   },
 

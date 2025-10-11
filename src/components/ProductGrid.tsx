@@ -36,6 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAppSelector } from "@/lib/store/hooks";
 import { filterMappingService } from "@/lib/filterMappingService";
 import { formatPrice, formatDiscountedPrice } from "@/lib/utils/priceFormatter";
+import { triggerCartUpdate } from "@/lib/utils/cartUtils";
 import Link from "next/link";
 
 interface FilterState {
@@ -178,6 +179,10 @@ const ProductGrid = ({
         if (cartItem) {
           await CartService.removeItemFromCart(cartItem.id);
           await checkCartStatus();
+          
+          // Trigger cart update event for header
+          triggerCartUpdate();
+          
           toast({
             title: "Removed from cart",
             description: "Product has been removed from your cart.",
@@ -244,6 +249,9 @@ const ProductGrid = ({
           setCartItems((prev) => [...prev, request.productId || ""]);
         }
       }
+
+      // Trigger cart update event for header
+      triggerCartUpdate();
 
       toast({
         title: "Added to cart",
@@ -771,7 +779,6 @@ const ProductGrid = ({
                   />
                 ) : (
                   <div className="relative border rounded-lg overflow-hidden hover:border-primary/20 hover:shadow-lg transition-all duration-300 group">
-                    {/* Badges */}
                     <div className="absolute top-3 left-3 z-10 flex flex-col gap-1">
                       {convertedProduct.hasActiveDiscount &&
                         convertedProduct.discount && (
@@ -779,8 +786,6 @@ const ProductGrid = ({
                             -{convertedProduct.discount}% OFF
                           </Badge>
                         )}
-
-                      {/* Note: Variant discount indicators will be handled by ProductCard component */}
 
                       {convertedProduct.isNew && (
                         <Badge className="bg-green-500 text-white text-xs">
@@ -798,8 +803,6 @@ const ProductGrid = ({
                         </Badge>
                       )}
                     </div>
-
-                    {/* Wishlist Button */}
                     <Button
                       variant="ghost"
                       size="icon"
