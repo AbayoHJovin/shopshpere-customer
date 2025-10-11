@@ -67,6 +67,13 @@ export function ProductPageClient({ productId }: { productId: string }) {
   const [isCartLoading, setIsCartLoading] = useState(false);
   const [isWishlistLoading, setIsWishlistLoading] = useState(false);
   const [showVariantModal, setShowVariantModal] = useState(false);
+  
+  // Image zoom states
+  const [isZooming, setIsZooming] = useState(false);
+  const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 });
+  const [lensPosition, setLensPosition] = useState({ x: 0, y: 0 });
+  const [isDesktop, setIsDesktop] = useState(false);
+  
   const { toast } = useToast();
   const { isAuthenticated } = useAppSelector((state) => state.auth);
 
@@ -133,6 +140,38 @@ export function ProductPageClient({ productId }: { productId: string }) {
     return <span className="font-semibold">{basePrice}</span>;
   };
 
+  // Image zoom handlers
+  const handleMouseEnter = () => {
+    // Only enable zoom on desktop devices
+    if (isDesktop) {
+      setIsZooming(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setIsZooming(false);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isZooming || !isDesktop) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    // Calculate lens position (centered on cursor)
+    const lensSize = 100; // Size of the lens
+    const lensX = Math.max(0, Math.min(x - lensSize / 2, rect.width - lensSize));
+    const lensY = Math.max(0, Math.min(y - lensSize / 2, rect.height - lensSize));
+    
+    // Calculate zoom position (for background positioning)
+    const zoomX = (x / rect.width) * 100;
+    const zoomY = (y / rect.height) * 100;
+    
+    setLensPosition({ x: lensX, y: lensY });
+    setZoomPosition({ x: zoomX, y: zoomY });
+  };
+
   // Fetch product data on component mount
   useEffect(() => {
     fetchProductData();
@@ -151,6 +190,23 @@ export function ProductPageClient({ productId }: { productId: string }) {
     };
   }, [productId]);
 
+  // Handle screen size detection for zoom feature
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsDesktop(window.innerWidth > 768);
+    };
+
+    // Check initial screen size
+    checkScreenSize();
+
+    // Listen for window resize
+    window.addEventListener('resize', checkScreenSize);
+
+    return () => {
+      window.removeEventListener('resize', checkScreenSize);
+    };
+  }, []);
+
   // Check cart and wishlist status when product changes
   useEffect(() => {
     if (product) {
@@ -165,6 +221,11 @@ export function ProductPageClient({ productId }: { productId: string }) {
       checkCartStatus();
     }
   }, [selectedVariant]);
+
+  // Reset zoom state when image changes
+  useEffect(() => {
+    setIsZooming(false);
+  }, [selectedImage, displayImages]);
 
   // Update display data when product or selected variant changes
   useEffect(() => {
@@ -488,16 +549,37 @@ export function ProductPageClient({ productId }: { productId: string }) {
 
       {/* Main Product Section */}
       <section className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative">
           {/* Product Images */}
           <div className="space-y-4">
-            <div className="aspect-square relative rounded-lg overflow-hidden border bg-muted">
+            <div 
+              className="aspect-square relative rounded-lg overflow-hidden border bg-muted cursor-crosshair"
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              onMouseMove={handleMouseMove}
+            >
               {displayImages && displayImages.length > 0 ? (
-                <img
-                  src={displayImages[selectedImage]?.url}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
+                <>
+                  <img
+                    src={displayImages[selectedImage]?.url}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                  />
+                  
+                  {/* Zoom Lens - only visible on desktop when zooming */}
+                  {isZooming && isDesktop && (
+                    <div
+                      className="absolute border-2 border-white shadow-lg bg-white bg-opacity-30 pointer-events-none transition-opacity duration-200"
+                      style={{
+                        width: '100px',
+                        height: '100px',
+                        left: `${lensPosition.x}px`,
+                        top: `${lensPosition.y}px`,
+                        borderRadius: '4px',
+                      }}
+                    />
+                  )}
+                </>
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                   No image available
@@ -1035,6 +1117,48 @@ export function ProductPageClient({ productId }: { productId: string }) {
               </Button>
             </div>
           </div>
+          
+          {isZooming && displayImages && displayImages.length > 0 && isDesktop && (
+            <div
+              className="absolute top-0 right-0 w-full h-full bg-white bg-opacity-95 backdrop-blur-sm border border-gray-300 rounded-lg shadow-2xl z-50 pointer-events-none transition-all duration-300 ease-in-out"
+              style={{
+                backgroundImage: `url(${displayImages[selectedImage]?.url})`,
+                backgroundSize: '250%', // 2.5x zoom level for better view
+                backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
+                backgroundRepeat: 'no-repeat',
+              }}
+            >
+              <div className="absolute top-0 left-0 right-0 bg-black bg-opacity-80 text-white p-3 rounded-t-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    <span className="text-sm font-medium">Zoom View Active</span>
+                  </div>
+                  <div className="text-xs opacity-75">
+                    Move cursor to explore • 2.5x magnification
+                  </div>
+                </div>
+              </div>
+              
+              {/* Zoom level indicator */}
+              <div className="absolute bottom-4 right-4 bg-black bg-opacity-70 text-white text-xs px-3 py-2 rounded-full">
+                2.5× Zoom
+              </div>
+              
+              {/* Crosshair indicator */}
+              <div 
+                className="absolute w-8 h-8 border-2 border-white rounded-full shadow-lg pointer-events-none"
+                style={{
+                  left: `${zoomPosition.x}%`,
+                  top: `${zoomPosition.y}%`,
+                  transform: 'translate(-50%, -50%)',
+                  boxShadow: '0 0 0 2px rgba(0,0,0,0.3), inset 0 0 0 2px rgba(255,255,255,0.8)'
+                }}
+              >
+                <div className="absolute inset-0 border border-black rounded-full opacity-30"></div>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
