@@ -286,7 +286,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
         (item) => item.productId === product.productId
       );
 
-      if (ProductService.hasVariants(product)) {
+      if (product && ProductService.hasVariants(product)) {
         // For products with variants, track which variants are in cart
         const variantIds = new Set(
           productCartItems
@@ -338,7 +338,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
         const cart = await CartService.getCart();
         
         let cartItem;
-        if (ProductService.hasVariants(product) && selectedVariant) {
+        if (product && ProductService.hasVariants(product) && selectedVariant) {
           // Find the specific variant in cart
           cartItem = cart.items.find(
             (item) => 
@@ -358,7 +358,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
           await CartService.removeItemFromCart(cartItem.id);
           
           // Update local state
-          if (ProductService.hasVariants(product) && selectedVariant) {
+          if (product && ProductService.hasVariants(product) && selectedVariant) {
             setVariantsInCart(prev => {
               const newSet = new Set(prev);
               newSet.delete(selectedVariant.variantId.toString());
@@ -1062,7 +1062,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                 disabled={
                   (displayStock || 0) === 0 ||
                   isCartLoading ||
-                  (ProductService.hasVariants(product) && !selectedVariant) ||
+                  (product && ProductService.hasVariants(product) && !selectedVariant) ||
                   (selectedVariant &&
                     ProductService.getVariantTotalStock(selectedVariant) === 0)
                 }
@@ -1083,7 +1083,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                     <AlertCircle className="h-5 w-5 mr-2" />
                     Out of Stock
                   </>
-                ) : ProductService.hasVariants(product) && !selectedVariant ? (
+                ) : product && ProductService.hasVariants(product) && !selectedVariant ? (
                   <>
                     <ShoppingCart className="h-5 w-5 mr-2" />
                     Select Variant
