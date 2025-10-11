@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,8 @@ import { CartService, CartItemRequest } from "@/lib/cartService";
 import { WishlistService, AddToWishlistRequest } from "@/lib/wishlistService";
 import { useToast } from "@/hooks/use-toast";
 import { useAppSelector } from "@/lib/store/hooks";
-import { formatPrice } from "@/lib/utils/priceFormatter";
+import { formatPrice as formatPriceUtil } from "@/lib/utils/priceFormatter";
+import { triggerCartUpdate } from "@/lib/utils/cartUtils";
 import VariantSelectionModal from "@/components/VariantSelectionModal";
 import SimilarProducts from "@/components/SimilarProducts";
 import ReviewSection from "@/components/ReviewSection";
@@ -60,6 +61,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
   const [displayStock, setDisplayStock] = useState<number>(0);
   const [quantity, setQuantity] = useState(1);
   const [isInCart, setIsInCart] = useState(false);
+  const [variantsInCart, setVariantsInCart] = useState<Set<string>>(new Set());
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isCartLoading, setIsCartLoading] = useState(false);
@@ -106,19 +108,14 @@ export function ProductPageClient({ productId }: { productId: string }) {
     return null;
   };
 
-  const formatPrice = (price: number, variant?: any) => {
-    const basePrice = new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
+  // Local price formatting function with discount display
+  const formatPriceWithDiscount = (price: number, variant?: any) => {
+    const basePrice = formatPriceUtil(price);
 
     if (variant) {
       const effectiveDiscount = getEffectiveDiscount(variant);
       if (effectiveDiscount) {
-        const discountedPrice = new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "USD",
-        }).format(effectiveDiscount.discountedPrice);
+        const discountedPrice = formatPriceUtil(effectiveDiscount.discountedPrice);
 
         return (
           <div className="flex flex-col">
@@ -139,6 +136,19 @@ export function ProductPageClient({ productId }: { productId: string }) {
   // Fetch product data on component mount
   useEffect(() => {
     fetchProductData();
+    
+    // Listen for cart updates from other components
+    const handleCartUpdate = () => {
+      checkCartStatus();
+    };
+
+    window.addEventListener("cartUpdated", handleCartUpdate);
+    window.addEventListener("storage", handleCartUpdate);
+
+    return () => {
+      window.removeEventListener("cartUpdated", handleCartUpdate);
+      window.removeEventListener("storage", handleCartUpdate);
+    };
   }, [productId]);
 
   // Check cart and wishlist status when product changes
@@ -148,6 +158,13 @@ export function ProductPageClient({ productId }: { productId: string }) {
       checkWishlistStatus();
     }
   }, [product]);
+
+  // Update cart status when selected variant changes
+  useEffect(() => {
+    if (product && selectedVariant) {
+      checkCartStatus();
+    }
+  }, [selectedVariant]);
 
   // Update display data when product or selected variant changes
   useEffect(() => {
@@ -198,17 +215,41 @@ export function ProductPageClient({ productId }: { productId: string }) {
   };
 
   const checkCartStatus = async () => {
-    if (!isAuthenticated || !product) return;
+    if (!product) return;
 
     try {
       const cart = await CartService.getCart();
-      // Check if the product is in cart (either as base product or as a variant)
-      const isProductInCart = cart.items.some(
+      
+      // Get all cart items for this product
+      const productCartItems = cart.items.filter(
         (item) => item.productId === product.productId
       );
-      setIsInCart(isProductInCart);
+
+      if (ProductService.hasVariants(product)) {
+        // For products with variants, track which variants are in cart
+        const variantIds = new Set(
+          productCartItems
+            .filter(item => item.variantId)
+            .map(item => item.variantId!)
+        );
+        setVariantsInCart(variantIds);
+        
+        // Set isInCart based on selected variant
+        if (selectedVariant) {
+          setIsInCart(variantIds.has(selectedVariant.variantId.toString()));
+        } else {
+          setIsInCart(false);
+        }
+      } else {
+        // For simple products, check if product itself is in cart
+        const isProductInCart = productCartItems.some(item => !item.variantId);
+        setIsInCart(isProductInCart);
+        setVariantsInCart(new Set());
+      }
     } catch (error) {
       console.error("Error checking cart status:", error);
+      setIsInCart(false);
+      setVariantsInCart(new Set());
     }
   };
 
@@ -229,30 +270,52 @@ export function ProductPageClient({ productId }: { productId: string }) {
 
   // Handle adding to cart
   const handleCartToggle = async () => {
-    if (!isAuthenticated) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to add items to your cart.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     if (isInCart) {
       // Remove from cart
       try {
         setIsCartLoading(true);
         const cart = await CartService.getCart();
-        const cartItem = cart.items.find(
-          (item) => item.productId === product!.productId
-        );
+        
+        let cartItem;
+        if (ProductService.hasVariants(product) && selectedVariant) {
+          // Find the specific variant in cart
+          cartItem = cart.items.find(
+            (item) => 
+              item.productId === product!.productId && 
+              item.variantId === selectedVariant.variantId.toString()
+          );
+        } else {
+          // Find the product in cart (no variants)
+          cartItem = cart.items.find(
+            (item) => 
+              item.productId === product!.productId && 
+              !item.variantId
+          );
+        }
 
         if (cartItem) {
           await CartService.removeItemFromCart(cartItem.id);
+          
+          // Update local state
+          if (ProductService.hasVariants(product) && selectedVariant) {
+            setVariantsInCart(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(selectedVariant.variantId.toString());
+              return newSet;
+            });
+          }
           setIsInCart(false);
+          
+          // Trigger cart update for header
+          triggerCartUpdate();
+          
+          const itemName = selectedVariant 
+            ? `${product!.name} (${selectedVariant.variantSku})`
+            : product!.name;
+          
           toast({
             title: "Removed from cart",
-            description: `${product!.name} has been removed from your cart.`,
+            description: `${itemName} has been removed from your cart.`,
           });
         }
       } catch (error) {
@@ -293,7 +356,16 @@ export function ProductPageClient({ productId }: { productId: string }) {
     try {
       setIsCartLoading(true);
       await CartService.addItemToCart(request);
+      
+      // Update local state
+      if (request.variantId) {
+        // Add variant to cart set
+        setVariantsInCart(prev => new Set(prev).add(request.variantId!.toString()));
+      }
       setIsInCart(true);
+      
+      // Trigger cart update for header
+      triggerCartUpdate();
 
       const itemName = request.variantId
         ? `${product!.name} (${selectedVariant?.variantSku})`
@@ -317,19 +389,10 @@ export function ProductPageClient({ productId }: { productId: string }) {
 
   // Handle wishlist toggle
   const handleWishlistToggle = async () => {
-    if (!isAuthenticated) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to add items to your wishlist.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     if (isInWishlist) {
       // Remove from wishlist
+      setIsWishlistLoading(true);
       try {
-        setIsWishlistLoading(true);
         toast({
           title: "Remove from wishlist",
           description: "Please go to your wishlist page to remove items.",
@@ -372,27 +435,27 @@ export function ProductPageClient({ productId }: { productId: string }) {
     }
   };
 
+  // Show loading state while product is being fetched
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex items-center gap-2">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <span>Loading product...</span>
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p>Loading product details...</p>
         </div>
       </div>
     );
   }
 
+  // Show error state if product failed to load
   if (!product) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Product not found</h2>
-          <p className="text-muted-foreground mb-4">
-            The product you're looking for doesn't exist.
-          </p>
-          <Button asChild>
-            <Link href="/shop">Back to Shop</Link>
+          <AlertCircle className="h-8 w-8 mx-auto mb-4 text-red-500" />
+          <p>Product not found or failed to load.</p>
+          <Button onClick={() => window.location.reload()} className="mt-4">
+            Try Again
           </Button>
         </div>
       </div>
@@ -585,7 +648,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
               {/* Price */}
               <div className="mt-4 flex items-center gap-3">
                 <span className="text-3xl font-bold text-price">
-                  {formatPrice(displayPrice)}
+                  {formatPriceUtil(displayPrice)}
                 </span>
                 {selectedVariant ? (
                   // Show variant price with discount info
@@ -597,7 +660,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                         return (
                           <>
                             <span className="text-xl text-muted-foreground line-through">
-                              {formatPrice(selectedVariant.price)}
+                              {formatPriceUtil(selectedVariant.price)}
                             </span>
                             <Badge
                               variant={
@@ -633,7 +696,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                       product.salePrice < product.basePrice &&
                       product.basePrice && (
                         <span className="text-xl text-muted-foreground line-through">
-                          {formatPrice(product.basePrice)}
+                          {formatPriceUtil(product.basePrice)}
                         </span>
                       )}
                     {product.salePrice &&
@@ -669,190 +732,194 @@ export function ProductPageClient({ productId }: { productId: string }) {
                     </div>
                   </div>
                 )}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-medium">
-                    Available Variants{" "}
-                    {selectedVariant && (
-                      <span className="text-xs text-muted-foreground ml-2">
-                        (Selected: {selectedVariant.variantSku})
-                      </span>
-                    )}
+              </>
+            )}
+
+            {/* Variants */}
+            {product && ProductService.hasVariants(product) && (
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold">
+                    Available Variants
                   </h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    {product.variants.map((variant) => {
-                      const effectiveDiscount = getEffectiveDiscount(variant);
-                      return (
-                        <div
-                          key={variant.variantId}
-                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                            selectedVariant?.variantId === variant.variantId
-                              ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                              : "hover:border-primary/50"
-                          } ${
-                            ProductService.getVariantTotalStock(variant) === 0
-                              ? "opacity-50"
-                              : ""
-                          }`}
-                          onClick={() => setSelectedVariant(variant)}
-                        >
+                  {variantsInCart.size > 0 && (
+                    <Badge variant="secondary" className="bg-green-100 text-green-800">
+                      {variantsInCart.size} in cart
+                    </Badge>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {product.variants.map((variant) => {
+                    const effectiveDiscount = getEffectiveDiscount(variant);
+                    return (
+                      <div
+                        key={variant.variantId}
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                          selectedVariant?.variantId === variant.variantId
+                            ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                            : variantsInCart.has(variant.variantId.toString())
+                            ? "border-green-500 bg-green-50"
+                            : "hover:border-primary/50"
+                        } ${
+                          ProductService.getVariantTotalStock(variant) === 0
+                            ? "opacity-50"
+                            : ""
+                        }`}
+                        onClick={() => setSelectedVariant(variant)}
+                      >
+                        <div className="flex items-center justify-between">
                           <div className="text-sm font-medium">
                             {variant.variantSku}
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            {effectiveDiscount ? (
-                              <div className="flex flex-col">
-                                <span className="font-semibold text-green-600">
-                                  {formatPrice(
-                                    effectiveDiscount.discountedPrice
-                                  )}
-                                </span>
-                                <span className="line-through">
-                                  {formatPrice(variant.price || 0)}
-                                </span>
-                              </div>
-                            ) : (
-                              formatPrice(variant.price || 0)
-                            )}
-                          </div>
-                          {effectiveDiscount && (
-                            <Badge
-                              variant={
-                                effectiveDiscount.isVariantSpecific
-                                  ? "destructive"
-                                  : "secondary"
-                              }
-                              className={`text-xs mt-1 ${
-                                effectiveDiscount.isVariantSpecific
-                                  ? ""
-                                  : "bg-orange-500 text-white"
-                              }`}
-                            >
-                              -{Math.round(effectiveDiscount.percentage)}% OFF
-                              {effectiveDiscount.isVariantSpecific
-                                ? ""
-                                : " (Product)"}
+                          {variantsInCart.has(variant.variantId.toString()) && (
+                            <Badge variant="secondary" className="text-xs bg-green-500 text-white">
+                              In Cart
                             </Badge>
                           )}
-                          <div
-                            className={`text-xs ${
-                              ProductService.getVariantTotalStock(variant) > 0
-                                ? "text-green-600"
-                                : "text-red-600"
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {effectiveDiscount ? (
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-green-600">
+                                {formatPriceUtil(effectiveDiscount.discountedPrice)}
+                              </span>
+                              <span className="line-through">
+                                {formatPriceUtil(variant.price || 0)}
+                              </span>
+                            </div>
+                          ) : (
+                            formatPriceUtil(variant.price || 0)
+                          )}
+                        </div>
+                        {effectiveDiscount && (
+                          <Badge
+                            variant={
+                              effectiveDiscount.isVariantSpecific
+                                ? "destructive"
+                                : "secondary"
+                            }
+                            className={`text-xs mt-1 ${
+                              effectiveDiscount.isVariantSpecific
+                                ? ""
+                                : "bg-orange-500 text-white"
                             }`}
                           >
-                            {ProductService.getVariantTotalStock(variant) > 0
-                              ? `Stock: ${ProductService.getVariantTotalStock(
-                                  variant
-                                )}`
-                              : "Out of Stock"}
-                          </div>
-                          {/* Show variant attributes */}
-                          {variant.attributes &&
-                            variant.attributes.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {variant.attributes.map((attr, index) => (
-                                  <span
-                                    key={index}
-                                    className="text-xs bg-gray-100 px-1 py-0.5 rounded"
-                                  >
-                                    {attr.attributeType}: {attr.attributeValue}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
+                            -{Math.round(effectiveDiscount.percentage)}% OFF
+                            {effectiveDiscount.isVariantSpecific
+                              ? ""
+                              : " (Product)"}
+                          </Badge>
+                        )}
+                        <div
+                          className={`text-xs ${
+                            ProductService.getVariantTotalStock(variant) > 0
+                              ? "text-green-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {ProductService.getVariantTotalStock(variant) > 0
+                            ? `Stock: ${ProductService.getVariantTotalStock(variant)}`
+                            : "Out of Stock"}
                         </div>
-                      );
-                    })}
-                  </div>
-                  {selectedVariant && (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <div className="text-sm font-medium text-green-800">
-                        Selected: {selectedVariant.variantSku}
+                        {/* Show variant attributes */}
+                        {variant.attributes &&
+                          variant.attributes.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {variant.attributes.map((attr, index) => (
+                                <span
+                                  key={index}
+                                  className="text-xs bg-gray-100 px-1 py-0.5 rounded"
+                                >
+                                  {attr.attributeType}: {attr.attributeValue}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                       </div>
-                      <div className="text-xs text-green-600">
-                        {(() => {
+                    );
+                  })}
+                </div>
+                {selectedVariant && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg mt-2">
+                    <div className="text-sm font-medium text-green-800">
+                      Selected: {selectedVariant.variantSku}
+                    </div>
+                    <div className="text-xs text-green-600">
+                      {(() => {
+                        const effectiveDiscount =
+                          getEffectiveDiscount(selectedVariant);
+                        if (effectiveDiscount) {
+                          return (
+                            <div className="flex flex-col">
+                              <span className="font-semibold">
+                                Price: {formatPriceUtil(effectiveDiscount.discountedPrice)}
+                              </span>
+                              <span className="line-through">
+                                Original: {formatPriceUtil(selectedVariant.price)}
+                              </span>
+                              <span className="text-orange-600 font-medium">
+                                -{Math.round(effectiveDiscount.percentage)}%
+                                OFF
+                                {effectiveDiscount.isVariantSpecific
+                                  ? ""
+                                  : " (Product Discount)"}
+                              </span>
+                            </div>
+                          );
+                        }
+                        return `Price: ${formatPriceUtil(selectedVariant.price || 0)}`;
+                      })()}
+                      <span className="ml-2">|</span>
+                      <span className="ml-2">
+                        Stock: {ProductService.getVariantTotalStock(selectedVariant)}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setDisplayImages(
+                            selectedVariant.images &&
+                              selectedVariant.images.length > 0
+                              ? selectedVariant.images
+                              : product.images || []
+                          );
                           const effectiveDiscount =
                             getEffectiveDiscount(selectedVariant);
-                          if (effectiveDiscount) {
-                            return (
-                              <div className="flex flex-col">
-                                <span className="font-semibold">
-                                  Price:{" "}
-                                  {formatPrice(
-                                    effectiveDiscount.discountedPrice
-                                  )}
-                                </span>
-                                <span className="line-through">
-                                  Original: {formatPrice(selectedVariant.price)}
-                                </span>
-                                <span className="text-orange-600 font-medium">
-                                  -{Math.round(effectiveDiscount.percentage)}%
-                                  OFF
-                                  {effectiveDiscount.isVariantSpecific
-                                    ? ""
-                                    : " (Product Discount)"}
-                                </span>
-                              </div>
-                            );
-                          }
-                          return `Price: ${formatPrice(
-                            selectedVariant.price || 0,
-                            { showCurrency: false }
-                          )}`;
-                        })()}
-                        <span className="ml-2">|</span>
-                        <span className="ml-2">
-                          Stock:{" "}
-                          {ProductService.getVariantTotalStock(selectedVariant)}
-                        </span>
-                      </div>
-                      <div className="mt-2 flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setDisplayImages(
-                              selectedVariant.images &&
-                                selectedVariant.images.length > 0
-                                ? selectedVariant.images
-                                : product.images || []
-                            );
-                            const effectiveDiscount =
-                              getEffectiveDiscount(selectedVariant);
-                            setDisplayPrice(
-                              effectiveDiscount
-                                ? effectiveDiscount.discountedPrice
-                                : selectedVariant.price || 0
-                            );
-                            setDisplayStock(
-                              ProductService.getVariantTotalStock(
-                                selectedVariant
-                              )
-                            );
-                          }}
-                          className="text-xs"
-                        >
-                          View Variant Images
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setDisplayImages(product.images || []);
-                            setDisplayPrice(
-                              product.discountedPrice || product.basePrice || 0
-                            );
-                            setDisplayStock(product.stockQuantity || 0);
-                          }}
-                          className="text-xs"
-                        >
-                          View Product Images
-                        </Button>
-                      </div>
+                          setDisplayPrice(
+                            effectiveDiscount
+                              ? effectiveDiscount.discountedPrice
+                              : selectedVariant.price || 0
+                          );
+                          setDisplayStock(
+                            ProductService.getVariantTotalStock(
+                              selectedVariant
+                            )
+                          );
+                        }}
+                        className="text-xs"
+                      >
+                        View Variant Images
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setDisplayImages(product.images || []);
+                          setDisplayPrice(
+                            product.discountedPrice || product.basePrice || 0
+                          );
+                          setDisplayStock(product.stockQuantity || 0);
+                        }}
+                        className="text-xs"
+                      >
+                        View Product Images
+                      </Button>
                     </div>
-                  )}
-                </div>
-              </>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Quantity */}
@@ -926,7 +993,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                 ) : isInCart ? (
                   <>
                     <Check className="h-5 w-5 mr-2" />
-                    Added to Cart
+                    {selectedVariant ? `Added: ${selectedVariant.variantSku}` : "Added to Cart"}
                   </>
                 ) : selectedVariant &&
                   ProductService.getVariantTotalStock(selectedVariant) === 0 ? (
@@ -940,10 +1007,10 @@ export function ProductPageClient({ productId }: { productId: string }) {
                     Select Variant
                   </>
                 ) : (
-                  <Button>
+                  <>
                     <ShoppingCart className="h-5 w-5 mr-2" />
-                    Adds to Cart
-                  </Button>
+                    {selectedVariant ? `Add ${selectedVariant.variantSku}` : "Add to Cart"}
+                  </>
                 )}
               </Button>
               <Button
@@ -1110,21 +1177,25 @@ export function ProductPageClient({ productId }: { productId: string }) {
       {/* Additional Similar Products Sections */}
       <section className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <SimilarProducts
-            productId={product.productId}
-            title="People Also Bought"
-            algorithm="popular"
-            maxProducts={4}
-            showAlgorithmSelector={false}
-          />
+          {product && (
+            <>
+              <SimilarProducts
+                productId={product.productId}
+                title="People Also Bought"
+                algorithm="popular"
+                maxProducts={4}
+                showAlgorithmSelector={false}
+              />
 
-          <SimilarProducts
-            productId={product.productId}
-            title="From Same Brand"
-            algorithm="brand"
-            maxProducts={4}
-            showAlgorithmSelector={false}
-          />
+              <SimilarProducts
+                productId={product.productId}
+                title="From Same Brand"
+                algorithm="brand"
+                maxProducts={4}
+                showAlgorithmSelector={false}
+              />
+            </>
+          )}
         </div>
       </section>
 
