@@ -1,7 +1,3 @@
-/**
- * Enhanced navigation hook with reload capabilities
- */
-
 import { useRouter } from 'next/navigation';
 import { useCallback, useRef } from 'react';
 import { 
@@ -18,19 +14,14 @@ export const useEnhancedNavigation = () => {
   const { isAuthenticated } = useAppSelector(state => state.auth);
   const previousAuthState = useRef(isAuthenticated);
 
-  /**
-   * Navigate to a URL with optional reload
-   */
   const navigate = useCallback((url: string, options: NavigationOptions = {}) => {
     const currentPath = window.location.pathname;
     
-    // Check if we should force reload based on auth state changes
     const authStateChanged = shouldForceReloadOnAuthChange(
       previousAuthState.current, 
       isAuthenticated
     );
     
-    // Force reload if auth state changed and we're going to a protected route
     const shouldForceReload = options.forceReload || 
       (authStateChanged && routeRequiresReloadOnAuth(url));
 

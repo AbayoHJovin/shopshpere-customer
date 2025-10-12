@@ -1,6 +1,7 @@
+import { API_BASE_URL as url } from '@/lib/api';
 import { OrderDetails, SubmitReturnRequest, SubmitGuestReturnRequest, ReturnRequestResponse } from '@/types/return';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
+const API_BASE_URL = url
 
 export class ReturnService {
   /**
