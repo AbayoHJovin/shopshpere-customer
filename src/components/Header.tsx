@@ -16,6 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEnhancedNavigation } from "@/hooks/useEnhancedNavigation";
+import { NavigationLink, AuthLink } from "@/components/NavigationLink";
 import {
   Sheet,
   SheetContent,
@@ -41,6 +43,7 @@ import { DeliveryStatus } from "@/components/DeliveryStatus";
 
 const Header = () => {
   const router = useRouter();
+  const { navigateWithReload, navigateToAuthRoute, createClickHandler } = useEnhancedNavigation();
   const dispatch = useAppDispatch();
   const { user, isAuthenticated, isLoading } = useAppSelector(
     (state) => state.auth
@@ -66,7 +69,8 @@ const Header = () => {
   const handleLogout = async () => {
     try {
       await dispatch(logout()).unwrap();
-      router.push("/");
+      // Force reload after logout to clear all cached data
+      navigateWithReload("/");
     } catch (error) {
       console.error("Logout failed:", error);
     }
@@ -139,12 +143,12 @@ const Header = () => {
           <div className="flex items-center gap-4">
             <DeliveryStatus />
             <span className="text-muted-foreground">Help</span>
-            <Link
+            <NavigationLink
               href="/track-order"
               className="text-muted-foreground hover:text-primary transition-colors"
             >
               Track Order
-            </Link>
+            </NavigationLink>
           </div>
         </div>
 
@@ -162,38 +166,38 @@ const Header = () => {
                   <SheetTitle>ShopSphere</SheetTitle>
                 </SheetHeader>
                 <nav className="flex flex-col space-y-4">
-                  <Link
+                  <NavigationLink
                     href="/"
                     className="text-lg font-medium px-2 py-1 hover:text-primary transition-colors"
                   >
                     Home
-                  </Link>
-                  <Link
+                  </NavigationLink>
+                  <NavigationLink
                     href="/shop"
                     className="text-lg font-medium px-2 py-1 hover:text-primary transition-colors"
                   >
                     Shop
-                  </Link>
-                  <Link
+                  </NavigationLink>
+                  <NavigationLink
                     href="/track-order"
                     className="text-lg font-medium px-2 py-1 hover:text-primary transition-colors"
                   >
                     Track Order
-                  </Link>
+                  </NavigationLink>
                   {isAuthenticated ? (
                     <>
-                      <Link
+                      <AuthLink
                         href="/account"
                         className="text-lg font-medium px-2 py-1 hover:text-primary transition-colors"
                       >
                         My Account
-                      </Link>
-                      <Link
+                      </AuthLink>
+                      <AuthLink
                         href="/wishlist"
                         className="text-lg font-medium px-2 py-1 hover:text-primary transition-colors"
                       >
                         Wishlist
-                      </Link>
+                      </AuthLink>
                       <button
                         onClick={handleLogout}
                         className="text-lg font-medium px-2 py-1 hover:text-primary transition-colors text-left"
@@ -203,18 +207,20 @@ const Header = () => {
                     </>
                   ) : (
                     <>
-                      <Link
+                      <NavigationLink
                         href="/auth/login"
+                        forceReload={true}
                         className="text-lg font-medium px-2 py-1 hover:text-primary transition-colors"
                       >
                         Sign In
-                      </Link>
-                      <Link
+                      </NavigationLink>
+                      <NavigationLink
                         href="/auth/register"
+                        forceReload={true}
                         className="text-lg font-medium px-2 py-1 hover:text-primary transition-colors"
                       >
                         Sign Up
-                      </Link>
+                      </NavigationLink>
                     </>
                   )}
                 </nav>
@@ -228,18 +234,18 @@ const Header = () => {
 
             {/* Navigation links close to logo */}
             <nav className="hidden md:flex items-center gap-4 ml-6">
-              <Link
+              <NavigationLink
                 href="/"
                 className="text-sm font-medium hover:text-primary transition-colors"
               >
                 Home
-              </Link>
-              <Link
+              </NavigationLink>
+              <NavigationLink
                 href="/shop"
                 className="text-sm font-medium hover:text-primary transition-colors"
               >
                 Shop
-              </Link>
+              </NavigationLink>
             </nav>
           </div>
 
@@ -261,7 +267,7 @@ const Header = () => {
               variant="ghost"
               size="icon"
               className="relative hidden sm:flex"
-              onClick={() => router.push("/wishlist")}
+              onClick={createClickHandler("/wishlist", { forceReload: true })}
             >
               <Heart className="h-5 w-5" />
             </Button>
@@ -269,7 +275,7 @@ const Header = () => {
               variant="ghost"
               size="icon"
               className="relative"
-              onClick={() => router.push("/cart")}
+              onClick={createClickHandler("/cart", { forceReload: true })}
             >
               <ShoppingCart className="h-5 w-5" />
               {cartItemCount > 0 && (
@@ -305,16 +311,16 @@ const Header = () => {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => router.push("/account")}>
+                  <DropdownMenuItem onClick={createClickHandler("/account", { forceReload: true })}>
                     <User className="mr-2 h-4 w-4" />
                     <span>My Account</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push("/wishlist")}>
+                  <DropdownMenuItem onClick={createClickHandler("/wishlist", { forceReload: true })}>
                     <Heart className="mr-2 h-4 w-4" />
                     <span>Wishlist</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => router.push("/account/settings")}
+                    onClick={createClickHandler("/account/settings", { forceReload: true })}
                   >
                     <Settings className="mr-2 h-4 w-4" />
                     <span>Settings</span>
@@ -332,14 +338,14 @@ const Header = () => {
                   variant="ghost"
                   size="sm"
                   className="hidden sm:flex"
-                  onClick={() => router.push("/auth/login")}
+                  onClick={createClickHandler("/auth/login", { forceReload: true })}
                 >
                   Sign In
                 </Button>
                 <Button
                   size="sm"
                   className="text-xs hidden sm:flex sm:text-sm px-2 sm:px-4"
-                  onClick={() => router.push("/auth/register")}
+                  onClick={createClickHandler("/auth/register", { forceReload: true })}
                 >
                   Sign Up
                 </Button>
@@ -351,18 +357,18 @@ const Header = () => {
         {/* Mobile Navigation and Search */}
         <div className="pb-2 border-t pt-2 md:hidden">
           <div className="flex items-center justify-around mb-3">
-            <Link
+            <NavigationLink
               href="/"
               className="text-xs font-medium text-center hover:text-primary transition-colors"
             >
               Home
-            </Link>
-            <Link
+            </NavigationLink>
+            <NavigationLink
               href="/shop"
               className="text-xs font-medium text-center hover:text-primary transition-colors"
             >
               Shop
-            </Link>
+            </NavigationLink>
           </div>
 
           {/* Mobile Search Bar */}
