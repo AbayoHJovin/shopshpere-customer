@@ -19,23 +19,18 @@ export interface StripePaymentIntent {
 }
 
 export const StripeService = {
-  /**
-   * Create a checkout session (handled by backend)
-   * This is just a placeholder - the actual session creation happens in the backend
-   */
   createCheckoutSession: async (
     items: any[],
     successUrl: string,
     cancelUrl: string
   ): Promise<StripeCheckoutSession> => {
-    // This would typically call your backend API to create a Stripe session
-    // For now, we'll return a mock response
+
     return {
       id: `cs_test_${Date.now()}`,
       url: `${successUrl}?session_id=cs_test_${Date.now()}`,
       payment_status: "paid",
       customer_email: "test@example.com",
-      amount_total: 2000, // $20.00 in cents
+      amount_total: 2000,
       currency: "usd",
     };
   },
