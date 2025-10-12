@@ -8,7 +8,7 @@ export class ReturnService {
    * Get order details by pickup token (for guest users)
    */
   static async getOrderByPickupToken(pickupToken: string): Promise<OrderDetails> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/orders/track/token/${pickupToken}`, {
+    const response = await fetch(`${API_BASE_URL}/orders/track/token/${pickupToken}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -28,7 +28,7 @@ export class ReturnService {
    * Get order details by order number (public endpoint)
    */
   static async getOrderByOrderNumber(orderNumber: string): Promise<OrderDetails> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/orders/track/${orderNumber}`, {
+    const response = await fetch(`${API_BASE_URL}/orders/track/${orderNumber}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -48,7 +48,7 @@ export class ReturnService {
    * Get order details by tracking token (secure endpoint)
    */
   static async getOrderByTrackingToken(trackingToken: string, orderNumber: string): Promise<OrderDetails> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/orders/track/secure/${orderNumber}?token=${encodeURIComponent(trackingToken)}`, {
+    const response = await fetch(`${API_BASE_URL}/orders/track/secure/${orderNumber}?token=${encodeURIComponent(trackingToken)}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -69,7 +69,7 @@ export class ReturnService {
    */
   static async getOrderByIdForAuthenticated(orderId: string): Promise<OrderDetails> {
     const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_BASE_URL}/api/v1/orders/${orderId}`, {
+    const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -109,7 +109,7 @@ export class ReturnService {
     }
 
     const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_BASE_URL}/api/v1/returns/submit`, {
+    const response = await fetch(`${API_BASE_URL}/returns/submit`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -147,7 +147,7 @@ export class ReturnService {
       });
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/v1/returns/submit/guest`, {
+    const response = await fetch(`${API_BASE_URL}/returns/submit/guest`, {
       method: 'POST',
       body: formData,
     });
@@ -182,7 +182,7 @@ export class ReturnService {
       });
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/v1/returns/submit/tokenized`, {
+    const response = await fetch(`${API_BASE_URL}/returns/submit/tokenized`, {
       method: 'POST',
       body: formData,
     });
@@ -207,7 +207,7 @@ export class ReturnService {
   }> {
     const token = localStorage.getItem('authToken');
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/returns/my-returns?customerId=${customerId}&page=${page}&size=${size}`,
+      `${API_BASE_URL}/returns/my-returns?customerId=${customerId}&page=${page}&size=${size}`,
       {
         method: 'GET',
         headers: {
@@ -230,7 +230,7 @@ export class ReturnService {
    */
   static async getReturnRequestDetails(returnRequestId: string): Promise<ReturnRequestResponse> {
     const token = localStorage.getItem('authToken');
-    const response = await fetch(`${API_BASE_URL}/api/v1/returns/${returnRequestId}`, {
+    const response = await fetch(`${API_BASE_URL}/returns/${returnRequestId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
