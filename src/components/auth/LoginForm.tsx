@@ -31,11 +31,18 @@ export default function LoginForm() {
   const searchParams = useSearchParams();
   const { isLoading, error } = useAppSelector((state) => state.auth);
 
-  // Handle success message from signup redirect
+  // Handle success message from signup redirect or password reset
   useEffect(() => {
     const message = searchParams?.get("message");
     if (message === "signup-success") {
       setSuccessMessage("Account created successfully! Please log in with your credentials.");
+      // Clear the message after 5 seconds
+      const timer = setTimeout(() => {
+        setSuccessMessage(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    } else if (message === "password-reset-success") {
+      setSuccessMessage("Password reset successful! You can now log in with your new password.");
       // Clear the message after 5 seconds
       const timer = setTimeout(() => {
         setSuccessMessage(null);

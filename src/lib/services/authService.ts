@@ -163,13 +163,14 @@ class AuthService {
       }
 
       return {
-        success: true,
-        message: data || "Password reset request sent",
+        success: data.success !== false,
+        message: data.message || "Password reset link has been sent to your email",
       };
     } catch (error) {
+      console.error("Password reset request error:", error);
       return {
         success: false,
-        error: "Network error occurred",
+        error: "Network error occurred. Please check your connection and try again.",
       };
     }
   }
