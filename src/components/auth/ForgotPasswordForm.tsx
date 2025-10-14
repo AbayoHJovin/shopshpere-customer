@@ -55,10 +55,16 @@ export default function ForgotPasswordForm() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <Alert className="border-green-200 bg-green-50">
+              <AlertDescription className="text-green-800">
+                <strong>Check your email!</strong> We've sent a password reset link to your email address.
+                Click the link in the email to reset your password.
+              </AlertDescription>
+            </Alert>
             <Alert>
               <AlertDescription>
-                If you don't see the email, check your spam folder. The link
-                will expire in 10 minutes.
+                <strong>Important:</strong> The reset link will expire in 15 minutes for security reasons.
+                If you don't see the email, check your spam folder.
               </AlertDescription>
             </Alert>
             <div className="text-center space-y-2">

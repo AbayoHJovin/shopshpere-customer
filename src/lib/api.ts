@@ -52,8 +52,9 @@ export const API_ENDPOINTS = {
   AUTH_LOGIN: `${API_BASE_URL}/auth/users/login`,
   AUTH_ME: `${API_BASE_URL}/auth/users/me`,
   AUTH_LOGOUT: `${API_BASE_URL}/auth/users/logout`,
-  AUTH_PASSWORD_RESET: `${API_BASE_URL}/auth/users/password-reset`,
+  AUTH_PASSWORD_RESET: `${API_BASE_URL}/auth/users/request-password-reset`,
   AUTH_VERIFY_RESET: `${API_BASE_URL}/auth/users/verify-reset`,
+  AUTH_VERIFY_RESET_TOKEN: `${API_BASE_URL}/auth/users/verify-reset-token`,
   AUTH_RESET_PASSWORD: `${API_BASE_URL}/auth/users/reset-password`,
 
   // Order endpoints

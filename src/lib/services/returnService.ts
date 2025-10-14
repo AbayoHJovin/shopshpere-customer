@@ -1,6 +1,5 @@
 import { API_BASE_URL, getAuthHeaders } from "../api";
 
-// Return Request Types
 export interface ReturnRequest {
   id: number;
   orderNumber: string;
