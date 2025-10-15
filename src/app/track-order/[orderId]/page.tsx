@@ -480,7 +480,7 @@ export default function OrderDetailPage() {
                   <div className="space-y-3">
                     <div className="relative w-full h-48 rounded-lg overflow-hidden border">
                       <iframe
-                        src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&q=${orderDetails.shippingAddress.latitude},${orderDetails.shippingAddress.longitude}&zoom=15`}
+                        src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&q=${orderDetails.shippingAddress.latitude},${orderDetails.shippingAddress.longitude}&zoom=18&maptype=satellite`}
                         width="100%"
                         height="100%"
                         style={{ border: 0 }}
@@ -488,8 +488,7 @@ export default function OrderDetailPage() {
                         loading="lazy"
                         referrerPolicy="no-referrer-when-downgrade"
                       />
-                    </div>
-                    
+                    </div>                    
                     <div className="text-xs text-muted-foreground">
                       Coordinates: {orderDetails.shippingAddress.latitude}, {orderDetails.shippingAddress.longitude}
                     </div>

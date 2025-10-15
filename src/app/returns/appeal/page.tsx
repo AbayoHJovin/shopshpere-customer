@@ -46,16 +46,12 @@ export default function AppealPage() {
     mediaFiles: [],
   });
 
-  // URL parameters - support both authenticated and guest flows
-  const returnId = searchParams.get("returnId");
+  const returnId = searchParams.get("returnRequestId");
   const trackingToken = searchParams.get("token");
   
-  // Fix hydration mismatch by using state for authentication check
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isGuest, setIsGuest] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
-
-  // Check authentication status on client side only
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('authToken');
@@ -78,8 +74,6 @@ export default function AppealPage() {
         setError(null);
         const returnData = await ReturnService.getReturnById(Number(returnId));
         setReturnRequest(returnData);
-
-        // Check if appeal is allowed
         if (returnData.status !== "DENIED") {
           setError("Appeals can only be submitted for denied return requests");
         } else if (returnData.returnAppeal) {
@@ -93,11 +87,9 @@ export default function AppealPage() {
       }
     };
 
-    // Only load return details after authentication state is determined
     if (authChecked) {
       fetchReturnInfo();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [returnId, authChecked]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,13 +106,12 @@ export default function AppealPage() {
 
     setFormData(prev => ({
       ...prev,
-      mediaFiles: [...prev.mediaFiles, ...validFiles].slice(0, 5) // Max 5 files
+      mediaFiles: [...prev.mediaFiles, ...validFiles].slice(0, 5) 
     }));
   };
 
   const removeFile = (index: number) => {
     setFormData(prev => {
-      // Revoke the object URL to free up memory
       const fileToRemove = prev.mediaFiles[index];
       if (fileToRemove) {
         URL.revokeObjectURL(URL.createObjectURL(fileToRemove));
@@ -133,7 +124,6 @@ export default function AppealPage() {
     });
   };
 
-  // Cleanup object URLs when component unmounts
   useEffect(() => {
     return () => {
       formData.mediaFiles.forEach(file => {
