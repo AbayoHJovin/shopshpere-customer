@@ -135,7 +135,7 @@ function OrderSuccessContent() {
                 Order Number:
               </span>
               <Badge variant="outline" className="font-mono">
-                {verificationResult.orderNumber || "N/A"}
+                {verificationResult.order?.orderNumber || "N/A"}
               </Badge>
             </div>
 
@@ -144,16 +144,16 @@ function OrderSuccessContent() {
                 Payment Status:
               </span>
               <Badge variant="default" className="bg-green-600">
-                {verificationResult.paymentStatus || "Completed"}
+                {verificationResult.status || "Completed"}
               </Badge>
             </div>
 
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium text-gray-600">
-                Session ID:
+                Payment Intent ID:
               </span>
               <span className="text-xs font-mono text-gray-500">
-                {verificationResult.sessionId}
+                {verificationResult.paymentIntentId}
               </span>
             </div>
           </CardContent>
