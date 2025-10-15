@@ -193,11 +193,33 @@ export interface OrderAddressResponse {
   longitude?: number;
 }
 
+export interface ReturnAppealInfo {
+  id: number;
+  status: string;
+  reason: string;
+  description: string;
+  submittedAt: string;
+  decisionAt?: string;
+  decisionNotes?: string;
+}
+
+export interface ReturnRequestInfo {
+  id: number;
+  status: string;
+  reason: string;
+  submittedAt: string;
+  decisionAt?: string;
+  decisionNotes?: string;
+  canBeAppealed: boolean;
+  appeal?: ReturnAppealInfo;
+}
+
 export interface OrderDetailsResponse {
   id: string;
   userId: string;
   orderNumber: string;
   pickupToken: string;
+  pickupTokenUsed: boolean;
   status: string;
   items: OrderItemResponse[] | null;
   subtotal: number;
@@ -216,6 +238,7 @@ export interface OrderDetailsResponse {
   estimatedDelivery: string | null;
   trackingNumber: string | null;
   transaction?: OrderTransactionInfo | null;
+  returnRequest?: ReturnRequestInfo;
 }
 
 export interface ErrorResponse {
