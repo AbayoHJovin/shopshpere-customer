@@ -435,7 +435,7 @@ async function getWishlistFromBackend(): Promise<WishlistResponse> {
     };
 
     // Fetch product details from backend
-    const response = await fetch(`${API_ENDPOINTS.PRODUCTS}/by-ids`, {
+    const response = await fetch(API_ENDPOINTS.PRODUCTS_BY_IDS, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

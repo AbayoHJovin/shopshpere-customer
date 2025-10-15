@@ -4,6 +4,7 @@ export const API_BASE_URL =
     : "http://localhost:8080/api/v1";
 export const API_ENDPOINTS = {
   PRODUCTS: `${API_BASE_URL}/customer/products`,
+  PRODUCTS_BY_IDS: `${API_BASE_URL}/products/by-ids`,
   PRODUCT_BY_ID: (id: string) => `${API_BASE_URL}/customer/products/${id}`,
   PRODUCT_BY_SLUG: (slug: string) => `${API_BASE_URL}/customer/products/slug/${slug}`,
   SEARCH_PRODUCTS: `${API_BASE_URL}/customer/products/search`,
