@@ -1,3 +1,5 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -11,10 +13,29 @@ import {
   MapPin,
   CreditCard,
   Shield,
-  Truck
+  Truck,
+  Gift
 } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { rewardSystemService } from "@/lib/rewardSystemService";
 
 const Footer = () => {
+  const [isRewardSystemActive, setIsRewardSystemActive] = useState(false);
+
+  useEffect(() => {
+    const checkRewardSystem = async () => {
+      try {
+        const status = await rewardSystemService.checkStatus();
+        setIsRewardSystemActive(status.isActive);
+      } catch (error) {
+        console.error("Failed to check reward system status:", error);
+      }
+    };
+
+    checkRewardSystem();
+  }, []);
+
   return (
     <footer className="bg-muted/30 border-t">
       <div className="container mx-auto px-4">
@@ -83,7 +104,14 @@ const Footer = () => {
                 <li><a href="#" className="hover:text-primary transition-colors">Returns & Exchanges</a></li>
                 <li><a href="#" className="hover:text-primary transition-colors">Size Guide</a></li>
                 <li><a href="#" className="hover:text-primary transition-colors">Track Your Order</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Gift Cards</a></li>
+                {isRewardSystemActive && (
+                  <li>
+                    <Link href="/reward-system" className="hover:text-primary transition-colors flex items-center gap-1">
+                      <Gift className="h-3 w-3" />
+                      Reward System
+                    </Link>
+                  </li>
+                )}
               </ul>
             </div>
 
