@@ -6,10 +6,11 @@ type Params = {
 };
 
 type Props = {
-  params: Params;
-  searchParams: { [key: string]: string | string[] | undefined };
+  params: Promise<Params>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
 export default async function ProductPage({ params, searchParams }: Props) {
-  return <ProductPageClient productId={params.id} />;
-} 
+  const resolvedParams = await params;
+  return <ProductPageClient productId={resolvedParams.id} />;
+}
