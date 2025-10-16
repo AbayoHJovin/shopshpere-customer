@@ -41,6 +41,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import Link from "next/link";
 import QRCode from "qrcode";
+import { DeliveryNotesDialog } from "@/components/orders/DeliveryNotesDialog";
 
 export default function AccountOrderDetailsPage() {
   const params = useParams();
@@ -51,6 +52,7 @@ export default function AccountOrderDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
+  const [showOrderNotes, setShowOrderNotes] = useState(false);
 
   const generateQRCode = async (pickupToken: string) => {
     try {
@@ -378,6 +380,42 @@ export default function AccountOrderDetailsPage() {
                           </div>
                           {getDaysRemainingBadge(item)}
                         </div>
+
+                        {/* Return Information */}
+                        {item.returnInfo && item.returnInfo.hasReturnRequest && (
+                          <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                            <div className="flex items-center gap-2 mb-2">
+                              <RotateCcw className="h-4 w-4 text-orange-600" />
+                              <span className="text-sm font-medium text-orange-800">
+                                Return Information
+                              </span>
+                            </div>
+                            <div className="space-y-1 text-sm text-orange-700">
+                              <p>
+                                <span className="font-medium">Returned:</span> {item.returnInfo.totalReturnedQuantity} of {item.quantity} items
+                              </p>
+                              <p>
+                                <span className="font-medium">Remaining:</span> {item.returnInfo.remainingQuantity} items
+                              </p>
+                              <p>
+                                <span className="font-medium">Refund Amount:</span> {formatCurrency(item.price * item.returnInfo.totalReturnedQuantity)}
+                              </p>
+                              {item.returnInfo.returnRequests.length > 0 && (
+                                <div className="mt-2 pt-2 border-t border-orange-300">
+                                  <p className="font-medium mb-1">Return Requests:</p>
+                                  {item.returnInfo.returnRequests.map((req, idx) => (
+                                    <div key={idx} className="ml-2 text-xs">
+                                      <Badge variant="outline" className="mr-2">
+                                        {req.status}
+                                      </Badge>
+                                      {req.returnedQuantity} items - {req.reason}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -601,6 +639,31 @@ export default function AccountOrderDetailsPage() {
             </Card>
           )}
 
+          {/* Delivery Notes Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Delivery Notes
+              </CardTitle>
+              <CardDescription>
+                View notes from delivery agents about this order
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowOrderNotes(true)}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Order Notes
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Order Summary */}
           <Card>
             <CardHeader>
@@ -633,6 +696,39 @@ export default function AccountOrderDetailsPage() {
                 <span>Total:</span>
                 <span>{formatCurrency(order.total || 0)}</span>
               </div>
+              
+              {/* Calculate and show total refund if any */}
+              {order.items && order.items.some(item => item.returnInfo?.hasReturnRequest) && (
+                <>
+                  <Separator />
+                  <div className="flex justify-between text-orange-600">
+                    <span>Total Refunded:</span>
+                    <span>
+                      -{formatCurrency(
+                        order.items.reduce((sum, item) => {
+                          if (item.returnInfo?.totalReturnedQuantity) {
+                            return sum + (item.price * item.returnInfo.totalReturnedQuantity);
+                          }
+                          return sum;
+                        }, 0)
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between font-bold text-lg">
+                    <span>Net Total:</span>
+                    <span>
+                      {formatCurrency(
+                        (order.total || 0) - order.items.reduce((sum, item) => {
+                          if (item.returnInfo?.totalReturnedQuantity) {
+                            return sum + (item.price * item.returnInfo.totalReturnedQuantity);
+                          }
+                          return sum;
+                        }, 0)
+                      )}
+                    </span>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -753,6 +849,16 @@ export default function AccountOrderDetailsPage() {
           )}
         </div>
       </div>
+
+      {/* Delivery Notes Dialog */}
+      {order && (
+        <DeliveryNotesDialog
+          open={showOrderNotes}
+          onOpenChange={setShowOrderNotes}
+          orderId={parseInt(order.id)}
+          title="Order Delivery Notes"
+        />
+      )}
     </div>
   );
 }

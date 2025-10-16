@@ -225,7 +225,10 @@ export function CheckoutClient() {
       country: formData.country,
     });
 
+    // Reset loading state and clear any previous errors
     setLoadingSummary(true);
+    setPaymentSummary(null);
+    
     try {
       console.log("Processing cart items:", cart.items);
 
@@ -300,12 +303,34 @@ export function CheckoutClient() {
       
       const errorDetails = extractErrorDetails(error);
       
-      // Check for country validation errors first
+      // Check for road validation errors
       if (errorDetails.errorCode === "VALIDATION_ERROR" && 
+          (errorDetails.message?.includes("road") || errorDetails.details?.includes("road") ||
+           errorDetails.message?.includes("pickup point") || errorDetails.details?.includes("pickup point"))) {
+        const roadMessage = errorDetails.message || errorDetails.details || "Please select a pickup point on or near a road.";
+        toast.error(roadMessage, {
+          duration: 10000,
+          style: {
+            backgroundColor: '#fef2f2',
+            borderColor: '#fecaca',
+            color: '#991b1b',
+          },
+        });
+        // Clear the address to force user to select a different location
+        setAddressSelected(false);
+        setFormData(prev => ({
+          ...prev,
+          streetAddress: "",
+          latitude: undefined,
+          longitude: undefined,
+        }));
+      }
+      // Check for country validation errors
+      else if (errorDetails.errorCode === "VALIDATION_ERROR" && 
           (errorDetails.message?.includes("don't deliver to") || errorDetails.details?.includes("don't deliver to"))) {
         const countryMessage = errorDetails.message || errorDetails.details || "We don't deliver to this country.";
         toast.error(countryMessage, {
-          duration: 10000, // Longer duration for important country validation messages
+          duration: 10000,
           style: {
             backgroundColor: '#fef2f2',
             borderColor: '#fecaca',
@@ -342,7 +367,14 @@ export function CheckoutClient() {
       }
       setPaymentSummary(null);
     } finally {
+      // Ensure loading state is always reset
       setLoadingSummary(false);
+      
+      // Safeguard: Force reset loading state after a short delay
+      // This handles edge cases where state updates might be batched
+      setTimeout(() => {
+        setLoadingSummary(false);
+      }, 100);
     }
   };
 
@@ -724,7 +756,7 @@ export function CheckoutClient() {
       errors.push("Please enter a proper city name, not a country code");
     }
 
-    if (formData.streetAddress && formData.streetAddress.length < 5) {
+    if (!formData.streetAddress) {
       isValid = false;
       errors.push("Street address must be at least 5 characters long");
     }
@@ -877,15 +909,15 @@ export function CheckoutClient() {
                 />
               ) : (
                 <div className="space-y-4">
-                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
-                      <MapPin className="h-5 w-5 text-green-600" />
-                      <h4 className="font-medium text-green-800">Selected Delivery Address</h4>
+                      <MapPin className="h-5 w-5 text-blue-600" />
+                      <h4 className="font-medium text-blue-800">Selected Delivery Address</h4>
                     </div>
-                    <p className="text-sm text-green-700 mb-2">
+                    <p className="text-sm text-blue-700 mb-2">
                       {formData.streetAddress}
                     </p>
-                    <p className="text-xs text-green-600">
+                    <p className="text-xs text-blue-600">
                       {formData.city}, {formData.stateProvince}  {formData.country}
                     </p>
                     <div className="mt-3">
@@ -897,7 +929,7 @@ export function CheckoutClient() {
                           setAddressSelected(false);
                           setPaymentSummary(null);
                         }}
-                        className="text-green-700 border-green-300 hover:bg-green-100"
+                        className="text-blue-700 border-blue-300 hover:bg-blue-100"
                       >
                         <MapPin className="h-4 w-4 mr-2" />
                         Change Address
@@ -956,7 +988,7 @@ export function CheckoutClient() {
                     />
                     <span className="text-sm font-medium">Visa</span>
                   </div>
-                  <div className="flex items-center gap-2 p-3 border rounded-lg">
+                  <div className="flex items-center gap-3 p-3 border rounded-lg">
                     <Image
                       src="/mastercard-icon.png"
                       alt="Mastercard"
@@ -970,7 +1002,7 @@ export function CheckoutClient() {
 
                 <div className="mt-4 flex items-center justify-center py-4 bg-muted/30 rounded-md">
                   <div className="flex items-center gap-2">
-                    <LockIcon className="h-4 w-4 text-green-600" />
+                    <LockIcon className="h-4 w-4 text-blue-600" />
                     <span className="text-sm text-muted-foreground">
                       Secured by Stripe • SSL encrypted
                     </span>
@@ -1014,7 +1046,7 @@ export function CheckoutClient() {
                   {cart.items.length}{" "}
                   {cart.items.length === 1 ? "item" : "items"} in your cart
                   {paymentSummary && (
-                    <span className="block text-green-600 text-xs mt-1">
+                    <span className="block text-blue-600 text-xs mt-1">
                       ✓ Shipping & taxes calculated
                     </span>
                   )}
@@ -1098,7 +1130,7 @@ export function CheckoutClient() {
                   {paymentSummary && paymentSummary.discountAmount > 0 && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Discount</span>
-                      <span className="font-medium text-green-600">
+                      <span className="font-medium text-blue-600">
                         -{formatPrice(paymentSummary.discountAmount)}
                       </span>
                     </div>
@@ -1114,7 +1146,7 @@ export function CheckoutClient() {
                         </div>
                       ) : paymentSummary ? (
                         paymentSummary.shippingCost === 0 ? (
-                          <span className="text-green-600">Free</span>
+                          <span className="text-blue-600">Free</span>
                         ) : (
                           formatPrice(paymentSummary.shippingCost)
                         )
@@ -1125,7 +1157,7 @@ export function CheckoutClient() {
                           Enter address
                         </span>
                       ) : (
-                        <span className="text-green-600">Free</span>
+                        <span className="text-blue-600">Free</span>
                       )}
                     </span>
                   </div>

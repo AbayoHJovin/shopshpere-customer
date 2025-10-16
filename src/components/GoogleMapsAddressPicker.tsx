@@ -56,6 +56,7 @@ export function GoogleMapsAddressPicker({
   const placesService = useRef<any>(null);
   const geocoderInstance = useRef<any>(null);
   const suggestionContainerRef = useRef<HTMLDivElement>(null);
+  const roadOverlayRef = useRef<any>(null);
 
   // Load Google Maps script
   useEffect(() => {
@@ -123,7 +124,7 @@ export function GoogleMapsAddressPicker({
       mapInstance.current = new window.google.maps.Map(mapRef.current, {
         center: defaultLocation,
         zoom: 15,
-        mapTypeId: window.google.maps.MapTypeId.SATELLITE, // Show satellite view by default
+        mapTypeId: window.google.maps.MapTypeId.HYBRID, // Use hybrid to show both roads and satellite
         mapTypeControl: true, // Enable map type controls so users can switch
         mapTypeControlOptions: {
           style: window.google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
@@ -146,7 +147,62 @@ export function GoogleMapsAddressPicker({
         zoomControl: true,
         zoomControlOptions: {
           position: window.google.maps.ControlPosition.RIGHT_CENTER
-        }
+        },
+        styles: [
+          {
+            featureType: "road",
+            elementType: "geometry",
+            stylers: [
+              { color: "#3b82f6" }, // Blue color for roads
+              { weight: 3 },
+              { visibility: "on" }
+            ]
+          },
+          {
+            featureType: "road.highway",
+            elementType: "geometry",
+            stylers: [
+              { color: "#2563eb" }, // Darker blue for highways
+              { weight: 5 },
+              { visibility: "on" }
+            ]
+          },
+          {
+            featureType: "road.arterial",
+            elementType: "geometry",
+            stylers: [
+              { color: "#3b82f6" }, // Blue for arterial roads
+              { weight: 4 },
+              { visibility: "on" }
+            ]
+          },
+          {
+            featureType: "road.local",
+            elementType: "geometry",
+            stylers: [
+              { color: "#60a5fa" }, // Lighter blue for local roads
+              { weight: 2.5 },
+              { visibility: "on" }
+            ]
+          },
+          {
+            featureType: "road",
+            elementType: "labels.text.fill",
+            stylers: [
+              { color: "#ffffff" },
+              { visibility: "on" }
+            ]
+          },
+          {
+            featureType: "road",
+            elementType: "labels.text.stroke",
+            stylers: [
+              { color: "#1e40af" },
+              { weight: 2 },
+              { visibility: "on" }
+            ]
+          }
+        ]
       });
 
       // Initialize geocoder
@@ -607,6 +663,15 @@ export function GoogleMapsAddressPicker({
           <MapPin className="h-5 w-5" />
           Select Delivery Address
         </CardTitle>
+        <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-800 font-medium flex items-center gap-2">
+            <span className="inline-block w-4 h-1 bg-blue-600 rounded"></span>
+            Blue highlighted paths show roads where delivery is available
+          </p>
+          <p className="text-xs text-blue-700 mt-1">
+            Click on or near the blue roads to select your pickup location
+          </p>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Search Box with Custom Dropdown */}
@@ -748,35 +813,29 @@ export function GoogleMapsAddressPicker({
               )}
             </div>
           </div>
-          <div className="absolute bottom-2 left-2 bg-white/95 backdrop-blur-sm rounded-lg p-2 text-xs text-muted-foreground shadow-md border">
-            <div className="flex items-center gap-2">
-              <span>🗺️ Use map controls to switch between Satellite, Roadmap, Hybrid, and Terrain views</span>
+          <div className="absolute bottom-2 left-2 bg-white/95 backdrop-blur-sm rounded-lg p-2.5 text-xs shadow-md border border-blue-200">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-blue-700 font-medium">
+                <span className="inline-block w-3 h-0.5 bg-blue-600 rounded"></span>
+                <span>Blue paths = Delivery available roads</span>
+              </div>
+              <div className="text-muted-foreground">
+                🗺️ Use map controls to switch between Satellite, Roadmap, Hybrid, and Terrain views
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Selected Address Display */}
+        {/* Selected Address Info - Compact display below map */}
         {selectedAddress && (
-          <div className="p-4 bg-muted rounded-lg">
-            <h4 className="font-medium mb-2">Selected Address:</h4>
-            <p className="text-sm text-muted-foreground mb-2">
-              {selectedAddress.formattedAddress}
-            </p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <span className="font-medium">Street:</span> {selectedAddress.streetNumber} {selectedAddress.streetName}
-              </div>
-              <div>
-                <span className="font-medium">City:</span> {selectedAddress.city}
-              </div>
-              <div>
-                <span className="font-medium">State:</span> {selectedAddress.state}
-              </div>
-              <div>
-                <span className="font-medium">Country:</span> {selectedAddress.country}
-              </div>
-              <div>
-                <span className="font-medium">Coordinates:</span> {selectedAddress.latitude.toFixed(6)}, {selectedAddress.longitude.toFixed(6)}
+          <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-start gap-2">
+              <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-green-900 mb-1">Location Selected</p>
+                <p className="text-xs text-green-700 truncate">
+                  {selectedAddress.formattedAddress}
+                </p>
               </div>
             </div>
           </div>
