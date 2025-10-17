@@ -456,6 +456,68 @@ export default function OrderDetailPage() {
             </CardContent>
           </Card>
 
+          {/* Return Requests Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <RotateCcw className="h-5 w-5" />
+                Return Requests
+              </CardTitle>
+              <CardDescription>
+                View all return requests for this order
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Info className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-800">Return Policy</span>
+                  </div>
+                  <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
+                    <li>Items can be returned within 30 days of delivery</li>
+                    <li>Each item can have a maximum of 2 return requests</li>
+                    <li>Items must be in original condition with tags attached</li>
+                  </ul>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Button 
+                    onClick={() => {
+                      router.push(`/returns/order/${orderId}?orderNumber=${orderDetails.orderNumber}&token=${token}`);
+                    }}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    View All Return Requests
+                  </Button>
+
+                  {canRequestReturn && (
+                    <Button 
+                      onClick={() => {
+                        router.push(`/returns/request?orderId=${orderId}&token=${token}`);
+                      }}
+                      className="w-full"
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Request New Return
+                    </Button>
+                  )}
+                </div>
+
+                {!canRequestReturn && !hasEligibleItems && (isDelivered || isProcessing) && (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      The return window for this order has expired. Items can only be returned within 30 days of the order date.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Order Summary */}
           <Card>
             <CardHeader>

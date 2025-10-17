@@ -424,166 +424,44 @@ export default function AccountOrderDetailsPage() {
             </Card>
           )}
 
-          {/* Return Request Section */}
-          {order.returnRequest ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <RotateCcw className="h-5 w-5" />
-                    Return Request
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {/* Return Request Status */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Status</span>
-                      <Badge
-                        variant={
-                          order.returnRequest.status === "APPROVED"
-                            ? "default"
-                            : order.returnRequest.status === "DENIED"
-                            ? "destructive"
-                            : "secondary"
-                        }
-                      >
-                        {order.returnRequest.status}
-                      </Badge>
-                    </div>
-
-                    <Separator />
-
-                    {/* Return Request Details */}
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Reason</p>
-                        <p className="text-sm font-medium">{order.returnRequest.reason}</p>
-                      </div>
-
-                      <div>
-                        <p className="text-sm text-muted-foreground">Submitted At</p>
-                        <p className="text-sm">{formatDate(order.returnRequest.submittedAt)}</p>
-                      </div>
-
-                      {order.returnRequest.decisionAt && (
-                        <div>
-                          <p className="text-sm text-muted-foreground">Decision Date</p>
-                          <p className="text-sm">{formatDate(order.returnRequest.decisionAt)}</p>
-                        </div>
-                      )}
-
-                      {order.returnRequest.decisionNotes && (
-                        <div>
-                          <p className="text-sm text-muted-foreground">Decision Notes</p>
-                          <div className="bg-gray-50 p-3 rounded-lg border">
-                            <p className="text-sm">{order.returnRequest.decisionNotes}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Appeal Section */}
-                    {order.returnRequest.appeal ? (
-                      <div className="mt-4 pt-4 border-t">
-                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                          <AlertCircle className="h-4 w-4" />
-                          Appeal Status
-                        </h4>
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Status</span>
-                            <Badge
-                              variant={
-                                order.returnRequest.appeal.status === "APPROVED"
-                                  ? "default"
-                                  : order.returnRequest.appeal.status === "DENIED"
-                                  ? "destructive"
-                                  : "secondary"
-                              }
-                            >
-                              {order.returnRequest.appeal.status}
-                            </Badge>
-                          </div>
-
-                          <div>
-                            <p className="text-sm text-muted-foreground">Appeal Reason</p>
-                            <p className="text-sm">{order.returnRequest.appeal.reason}</p>
-                          </div>
-
-                          {order.returnRequest.appeal.description && (
-                            <div>
-                              <p className="text-sm text-muted-foreground">Description</p>
-                              <p className="text-sm">{order.returnRequest.appeal.description}</p>
-                            </div>
-                          )}
-
-                          <div>
-                            <p className="text-sm text-muted-foreground">Submitted At</p>
-                            <p className="text-sm">{formatDate(order.returnRequest.appeal.submittedAt)}</p>
-                          </div>
-
-                          {order.returnRequest.appeal.decisionAt && (
-                            <div>
-                              <p className="text-sm text-muted-foreground">Decision Date</p>
-                              <p className="text-sm">{formatDate(order.returnRequest.appeal.decisionAt)}</p>
-                            </div>
-                          )}
-
-                          {order.returnRequest.appeal.decisionNotes && (
-                            <div>
-                              <p className="text-sm text-muted-foreground">Decision Notes</p>
-                              <div className="bg-gray-50 p-3 rounded-lg border">
-                                <p className="text-sm">{order.returnRequest.appeal.decisionNotes}</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ) : order.returnRequest.canBeAppealed && order.returnRequest.status === "DENIED" ? (
-                      <div className="mt-4 pt-4 border-t">
-                        <Alert className="mb-4">
-                          <AlertCircle className="h-4 w-4" />
-                          <AlertDescription>
-                            Your return request was denied. You can submit an appeal if you believe this decision was made in error.
-                          </AlertDescription>
-                        </Alert>
-                        <Button
-                          onClick={() => {
-                            router.push(`/returns/appeal?returnRequestId=${order.returnRequest?.id}`);
-                          }}
-                          className="w-full"
-                          variant="outline"
-                        >
-                          <AlertCircle className="h-4 w-4 mr-2" />
-                          Submit Appeal
-                        </Button>
-                      </div>
-                    ) : null}
+          {/* Return Requests Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <RotateCcw className="h-5 w-5" />
+                Return Requests
+              </CardTitle>
+              <CardDescription>
+                View all return requests for this order
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Info className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-800">Return Policy</span>
                   </div>
-                </CardContent>
-              </Card>
-            ) : canRequestReturn ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <RotateCcw className="h-5 w-5" />
-                    Return Request
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <p className="text-muted-foreground">
-                      You can return eligible items from this order within the return window.
-                    </p>
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Info className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm font-medium text-blue-800">Return Policy</span>
-                      </div>
-                      <p className="text-sm text-blue-700">
-                        Items can be returned within 30 days. Items must be in original condition with tags attached.
-                      </p>
-                    </div>
+                  <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
+                    <li>Items can be returned within 30 days of delivery</li>
+                    <li>Each item can have a maximum of 2 return requests</li>
+                    <li>Items must be in original condition with tags attached</li>
+                  </ul>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Button 
+                    onClick={() => {
+                      router.push(`/returns/order/${order.id}?customerId=${order.userId || ''}`);
+                    }}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    View All Return Requests
+                  </Button>
+
+                  {canRequestReturn && (
                     <Button 
                       onClick={() => {
                         router.push(`/returns/request?orderId=${order.id}`);
@@ -591,12 +469,22 @@ export default function AccountOrderDetailsPage() {
                       className="w-full"
                     >
                       <RotateCcw className="h-4 w-4 mr-2" />
-                      Request Return
+                      Request New Return
                     </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : null}
+                  )}
+                </div>
+
+                {!canRequestReturn && !hasEligibleItems && (isDelivered || isProcessing) && (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      The return window for this order has expired. Items can only be returned within 30 days of the order date.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Return Information for Non-Eligible Orders */}
           {!order.returnRequest && !canRequestReturn && order?.items && order.items.length > 0 && (

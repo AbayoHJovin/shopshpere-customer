@@ -88,7 +88,8 @@ export class ReturnService {
   private static baseUrl = `${API_BASE_URL}/returns`;
 
   /**
-   * Get return request by order ID
+   * Get return request by order ID (DEPRECATED - returns single request)
+   * Use getReturnRequestsByOrderId instead for multiple returns
    */
   static async getReturnByOrderId(orderId: number): Promise<ReturnRequest | null> {
     try {
@@ -109,6 +110,63 @@ export class ReturnService {
       return await response.json();
     } catch (error) {
       console.error("Error fetching return by order ID:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all return requests by order ID for authenticated users
+   */
+  static async getReturnRequestsByOrderId(
+    orderId: number,
+    customerId: string
+  ): Promise<ReturnRequest[]> {
+    try {
+      const response = await fetch(
+        `${this.baseUrl}/order/${orderId}?customerId=${customerId}`,
+        {
+          method: "GET",
+          headers: getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to fetch return requests");
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error fetching return requests by order ID:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all return requests by order number and tracking token (for guest users)
+   */
+  static async getReturnRequestsByOrderNumberAndToken(
+    orderNumber: string,
+    token: string
+  ): Promise<ReturnRequest[]> {
+    try {
+      const response = await fetch(
+        `${this.baseUrl}/order/guest?orderNumber=${encodeURIComponent(
+          orderNumber
+        )}&token=${encodeURIComponent(token)}`,
+        {
+          method: "GET",
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to fetch return requests");
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error fetching return requests for guest order:", error);
       throw error;
     }
   }
