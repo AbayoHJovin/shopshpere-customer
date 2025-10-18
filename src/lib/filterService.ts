@@ -30,10 +30,8 @@ export interface BrandDTO {
 export interface ProductAttributeTypeDTO {
   attributeTypeId: number;
   name: string;
-  description?: string;
   isRequired: boolean;
-  createdAt: string;
-  updatedAt: string;
+  productCount?: number;
 }
 
 export interface ProductAttributeValueDTO {
@@ -41,10 +39,7 @@ export interface ProductAttributeValueDTO {
   value: string;
   attributeTypeId: number;
   attributeTypeName?: string;
-  isActive: boolean;
   productCount?: number;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface Page<T> {
@@ -392,6 +387,289 @@ export const FilterService = {
       return brandsPage;
     } catch (error) {
       console.error("Error fetching brands:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Search categories by name using POST with search DTO
+   */
+  fetchCategoriesWithSearch: async (
+    searchTerm: string,
+    page = 0,
+    size = 10
+  ): Promise<Page<CategoryDTO>> => {
+    try {
+      const searchDTO = {
+        name: searchTerm,
+        page: page,
+        size: size,
+        sortBy: "name",
+        sortDirection: "asc"
+      };
+
+      const response = await fetch(
+        `${API_ENDPOINTS.CATEGORIES}/search`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(searchDTO),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to search categories: ${response.status}`);
+      }
+
+      const categoriesPage: Page<CategoryDTO> = await response.json();
+      return categoriesPage;
+    } catch (error) {
+      console.error("Error searching categories:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Search brands by name using POST with search DTO
+   */
+  fetchBrandsWithSearch: async (
+    searchTerm: string,
+    page = 0,
+    size = 10
+  ): Promise<Page<BrandDTO>> => {
+    try {
+      const searchDTO = {
+        brandName: searchTerm,
+        page: page,
+        size: size,
+        sortBy: "brandName",
+        sortDir: "asc"
+      };
+
+      const response = await fetch(
+        `${API_ENDPOINTS.BRANDS}/search`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(searchDTO),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to search brands: ${response.status}`);
+      }
+
+      const brandsPage: Page<BrandDTO> = await response.json();
+      return brandsPage;
+    } catch (error) {
+      console.error("Error searching brands:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Fetch categories with product count sorted by product count
+   */
+  fetchCategoriesWithProductCount: async (
+    page = 0,
+    size = 10
+  ): Promise<Page<CategoryDTO>> => {
+    try {
+      const searchDTO = {
+        isActive: true,
+        page: page,
+        size: size,
+        sortBy: "name",
+        sortDirection: "desc",
+        sortByProductCount: true
+      };
+
+      const response = await fetch(
+        `${API_ENDPOINTS.CATEGORIES}/search`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(searchDTO),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch categories with product count: ${response.status}`);
+      }
+
+      const categoriesPage: Page<CategoryDTO> = await response.json();
+      return categoriesPage;
+    } catch (error) {
+      console.error("Error fetching categories with product count:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Fetch brands with product count
+   */
+  fetchBrandsWithProductCount: async (
+    page = 0,
+    size = 10
+  ): Promise<Page<BrandDTO>> => {
+    try {
+      const searchDTO = {
+        isActive: true,
+        page: page,
+        size: size,
+        sortBy: "brandName",
+        sortDir: "asc"
+      };
+
+      const response = await fetch(
+        `${API_ENDPOINTS.BRANDS}/search`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(searchDTO),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch brands with product count: ${response.status}`);
+      }
+
+      const brandsPage: Page<BrandDTO> = await response.json();
+      return brandsPage;
+    } catch (error) {
+      console.error("Error fetching brands with product count:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Fetch attribute types with pagination and product counts
+   */
+  fetchAttributeTypes: async (
+    page = 0,
+    size = 10
+  ): Promise<Page<ProductAttributeTypeDTO>> => {
+    try {
+      const response = await fetch(
+        `${API_ENDPOINTS.ATTRIBUTE_TYPES}?page=${page}&size=${size}&sort=name&direction=ASC`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch attribute types: ${response.status}`);
+      }
+
+      const attributeTypesPage: Page<ProductAttributeTypeDTO> = await response.json();
+      return attributeTypesPage;
+    } catch (error) {
+      console.error("Error fetching attribute types:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Search attribute types by name with pagination
+   */
+  searchAttributeTypes: async (
+    searchTerm: string,
+    page = 0,
+    size = 10
+  ): Promise<Page<ProductAttributeTypeDTO>> => {
+    try {
+      const response = await fetch(
+        `${API_ENDPOINTS.ATTRIBUTE_TYPES}/search?name=${encodeURIComponent(searchTerm)}&page=${page}&size=${size}&sort=name&direction=ASC`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to search attribute types: ${response.status}`);
+      }
+
+      const attributeTypesPage: Page<ProductAttributeTypeDTO> = await response.json();
+      return attributeTypesPage;
+    } catch (error) {
+      console.error("Error searching attribute types:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Fetch attribute values for a specific type with pagination
+   */
+  fetchAttributeValuesByType: async (
+    attributeTypeId: number,
+    page = 0,
+    size = 10
+  ): Promise<Page<ProductAttributeValueDTO>> => {
+    try {
+      const response = await fetch(
+        `${API_ENDPOINTS.ATTRIBUTE_VALUES}/type/${attributeTypeId}?page=${page}&size=${size}&sort=value&direction=ASC`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch attribute values: ${response.status}`);
+      }
+
+      const attributeValuesPage: Page<ProductAttributeValueDTO> = await response.json();
+      return attributeValuesPage;
+    } catch (error) {
+      console.error("Error fetching attribute values:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Search attribute values by value and type with pagination
+   */
+  searchAttributeValuesByType: async (
+    searchTerm: string,
+    attributeTypeId: number,
+    page = 0,
+    size = 10
+  ): Promise<Page<ProductAttributeValueDTO>> => {
+    try {
+      const response = await fetch(
+        `${API_ENDPOINTS.ATTRIBUTE_VALUES}/search/type/${attributeTypeId}?value=${encodeURIComponent(searchTerm)}&page=${page}&size=${size}&sort=value&direction=ASC`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to search attribute values: ${response.status}`);
+      }
+
+      const attributeValuesPage: Page<ProductAttributeValueDTO> = await response.json();
+      return attributeValuesPage;
+    } catch (error) {
+      console.error("Error searching attribute values:", error);
       throw error;
     }
   },

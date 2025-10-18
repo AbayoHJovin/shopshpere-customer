@@ -17,11 +17,34 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories }) => {
     return null;
   }
 
+  // Limit to maximum 4 categories
+  const displayCategories = categories.slice(0, 4);
+  const categoryCount = displayCategories.length;
+
+  // Dynamic grid columns based on category count
+  const getGridClasses = () => {
+    switch (categoryCount) {
+      case 1:
+        return "grid-cols-1"; // 1 category = full width
+      case 2:
+        return "grid-cols-1 lg:grid-cols-2"; // 2 categories = 2 columns on large screens
+      case 3:
+        return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"; // 3 categories = 3 columns on large screens
+      case 4:
+      default:
+        return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"; // 4 categories = 4 columns on xl screens
+    }
+  };
+
   return (
     <div className="w-full">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-        {categories.map((category) => (
-          <CategoryCard key={category.id} category={category} />
+      <div className={`grid ${getGridClasses()} gap-4 md:gap-6`}>
+        {displayCategories.map((category) => (
+          <CategoryCard 
+            key={category.id} 
+            category={category}
+            categoryCount={categoryCount}
+          />
         ))}
       </div>
     </div>
@@ -30,10 +53,13 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories }) => {
 
 interface CategoryCardProps {
   category: CategoryWithProducts;
+  categoryCount: number;
 }
 
-const CategoryCard: React.FC<CategoryCardProps> = ({ category }) => {
-  const displayProducts = category.products.slice(0, 4);
+const CategoryCard: React.FC<CategoryCardProps> = ({ category, categoryCount }) => {
+  // Show more products when fewer categories are displayed
+  const maxProducts = categoryCount === 1 ? 8 : categoryCount === 2 ? 6 : 4;
+  const displayProducts = category.products.slice(0, maxProducts);
 
   return (
     <Card className="h-full hover:shadow-lg transition-all duration-300 bg-white border border-gray-200 hover:border-gray-300">
@@ -49,8 +75,14 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ category }) => {
       </CardHeader>
       
       <CardContent className="pt-0">
-        {/* Products Grid - 2x2 layout */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
+        {/* Products Grid - Dynamic layout based on category count */}
+        <div className={`grid gap-3 mb-4 ${
+          categoryCount === 1 
+            ? "grid-cols-4 sm:grid-cols-4 md:grid-cols-4" // 1 category = 4 columns
+            : categoryCount === 2 
+            ? "grid-cols-2 sm:grid-cols-3" // 2 categories = 2-3 columns
+            : "grid-cols-2" // 3-4 categories = 2 columns
+        }`}>
           {displayProducts.map((product, index) => (
             <div key={product.id} className="group cursor-pointer">
               <Link href={`/product/${product.id}`}>
