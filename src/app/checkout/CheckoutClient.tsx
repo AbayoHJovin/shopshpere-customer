@@ -1000,7 +1000,7 @@ export function CheckoutClient() {
                   </div>
                 </div>
 
-                <div className="mt-4 flex items-center justify-center py-4 bg-muted/30 rounded-[2px]">
+                <div className="mt-4 flex items-center justify-center py-4 bg-muted/30 rounded-lg">
                   <div className="flex items-center gap-2">
                     <LockIcon className="h-4 w-4 text-blue-600" />
                     <span className="text-sm text-muted-foreground">
@@ -1080,7 +1080,7 @@ export function CheckoutClient() {
                     <AccordionContent className="space-y-4 pt-2">
                       {cart.items.map((item) => (
                         <div key={item.productId} className="flex gap-4">
-                          <div className="h-16 w-16 flex-shrink-0 bg-muted rounded-[2px] overflow-hidden">
+                          <div className="h-16 w-16 flex-shrink-0 bg-muted rounded-lg overflow-hidden">
                             <Link href={`/product/${item.productId}`}>
                               <img
                                 src={
@@ -1256,7 +1256,7 @@ export function CheckoutClient() {
                   </div>
 
                   {paymentSummary && (
-                    <div className="mt-2 p-2 bg-blue-50 rounded-[2px]">
+                    <div className="mt-2 p-2 bg-blue-50 rounded-lg">
                       <p className="text-xs text-blue-700">
                         💡 Shipping calculated based on your address and item
                         weight

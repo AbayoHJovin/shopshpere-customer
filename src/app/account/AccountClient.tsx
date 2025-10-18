@@ -275,7 +275,7 @@ export function AccountClient() {
                 <CardContent>
                   <div className="space-y-4">
                     {userData.addresses.slice(0, 1).map((address) => (
-                      <div key={address.id} className="border p-3 rounded-[2px] relative">
+                      <div key={address.id} className="border p-3 rounded-lg relative">
                         {address.isDefault && (
                           <Badge className="absolute top-3 right-3" variant="secondary">Default</Badge>
                         )}
@@ -358,7 +358,7 @@ export function AccountClient() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {userData.addresses.map((address) => (
-                  <div key={address.id} className="border p-4 rounded-[2px] relative">
+                  <div key={address.id} className="border p-4 rounded-lg relative">
                     {address.isDefault && (
                       <Badge className="absolute top-4 right-4" variant="secondary">Default</Badge>
                     )}
@@ -394,7 +394,7 @@ export function AccountClient() {
             <CardContent>
               <div className="space-y-4">
                 {userData.paymentMethods.map((payment) => (
-                  <div key={payment.id} className="flex items-center justify-between p-4 border rounded-[2px]">
+                  <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-14 bg-muted rounded flex items-center justify-center font-semibold">
                         {payment.type}
@@ -457,14 +457,14 @@ export function AccountClient() {
                     Recent login activity
                   </p>
                   <div className="space-y-2">
-                    <div className="flex justify-between p-3 bg-muted/50 rounded-[2px]">
+                    <div className="flex justify-between p-3 bg-muted/50 rounded-lg">
                       <div>
                         <p className="font-medium">New York, USA</p>
                         <p className="text-xs text-muted-foreground">Chrome on Windows</p>
                       </div>
                       <p className="text-sm">Just now</p>
                     </div>
-                    <div className="flex justify-between p-3 bg-muted/50 rounded-[2px]">
+                    <div className="flex justify-between p-3 bg-muted/50 rounded-lg">
                       <div>
                         <p className="font-medium">New York, USA</p>
                         <p className="text-xs text-muted-foreground">Chrome on Windows</p>
@@ -566,7 +566,7 @@ export function AccountClient() {
               <div className="space-y-2">
                 <h3 className="font-semibold">Language Preference</h3>
                 <p className="text-sm text-muted-foreground">Select your preferred language</p>
-                <select className="w-full p-2 border rounded-[2px] mt-1">
+                <select className="w-full p-2 border rounded-lg mt-1">
                   <option value="en">English</option>
                   <option value="fr">French</option>
                   <option value="es">Spanish</option>
@@ -579,7 +579,7 @@ export function AccountClient() {
               <div className="space-y-2">
                 <h3 className="font-semibold">Currency Preference</h3>
                 <p className="text-sm text-muted-foreground">Select your preferred currency</p>
-                <select className="w-full p-2 border rounded-[2px] mt-1">
+                <select className="w-full p-2 border rounded-lg mt-1">
                   <option value="usd">USD ($)</option>
                   <option value="eur">EUR (€)</option>
                   <option value="gbp">GBP (£)</option>

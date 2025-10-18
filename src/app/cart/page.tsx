@@ -482,7 +482,7 @@ export default function CartPage() {
                       <div className="flex items-center gap-3">
                         <Link
                           href={`/product/${item.productId}`}
-                          className="w-20 h-20 rounded-[2px] overflow-hidden flex-shrink-0 hover:opacity-80 transition-opacity"
+                          className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 hover:opacity-80 transition-opacity"
                         >
                           <img
                             src={item.url}
@@ -551,7 +551,7 @@ export default function CartPage() {
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex flex-col items-center gap-1">
-                        <div className="flex border rounded-[2px] overflow-hidden">
+                        <div className="flex border rounded-lg overflow-hidden">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -728,7 +728,7 @@ export default function CartPage() {
 
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">
-                            <div className="flex border rounded-[2px] overflow-hidden">
+                            <div className="flex border rounded-lg overflow-hidden">
                               <Button
                                 variant="ghost"
                                 size="sm"

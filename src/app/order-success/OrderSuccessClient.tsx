@@ -191,7 +191,7 @@ export function OrderSuccessClient() {
               </div>
               
               {autoDownloadSuccess === false && (
-                <div className="w-full bg-amber-50 text-amber-900 rounded-[2px] p-4 mb-4">
+                <div className="w-full bg-amber-50 text-amber-900 rounded-lg p-4 mb-4">
                   <div className="flex items-start">
                     <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
                     <div>
@@ -205,7 +205,7 @@ export function OrderSuccessClient() {
               )}
               
               {autoDownloadSuccess === true && (
-                <div className="w-full bg-success/10 text-success rounded-[2px] p-4 mb-4">
+                <div className="w-full bg-success/10 text-success rounded-lg p-4 mb-4">
                   <div className="flex items-start">
                     <CheckCircle2 className="h-5 w-5 mr-2 flex-shrink-0" />
                     <div>

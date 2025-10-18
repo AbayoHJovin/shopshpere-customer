@@ -797,7 +797,7 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
               placeholder="Search categories..."
               value={categorySearch}
               onChange={(e) => handleCategorySearch(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-[2px] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             {categorySearchLoading && (
               <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
@@ -849,7 +849,7 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
               placeholder="Search brands..."
               value={brandSearch}
               onChange={(e) => handleBrandSearch(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-[2px] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             {brandSearchLoading && (
               <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
@@ -941,7 +941,6 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
       {renderFilterSection(
         "Product Attributes",
         <div className="space-y-3">
-          {/* Search Bar for Attribute Types */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
@@ -949,7 +948,7 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
               placeholder="Search attributes..."
               value={attributeTypeSearch}
               onChange={(e) => handleAttributeTypeSearch(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-[2px] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             {attributeTypeSearchLoading && (
               <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
@@ -972,7 +971,7 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
                 </div>
               ) : searchedAttributeTypes.length > 0 ? (
                 searchedAttributeTypes.map((attrType) => (
-                  <div key={attrType.attributeTypeId} className="border rounded-[2px]">
+                  <div key={attrType.attributeTypeId} className="border rounded-lg">
                     {/* Attribute Type Header */}
                     <div
                       className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50"
@@ -1092,7 +1091,7 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
               // Show default attribute types
               attributeTypes.length > 0 ? (
                 attributeTypes.map((attrType) => (
-                  <div key={attrType.attributeTypeId} className="border rounded-[2px]">
+                  <div key={attrType.attributeTypeId} className="border rounded-lg">
                     {/* Attribute Type Header */}
                     <div
                       className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50"

@@ -197,7 +197,7 @@ export function AddressInput({
       </div>
 
       {validationResult && !validationResult.isValid && (
-        <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded-[2px]">
+        <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded-lg">
           <AlertTriangle className="h-4 w-4 text-red-500" />
           <span className="text-sm text-red-700">
             We don't deliver to {validationResult.country}. Please choose a
@@ -209,7 +209,7 @@ export function AddressInput({
       {showSuggestions && suggestions.length > 0 && (
         <div
           ref={suggestionsRef}
-          className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-[2px] shadow-lg max-h-60 overflow-y-auto"
+          className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto"
         >
           {suggestions.map((suggestion, index) => (
             <div

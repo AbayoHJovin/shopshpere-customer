@@ -666,7 +666,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                 {displayImages.map((image, index) => (
                   <div
                     key={image.imageId}
-                    className={`cursor-pointer rounded-[2px] border overflow-hidden w-20 h-20 flex-shrink-0 ${
+                    className={`cursor-pointer rounded-lg border overflow-hidden w-20 h-20 flex-shrink-0 ${
                       selectedImage === index ? "ring-2 ring-primary" : ""
                     }`}
                     onClick={() => setSelectedImage(index)}
@@ -1127,7 +1127,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
               <div className="flex flex-wrap items-center gap-4">
                 <div>
                   <label className="text-sm font-medium">Quantity</label>
-                  <div className="flex items-center border rounded-[2px] mt-1">
+                  <div className="flex items-center border rounded-lg mt-1">
                     <button
                       className="px-3 py-2 hover:bg-muted disabled:opacity-50"
                       onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}

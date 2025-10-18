@@ -345,16 +345,16 @@ export default function AccountOrderDetailsPage() {
                           <img
                             src={item.product.images[0]}
                             alt={item.product.name || "Product"}
-                            className="w-16 h-16 object-cover rounded-[2px]"
+                            className="w-16 h-16 object-cover rounded-lg"
                           />
                         ) : item.variant?.images && item.variant.images.length > 0 ? (
                           <img
                             src={item.variant.images[0]}
                             alt={item.variant.name || "Variant"}
-                            className="w-16 h-16 object-cover rounded-[2px]"
+                            className="w-16 h-16 object-cover rounded-lg"
                           />
                         ) : (
-                          <div className="w-16 h-16 bg-gray-200 rounded-[2px] flex items-center justify-center">
+                          <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
                             <Package className="h-6 w-6 text-gray-400" />
                           </div>
                         )}
@@ -383,7 +383,7 @@ export default function AccountOrderDetailsPage() {
 
                         {/* Return Information */}
                         {item.returnInfo && item.returnInfo.hasReturnRequest && (
-                          <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-[2px]">
+                          <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
                             <div className="flex items-center gap-2 mb-2">
                               <RotateCcw className="h-4 w-4 text-orange-600" />
                               <span className="text-sm font-medium text-orange-800">

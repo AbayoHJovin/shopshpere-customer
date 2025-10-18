@@ -110,7 +110,7 @@ const CategoryNav = () => {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="default"
-                  className="bg-primary rounded-[2px] text-primary-foreground hover:bg-primary/90 whitespace-nowrap"
+                  className="bg-primary rounded-lg text-primary-foreground hover:bg-primary/90 whitespace-nowrap"
                 >
                   All Categories
                   <ChevronDown className="ml-1 h-4 w-4" />

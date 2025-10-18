@@ -303,7 +303,7 @@ const VariantSelectionModal = ({
                           <div className="flex items-start gap-3">
                             {/* Variant Image */}
                             <div className="flex-shrink-0">
-                              <div className="w-16 h-16 relative rounded-[2px] overflow-hidden border">
+                              <div className="w-16 h-16 relative rounded-lg overflow-hidden border">
                                 <img
                                   src={getVariantImage(variant)}
                                   alt={variant.variantSku}

@@ -713,7 +713,7 @@ export function GoogleMapsAddressPicker({
             {showSuggestions && (searchSuggestions.length > 0 || isSearching) && (
               <div 
                 ref={suggestionContainerRef}
-                className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-[2px] shadow-lg max-h-80 overflow-y-auto"
+                className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto"
               >
                 {isSearching ? (
                   <div className="flex items-center justify-center py-6">

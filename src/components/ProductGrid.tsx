@@ -618,7 +618,7 @@ const ProductGrid = ({
             .fill(0)
             .map((_, i) => (
               <div key={i}>
-                <Skeleton className="aspect-square w-full rounded-[2px]" />
+                <Skeleton className="aspect-square w-full rounded-lg" />
                 <div className="mt-4 space-y-2">
                   <Skeleton className="h-4 w-full" />
                   <Skeleton className="h-4 w-3/4" />
@@ -634,7 +634,7 @@ const ProductGrid = ({
   // Error state
   if (error) {
     return (
-      <div className="py-12 text-center border rounded-[2px] bg-red-50">
+      <div className="py-12 text-center border rounded-lg bg-red-50">
         <div className="mx-auto w-24 h-24 flex items-center justify-center rounded-full bg-red-100 mb-4">
           <AlertCircle className="h-8 w-8 text-red-500" />
         </div>
@@ -696,7 +696,7 @@ const ProductGrid = ({
               </SelectContent>
             </Select>
           </div>
-          <div className="hidden sm:flex items-center space-x-1 border rounded-[2px]">
+          <div className="hidden sm:flex items-center space-x-1 border rounded-lg">
             <Button
               variant={viewMode === "grid" ? "secondary" : "ghost"}
               size="icon"
@@ -728,7 +728,7 @@ const ProductGrid = ({
 
       {/* Products Grid */}
       {paginatedProducts.length === 0 ? (
-        <div className="py-12 text-center border rounded-[2px] bg-gray-50">
+        <div className="py-12 text-center border rounded-lg bg-gray-50">
           <div className="mx-auto w-24 h-24 flex items-center justify-center rounded-full bg-gray-100 mb-4">
             <Filter className="h-8 w-8 text-gray-400" />
           </div>

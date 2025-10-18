@@ -173,7 +173,7 @@ export function SearchBarWithSuggestions({
                 setShowSuggestions(true);
               }
             }}
-            className="w-full pl-14 pr-24 h-14 text-lg rounded-[2px] border-2 focus:border-primary bg-background shadow-sm transition-all duration-200 focus:shadow-md"
+            className="w-full pl-14 pr-24 h-14 text-lg rounded-lg border-2 focus:border-primary bg-background shadow-sm transition-all duration-200 focus:shadow-md"
           />
           <Search className="absolute left-4 h-6 w-6 text-muted-foreground" />
           {isLoading && (
@@ -182,7 +182,7 @@ export function SearchBarWithSuggestions({
           <Button
             type="submit"
             size="lg"
-            className="absolute right-2 h-10 px-6 rounded-[2px] transition-all duration-200 hover:scale-105"
+            className="absolute right-2 h-10 px-6 rounded-lg transition-all duration-200 hover:scale-105"
           >
             <SearchIcon />
           </Button>
