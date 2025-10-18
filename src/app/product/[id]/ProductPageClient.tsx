@@ -73,6 +73,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
   const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 });
   const [lensPosition, setLensPosition] = useState({ x: 0, y: 0 });
   const [isDesktop, setIsDesktop] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(2.5); // Default 2.5x zoom
 
   const { toast } = useToast();
   const { isAuthenticated } = useAppSelector((state) => state.auth);
@@ -161,8 +162,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    // Calculate lens position (centered on cursor)
-    const lensSize = 100; // Size of the lens
+    const lensSize = 95;
     const lensX = Math.max(
       0,
       Math.min(x - lensSize / 2, rect.width - lensSize)
@@ -171,8 +171,6 @@ export function ProductPageClient({ productId }: { productId: string }) {
       0,
       Math.min(y - lensSize / 2, rect.height - lensSize)
     );
-
-    // Calculate zoom position (for background positioning)
     const zoomX = (x / rect.width) * 100;
     const zoomY = (y / rect.height) * 100;
 
@@ -180,11 +178,8 @@ export function ProductPageClient({ productId }: { productId: string }) {
     setZoomPosition({ x: zoomX, y: zoomY });
   };
 
-  // Fetch product data on component mount
   useEffect(() => {
     fetchProductData();
-
-    // Listen for cart updates from other components
     const handleCartUpdate = () => {
       checkCartStatus();
     };
@@ -563,9 +558,32 @@ export function ProductPageClient({ productId }: { productId: string }) {
 
       {/* Main Product Section */}
       <section className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative">
-          {/* Product Images */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Product Images - ALWAYS SHOWN */}
           <div className="space-y-4">
+            {/* Zoom Controls - Always visible on desktop */}
+            {isDesktop && displayImages && displayImages.length > 0 && (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-gray-700 whitespace-nowrap">Image Zoom:</span>
+                  <input
+                    type="range"
+                    min="1.5"
+                    max="5"
+                    step="0.1"
+                    value={zoomLevel}
+                    onChange={(e) => setZoomLevel(parseFloat(e.target.value))}
+                    className="flex-1 h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${((zoomLevel - 1.5) / (5 - 1.5)) * 100}%, #d1d5db ${((zoomLevel - 1.5) / (5 - 1.5)) * 100}%, #d1d5db 100%)`
+                    }}
+                  />
+                  <span className="text-sm font-mono font-semibold text-blue-600 w-10">{zoomLevel.toFixed(1)}×</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Hover over the image to zoom in and explore details</p>
+              </div>
+            )}
+            
             <div
               className="aspect-square relative rounded-lg overflow-hidden border bg-muted cursor-crosshair"
               onMouseEnter={handleMouseEnter}
@@ -698,72 +716,284 @@ export function ProductPageClient({ productId }: { productId: string }) {
             )}
           </div>
 
-          {/* Product Details */}
-          <div className="space-y-6">
-            <div>
-              {/* Product categories as small badges */}
-              <div className="flex flex-wrap gap-1 mb-2">
-                {product.categoryName && (
-                  <Badge variant="outline" className="text-xs">
-                    {product.categoryName}
-                  </Badge>
-                )}
-                {product.brandName && (
-                  <Badge variant="outline" className="text-xs">
-                    {product.brandName}
-                  </Badge>
-                )}
-              </div>
-
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-                {product.name}
-              </h1>
-
-              {/* Rating */}
-              <div className="flex items-center gap-2">
-                <div className="flex">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`h-4 w-4 ${
-                        i < fullStars
-                          ? "fill-rating-star text-rating-star"
-                          : i < (product.averageRating || 0)
-                          ? "text-rating-star fill-rating-star/50"
-                          : "text-muted-foreground"
-                      }`}
+          {/* CONDITIONAL RENDERING: Show either Zoom View OR Product Details */}
+          {isZooming && displayImages && displayImages.length > 0 && isDesktop ? (
+            // Zoom View - Replaces product details when zooming
+            <div className="space-y-4">
+              <div className="flex flex-col bg-white border-2 border-blue-500 rounded-lg shadow-2xl overflow-hidden" style={{ height: '600px' }}>
+                {/* Zoom Controls Header */}
+                <div className="bg-black bg-opacity-90 text-white p-3 flex-shrink-0">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                      <span className="text-sm font-medium">
+                        Zoom View Active
+                      </span>
+                    </div>
+                    <div className="text-xs opacity-75">
+                      {zoomLevel.toFixed(1)}× magnification
+                    </div>
+                  </div>
+                  
+                  {/* Magnification Slider */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs whitespace-nowrap">Zoom:</span>
+                    <input
+                      type="range"
+                      min="1.5"
+                      max="5"
+                      step="0.1"
+                      value={zoomLevel}
+                      onChange={(e) => setZoomLevel(parseFloat(e.target.value))}
+                      className="flex-1 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
+                      style={{
+                        background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${((zoomLevel - 1.5) / (5 - 1.5)) * 100}%, #4b5563 ${((zoomLevel - 1.5) / (5 - 1.5)) * 100}%, #4b5563 100%)`
+                      }}
                     />
-                  ))}
+                    <span className="text-xs font-mono w-8">{zoomLevel.toFixed(1)}×</span>
+                  </div>
                 </div>
-                <span className="text-sm">
-                  {(product.averageRating || 0).toFixed(1)} (
-                  {product.reviewCount || 0} reviews)
-                </span>
+
+                {/* Zoomed Image View */}
+                <div
+                  className="flex-1 relative bg-gray-50"
+                  style={{
+                    backgroundImage: `url(${displayImages[selectedImage]?.url})`,
+                    backgroundSize: `${zoomLevel * 100}%`,
+                    backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
+                    backgroundRepeat: "no-repeat",
+                  }}
+                >
+                  {/* Crosshair indicator */}
+                  <div
+                    className="absolute w-10 h-10 pointer-events-none"
+                    style={{
+                      left: `${zoomPosition.x}%`,
+                      top: `${zoomPosition.y}%`,
+                      transform: "translate(-50%, -50%)",
+                    }}
+                  >
+                    <div className="absolute inset-0 border-2 border-white rounded-full shadow-lg"
+                      style={{
+                        boxShadow: "0 0 0 2px rgba(0,0,0,0.3), inset 0 0 0 2px rgba(255,255,255,0.8)"
+                      }}
+                    />
+                    <div className="absolute top-1/2 left-1/2 w-1 h-1 bg-blue-500 rounded-full transform -translate-x-1/2 -translate-y-1/2" />
+                    <div className="absolute top-1/2 left-0 right-0 h-px bg-white opacity-50 transform -translate-y-1/2" />
+                    <div className="absolute left-1/2 top-0 bottom-0 w-px bg-white opacity-50 transform -translate-x-1/2" />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Helper text */}
+              <div className="text-center text-sm text-muted-foreground">
+                <p>Move your mouse over the product image to explore details</p>
+                <p className="text-xs mt-1">Adjust zoom level with the slider above</p>
+              </div>
+            </div>
+          ) : (
+            // Product Details - Shows when NOT zooming
+            <div className="space-y-6">
+              <div>
+                {/* Product categories as small badges */}
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {product.categoryName && (
+                    <Badge variant="outline" className="text-xs">
+                      {product.categoryName}
+                    </Badge>
+                  )}
+                  {product.brandName && (
+                    <Badge variant="outline" className="text-xs">
+                      {product.brandName}
+                    </Badge>
+                  )}
+                </div>
+
+                <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
+                  {product.name}
+                </h1>
+
+                {/* Rating */}
+                <div className="flex items-center gap-2">
+                  <div className="flex">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`h-4 w-4 ${
+                          i < fullStars
+                            ? "fill-rating-star text-rating-star"
+                            : i < (product.averageRating || 0)
+                            ? "text-rating-star fill-rating-star/50"
+                            : "text-muted-foreground"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-sm">
+                    {(product.averageRating || 0).toFixed(1)} (
+                    {product.reviewCount || 0} reviews)
+                  </span>
+                </div>
+
+                {/* Price */}
+                <div className="mt-4 flex items-center gap-3">
+                  <span className="text-3xl font-bold text-price">
+                    {formatPriceUtil(displayPrice)}
+                  </span>
+                  {selectedVariant ? (
+                    <>
+                      {(() => {
+                        const effectiveDiscount =
+                          getEffectiveDiscount(selectedVariant);
+                        if (effectiveDiscount) {
+                          return (
+                            <>
+                              <span className="text-xl text-muted-foreground line-through">
+                                {formatPriceUtil(selectedVariant.price)}
+                              </span>
+                              <Badge
+                                variant={
+                                  effectiveDiscount.isVariantSpecific
+                                    ? "destructive"
+                                    : "secondary"
+                                }
+                                className={`ml-2 ${
+                                  effectiveDiscount.isVariantSpecific
+                                    ? ""
+                                    : "bg-orange-500 text-white"
+                                }`}
+                              >
+                                -{Math.round(effectiveDiscount.percentage)}% OFF
+                                {effectiveDiscount.isVariantSpecific
+                                  ? ""
+                                  : " (Product)"}
+                              </Badge>
+                            </>
+                          );
+                        }
+                        return (
+                          <span className="text-sm text-muted-foreground">
+                            Variant Price
+                          </span>
+                        );
+                      })()}
+                    </>
+                  ) : (
+                    // Show product price with discount info
+                    <>
+                      {product.salePrice &&
+                        product.salePrice < product.basePrice &&
+                        product.basePrice && (
+                          <span className="text-xl text-muted-foreground line-through">
+                            {formatPriceUtil(product.basePrice)}
+                          </span>
+                        )}
+                      {product.salePrice &&
+                        product.salePrice < product.basePrice && (
+                          <Badge variant="destructive" className="ml-2">
+                            {Math.round(
+                              ((product.basePrice - product.salePrice) /
+                                product.basePrice) *
+                                100
+                            )}
+                            % OFF
+                          </Badge>
+                        )}
+                    </>
+                  )}
+                </div>
+
+                {/* Brief Description */}
+                <p className="mt-4 text-muted-foreground">
+                  {product.description}
+                </p>
               </div>
 
-              {/* Price */}
-              <div className="mt-4 flex items-center gap-3">
-                <span className="text-3xl font-bold text-price">
-                  {formatPriceUtil(displayPrice)}
-                </span>
-                {selectedVariant ? (
-                  <>
-                    {(() => {
-                      const effectiveDiscount =
-                        getEffectiveDiscount(selectedVariant);
-                      if (effectiveDiscount) {
-                        return (
-                          <>
-                            <span className="text-xl text-muted-foreground line-through">
-                              {formatPriceUtil(selectedVariant.price)}
-                            </span>
+              {/* Variant Selection */}
+              {product.variants && product.variants.length > 0 && (
+                <>
+                  {product.variants.every(
+                    (v) => ProductService.getVariantTotalStock(v) === 0
+                  ) && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="text-sm font-medium text-red-800">
+                        All variants are currently out of stock
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Variants */}
+              {product && ProductService.hasVariants(product) && (
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold">Available Variants</h3>
+                    {variantsInCart.size > 0 && (
+                      <Badge
+                        variant="secondary"
+                        className="bg-green-100 text-green-800"
+                      >
+                        {variantsInCart.size} in cart
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {product.variants.map((variant) => {
+                      const effectiveDiscount = getEffectiveDiscount(variant);
+                      return (
+                        <div
+                          key={variant.variantId}
+                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                            selectedVariant?.variantId === variant.variantId
+                              ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                              : variantsInCart.has(variant.variantId.toString())
+                              ? "border-green-500 bg-green-50"
+                              : "hover:border-primary/50"
+                          } ${
+                            ProductService.getVariantTotalStock(variant) === 0
+                              ? "opacity-50"
+                              : ""
+                          }`}
+                          onClick={() => setSelectedVariant(variant)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="text-sm font-medium">
+                              {variant.variantSku}
+                            </div>
+                            {variantsInCart.has(variant.variantId.toString()) && (
+                              <Badge
+                                variant="secondary"
+                                className="text-xs bg-green-500 text-white"
+                              >
+                                In Cart
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {effectiveDiscount ? (
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-green-600">
+                                  {formatPriceUtil(
+                                    effectiveDiscount.discountedPrice
+                                  )}
+                                </span>
+                                <span className="line-through">
+                                  {formatPriceUtil(variant.price || 0)}
+                                </span>
+                              </div>
+                            ) : (
+                              formatPriceUtil(variant.price || 0)
+                            )}
+                          </div>
+                          {effectiveDiscount && (
                             <Badge
                               variant={
                                 effectiveDiscount.isVariantSpecific
                                   ? "destructive"
                                   : "secondary"
                               }
-                              className={`ml-2 ${
+                              className={`text-xs mt-1 ${
                                 effectiveDiscount.isVariantSpecific
                                   ? ""
                                   : "bg-orange-500 text-white"
@@ -774,430 +1004,247 @@ export function ProductPageClient({ productId }: { productId: string }) {
                                 ? ""
                                 : " (Product)"}
                             </Badge>
-                          </>
-                        );
-                      }
-                      return (
-                        <span className="text-sm text-muted-foreground">
-                          Variant Price
-                        </span>
-                      );
-                    })()}
-                  </>
-                ) : (
-                  // Show product price with discount info
-                  <>
-                    {product.salePrice &&
-                      product.salePrice < product.basePrice &&
-                      product.basePrice && (
-                        <span className="text-xl text-muted-foreground line-through">
-                          {formatPriceUtil(product.basePrice)}
-                        </span>
-                      )}
-                    {product.salePrice &&
-                      product.salePrice < product.basePrice && (
-                        <Badge variant="destructive" className="ml-2">
-                          {Math.round(
-                            ((product.basePrice - product.salePrice) /
-                              product.basePrice) *
-                              100
                           )}
-                          % OFF
-                        </Badge>
-                      )}
-                  </>
-                )}
-              </div>
-
-              {/* Brief Description */}
-              <p className="mt-4 text-muted-foreground">
-                {product.description}
-              </p>
-            </div>
-
-            {/* Variant Selection */}
-            {product.variants && product.variants.length > 0 && (
-              <>
-                {product.variants.every(
-                  (v) => ProductService.getVariantTotalStock(v) === 0
-                ) && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <div className="text-sm font-medium text-red-800">
-                      All variants are currently out of stock
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Variants */}
-            {product && ProductService.hasVariants(product) && (
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold">Available Variants</h3>
-                  {variantsInCart.size > 0 && (
-                    <Badge
-                      variant="secondary"
-                      className="bg-green-100 text-green-800"
-                    >
-                      {variantsInCart.size} in cart
-                    </Badge>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {product.variants.map((variant) => {
-                    const effectiveDiscount = getEffectiveDiscount(variant);
-                    return (
-                      <div
-                        key={variant.variantId}
-                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                          selectedVariant?.variantId === variant.variantId
-                            ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                            : variantsInCart.has(variant.variantId.toString())
-                            ? "border-green-500 bg-green-50"
-                            : "hover:border-primary/50"
-                        } ${
-                          ProductService.getVariantTotalStock(variant) === 0
-                            ? "opacity-50"
-                            : ""
-                        }`}
-                        onClick={() => setSelectedVariant(variant)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="text-sm font-medium">
-                            {variant.variantSku}
-                          </div>
-                          {variantsInCart.has(variant.variantId.toString()) && (
-                            <Badge
-                              variant="secondary"
-                              className="text-xs bg-green-500 text-white"
-                            >
-                              In Cart
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {effectiveDiscount ? (
-                            <div className="flex flex-col">
-                              <span className="font-semibold text-green-600">
-                                {formatPriceUtil(
-                                  effectiveDiscount.discountedPrice
-                                )}
-                              </span>
-                              <span className="line-through">
-                                {formatPriceUtil(variant.price || 0)}
-                              </span>
-                            </div>
-                          ) : (
-                            formatPriceUtil(variant.price || 0)
-                          )}
-                        </div>
-                        {effectiveDiscount && (
-                          <Badge
-                            variant={
-                              effectiveDiscount.isVariantSpecific
-                                ? "destructive"
-                                : "secondary"
-                            }
-                            className={`text-xs mt-1 ${
-                              effectiveDiscount.isVariantSpecific
-                                ? ""
-                                : "bg-orange-500 text-white"
+                          <div
+                            className={`text-xs ${
+                              ProductService.getVariantTotalStock(variant) > 0
+                                ? "text-green-600"
+                                : "text-red-600"
                             }`}
                           >
-                            -{Math.round(effectiveDiscount.percentage)}% OFF
-                            {effectiveDiscount.isVariantSpecific
-                              ? ""
-                              : " (Product)"}
-                          </Badge>
-                        )}
-                        <div
-                          className={`text-xs ${
-                            ProductService.getVariantTotalStock(variant) > 0
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }`}
-                        >
-                          {ProductService.getVariantTotalStock(variant) > 0
-                            ? `Stock: ${ProductService.getVariantTotalStock(
-                                variant
-                              )}`
-                            : "Out of Stock"}
+                            {ProductService.getVariantTotalStock(variant) > 0
+                              ? `Stock: ${ProductService.getVariantTotalStock(
+                                  variant
+                                )}`
+                              : "Out of Stock"}
+                          </div>
+                          {/* Show variant attributes */}
+                          {variant.attributes &&
+                            variant.attributes.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {variant.attributes.map((attr, index) => (
+                                  <span
+                                    key={index}
+                                    className="text-xs bg-gray-100 px-1 py-0.5 rounded"
+                                  >
+                                    {attr.attributeType}: {attr.attributeValue}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                         </div>
-                        {/* Show variant attributes */}
-                        {variant.attributes &&
-                          variant.attributes.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {variant.attributes.map((attr, index) => (
-                                <span
-                                  key={index}
-                                  className="text-xs bg-gray-100 px-1 py-0.5 rounded"
-                                >
-                                  {attr.attributeType}: {attr.attributeValue}
-                                </span>
-                              ))}
-                            </div>
-                          )}
+                      );
+                    })}
+                  </div>
+                  {selectedVariant && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg mt-2">
+                      <div className="text-sm font-medium text-green-800">
+                        Selected: {selectedVariant.variantSku}
                       </div>
-                    );
-                  })}
-                </div>
-                {selectedVariant && (
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg mt-2">
-                    <div className="text-sm font-medium text-green-800">
-                      Selected: {selectedVariant.variantSku}
-                    </div>
-                    <div className="text-xs text-green-600">
-                      {(() => {
-                        const effectiveDiscount =
-                          getEffectiveDiscount(selectedVariant);
-                        if (effectiveDiscount) {
-                          return (
-                            <div className="flex flex-col">
-                              <span className="font-semibold">
-                                Price:{" "}
-                                {formatPriceUtil(
-                                  effectiveDiscount.discountedPrice
-                                )}
-                              </span>
-                              <span className="line-through">
-                                Original:{" "}
-                                {formatPriceUtil(selectedVariant.price)}
-                              </span>
-                              <span className="text-orange-600 font-medium">
-                                -{Math.round(effectiveDiscount.percentage)}% OFF
-                                {effectiveDiscount.isVariantSpecific
-                                  ? ""
-                                  : " (Product Discount)"}
-                              </span>
-                            </div>
-                          );
-                        }
-                        return `Price: ${formatPriceUtil(
-                          selectedVariant.price || 0
-                        )}`;
-                      })()}
-                      <span className="ml-2">|</span>
-                      <span className="ml-2">
-                        Stock:{" "}
-                        {ProductService.getVariantTotalStock(selectedVariant)}
-                      </span>
-                    </div>
-                    <div className="mt-2 flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setDisplayImages(
-                            selectedVariant.images &&
-                              selectedVariant.images.length > 0
-                              ? selectedVariant.images
-                              : product.images || []
-                          );
+                      <div className="text-xs text-green-600">
+                        {(() => {
                           const effectiveDiscount =
                             getEffectiveDiscount(selectedVariant);
-                          setDisplayPrice(
-                            effectiveDiscount
-                              ? effectiveDiscount.discountedPrice
-                              : selectedVariant.price || 0
-                          );
-                          setDisplayStock(
-                            ProductService.getVariantTotalStock(selectedVariant)
-                          );
-                        }}
-                        className="text-xs"
-                      >
-                        View Variant Images
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setDisplayImages(product.images || []);
-                          setDisplayPrice(
-                            product.discountedPrice || product.basePrice || 0
-                          );
-                          setDisplayStock(product.stockQuantity || 0);
-                        }}
-                        className="text-xs"
-                      >
-                        View Product Images
-                      </Button>
+                          if (effectiveDiscount) {
+                            return (
+                              <div className="flex flex-col">
+                                <span className="font-semibold">
+                                  Price:{" "}
+                                  {formatPriceUtil(
+                                    effectiveDiscount.discountedPrice
+                                  )}
+                                </span>
+                                <span className="line-through">
+                                  Original:{" "}
+                                  {formatPriceUtil(selectedVariant.price)}
+                                </span>
+                                <span className="text-orange-600 font-medium">
+                                  -{Math.round(effectiveDiscount.percentage)}% OFF
+                                  {effectiveDiscount.isVariantSpecific
+                                    ? ""
+                                    : " (Product Discount)"}
+                                </span>
+                              </div>
+                            );
+                          }
+                          return `Price: ${formatPriceUtil(
+                            selectedVariant.price || 0
+                          )}`;
+                        })()}
+                        <span className="ml-2">|</span>
+                        <span className="ml-2">
+                          Stock:{" "}
+                          {ProductService.getVariantTotalStock(selectedVariant)}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setDisplayImages(
+                              selectedVariant.images &&
+                                selectedVariant.images.length > 0
+                                ? selectedVariant.images
+                                : product.images || []
+                            );
+                            const effectiveDiscount =
+                              getEffectiveDiscount(selectedVariant);
+                            setDisplayPrice(
+                              effectiveDiscount
+                                ? effectiveDiscount.discountedPrice
+                                : selectedVariant.price || 0
+                            );
+                            setDisplayStock(
+                              ProductService.getVariantTotalStock(selectedVariant)
+                            );
+                          }}
+                          className="text-xs"
+                        >
+                          View Variant Images
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setDisplayImages(product.images || []);
+                            setDisplayPrice(
+                              product.discountedPrice || product.basePrice || 0
+                            );
+                            setDisplayStock(product.stockQuantity || 0);
+                          }}
+                          className="text-xs"
+                        >
+                          View Product Images
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Quantity */}
-            <div className="flex flex-wrap items-center gap-4">
-              <div>
-                <label className="text-sm font-medium">Quantity</label>
-                <div className="flex items-center border rounded-md mt-1">
-                  <button
-                    className="px-3 py-2 hover:bg-muted disabled:opacity-50"
-                    onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
-                    disabled={quantity <= 1}
-                  >
-                    -
-                  </button>
-                  <span className="w-12 text-center">{quantity}</span>
-                  <button
-                    className="px-3 py-2 hover:bg-muted disabled:opacity-50"
-                    onClick={() =>
-                      setQuantity((prev) =>
-                        Math.min(displayStock || 999, prev + 1)
-                      )
-                    }
-                    disabled={quantity >= (displayStock || 999)}
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium">Availability</label>
-                <div className="flex items-center gap-1 mt-1">
-                  <Badge
-                    variant={
-                      (displayStock || 0) > 0 ? "outline" : "destructive"
-                    }
-                    className="text-xs"
-                  >
-                    {(displayStock || 0) > 0 ? "In Stock" : "Out of Stock"}
-                  </Badge>
-                  {(displayStock || 0) > 0 && (
-                    <span className="text-sm text-muted-foreground">
-                      ({displayStock} available)
-                    </span>
                   )}
                 </div>
-              </div>
-            </div>
+              )}
 
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-4">
-              <Button
-                size="lg"
-                className={`flex-1 h-12 sm:h-10 ${
-                  isInCart ? "bg-success hover:bg-success/90" : ""
-                }`}
-                onClick={handleCartToggle}
-                disabled={
-                  (displayStock || 0) === 0 ||
-                  isCartLoading ||
-                  (product &&
-                    ProductService.hasVariants(product) &&
-                    !selectedVariant) ||
-                  (selectedVariant &&
-                    ProductService.getVariantTotalStock(selectedVariant) === 0)
-                }
-              >
-                {isCartLoading ? (
-                  <>
-                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                    Loading...
-                  </>
-                ) : isInCart ? (
-                  <>
-                    <Check className="h-5 w-5 mr-2" />
-                    {selectedVariant
-                      ? `Added: ${selectedVariant.variantSku}`
-                      : "Added to Cart"}
-                  </>
-                ) : selectedVariant &&
-                  ProductService.getVariantTotalStock(selectedVariant) === 0 ? (
-                  <>
-                    <AlertCircle className="h-5 w-5 mr-2" />
-                    Out of Stock
-                  </>
-                ) : product &&
-                  ProductService.hasVariants(product) &&
-                  !selectedVariant ? (
-                  <>
-                    <ShoppingCart className="h-5 w-5 mr-2" />
-                    Select Variant
-                  </>
-                ) : (
-                  <>
-                    <ShoppingCart className="h-5 w-5 mr-2" />
-                    {selectedVariant
-                      ? `Add ${selectedVariant.variantSku}`
-                      : "Add to Cart"}
-                  </>
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className={`hidden sm:flex ${
-                  isInWishlist ? "text-red-500 border-red-500" : ""
-                }`}
-                onClick={handleWishlistToggle}
-                disabled={isWishlistLoading}
-              >
-                {isWishlistLoading ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <Heart
-                    className={`h-5 w-5 ${isInWishlist ? "fill-current" : ""}`}
-                  />
-                )}
-              </Button>
-              <Button variant="outline" size="icon" className="hidden sm:flex">
-                <Share2 className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-
-          {isZooming &&
-            displayImages &&
-            displayImages.length > 0 &&
-            isDesktop && (
-              <div
-                className="absolute top-0 right-0 w-full h-full bg-white bg-opacity-95 backdrop-blur-sm border border-gray-300 rounded-lg shadow-2xl z-50 pointer-events-none transition-all duration-300 ease-in-out"
-                style={{
-                  backgroundImage: `url(${displayImages[selectedImage]?.url})`,
-                  backgroundSize: "250%", // 2.5x zoom level for better view
-                  backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
-                  backgroundRepeat: "no-repeat",
-                }}
-              >
-                <div className="absolute top-0 left-0 right-0 bg-black bg-opacity-80 text-white p-3 rounded-t-lg">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                      <span className="text-sm font-medium">
-                        Zoom View Active
-                      </span>
-                    </div>
-                    <div className="text-xs opacity-75">
-                      Move cursor to explore • 2.5x magnification
-                    </div>
+              {/* Quantity */}
+              <div className="flex flex-wrap items-center gap-4">
+                <div>
+                  <label className="text-sm font-medium">Quantity</label>
+                  <div className="flex items-center border rounded-md mt-1">
+                    <button
+                      className="px-3 py-2 hover:bg-muted disabled:opacity-50"
+                      onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
+                      disabled={quantity <= 1}
+                    >
+                      -
+                    </button>
+                    <span className="w-12 text-center">{quantity}</span>
+                    <button
+                      className="px-3 py-2 hover:bg-muted disabled:opacity-50"
+                      onClick={() =>
+                        setQuantity((prev) =>
+                          Math.min(displayStock || 999, prev + 1)
+                        )
+                      }
+                      disabled={quantity >= (displayStock || 999)}
+                    >
+                      +
+                    </button>
                   </div>
                 </div>
 
-                {/* Zoom level indicator */}
-                <div className="absolute bottom-4 right-4 bg-black bg-opacity-70 text-white text-xs px-3 py-2 rounded-full">
-                  2.5× Zoom
-                </div>
-
-                {/* Crosshair indicator */}
-                <div
-                  className="absolute w-8 h-8 border-2 border-white rounded-full shadow-lg pointer-events-none"
-                  style={{
-                    left: `${zoomPosition.x}%`,
-                    top: `${zoomPosition.y}%`,
-                    transform: "translate(-50%, -50%)",
-                    boxShadow:
-                      "0 0 0 2px rgba(0,0,0,0.3), inset 0 0 0 2px rgba(255,255,255,0.8)",
-                  }}
-                >
-                  <div className="absolute inset-0 border border-black rounded-full opacity-30"></div>
+                <div>
+                  <label className="text-sm font-medium">Availability</label>
+                  <div className="flex items-center gap-1 mt-1">
+                    <Badge
+                      variant={
+                        (displayStock || 0) > 0 ? "outline" : "destructive"
+                      }
+                      className="text-xs"
+                    >
+                      {(displayStock || 0) > 0 ? "In Stock" : "Out of Stock"}
+                    </Badge>
+                    {(displayStock || 0) > 0 && (
+                      <span className="text-sm text-muted-foreground">
+                        ({displayStock} available)
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-            )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button
+                  size="lg"
+                  className={`flex-1 h-12 sm:h-10 ${
+                    isInCart ? "bg-success hover:bg-success/90" : ""
+                  }`}
+                  onClick={handleCartToggle}
+                  disabled={
+                    (displayStock || 0) === 0 ||
+                    isCartLoading ||
+                    (product &&
+                      ProductService.hasVariants(product) &&
+                      !selectedVariant) ||
+                    (selectedVariant &&
+                      ProductService.getVariantTotalStock(selectedVariant) === 0)
+                  }
+                >
+                  {isCartLoading ? (
+                    <>
+                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                      Loading...
+                    </>
+                  ) : isInCart ? (
+                    <>
+                      <Check className="h-5 w-5 mr-2" />
+                      {selectedVariant
+                        ? `Added: ${selectedVariant.variantSku}`
+                        : "Added to Cart"}
+                    </>
+                  ) : selectedVariant &&
+                    ProductService.getVariantTotalStock(selectedVariant) === 0 ? (
+                    <>
+                      <AlertCircle className="h-5 w-5 mr-2" />
+                      Out of Stock
+                    </>
+                  ) : product &&
+                    ProductService.hasVariants(product) &&
+                    !selectedVariant ? (
+                    <>
+                      <ShoppingCart className="h-5 w-5 mr-2" />
+                      Select Variant
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart className="h-5 w-5 mr-2" />
+                      {selectedVariant
+                        ? `Add ${selectedVariant.variantSku}`
+                        : "Add to Cart"}
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className={`hidden sm:flex ${
+                    isInWishlist ? "text-red-500 border-red-500" : ""
+                  }`}
+                  onClick={handleWishlistToggle}
+                  disabled={isWishlistLoading}
+                >
+                  {isWishlistLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Heart
+                      className={`h-5 w-5 ${isInWishlist ? "fill-current" : ""}`}
+                    />
+                  )}
+                </Button>
+                <Button variant="outline" size="icon" className="hidden sm:flex">
+                  <Share2 className="h-5 w-5" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

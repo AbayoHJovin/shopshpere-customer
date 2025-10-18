@@ -17,11 +17,34 @@ const BrandGrid: React.FC<BrandGridProps> = ({ brands }) => {
     return null;
   }
 
+  // Limit to maximum 4 brands
+  const displayBrands = brands.slice(0, 4);
+  const brandCount = displayBrands.length;
+
+  // Dynamic grid columns based on brand count
+  const getGridClasses = () => {
+    switch (brandCount) {
+      case 1:
+        return "grid-cols-1"; // 1 brand = full width
+      case 2:
+        return "grid-cols-1 lg:grid-cols-2"; // 2 brands = 2 columns on large screens
+      case 3:
+        return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"; // 3 brands = 3 columns on large screens
+      case 4:
+      default:
+        return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"; // 4 brands = 4 columns on xl screens
+    }
+  };
+
   return (
     <div className="w-full">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-        {brands.map((brand) => (
-          <BrandCard key={brand.id} brand={brand} />
+      <div className={`grid ${getGridClasses()} gap-4 md:gap-6`}>
+        {displayBrands.map((brand) => (
+          <BrandCard 
+            key={brand.id} 
+            brand={brand}
+            brandCount={brandCount}
+          />
         ))}
       </div>
     </div>
@@ -30,10 +53,13 @@ const BrandGrid: React.FC<BrandGridProps> = ({ brands }) => {
 
 interface BrandCardProps {
   brand: BrandWithProducts;
+  brandCount: number;
 }
 
-const BrandCard: React.FC<BrandCardProps> = ({ brand }) => {
-  const displayProducts = brand.products.slice(0, 4);
+const BrandCard: React.FC<BrandCardProps> = ({ brand, brandCount }) => {
+  // Show more products when fewer brands are displayed
+  const maxProducts = brandCount === 1 ? 8 : brandCount === 2 ? 6 : 4;
+  const displayProducts = brand.products.slice(0, maxProducts);
 
   return (
     <Card className="h-full hover:shadow-lg transition-all duration-300 bg-white border border-gray-200 hover:border-gray-300">
@@ -62,8 +88,14 @@ const BrandCard: React.FC<BrandCardProps> = ({ brand }) => {
       </CardHeader>
       
       <CardContent className="pt-0">
-        {/* Products Grid - 2x2 layout */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
+        {/* Products Grid - Dynamic layout based on brand count */}
+        <div className={`grid gap-3 mb-4 ${
+          brandCount === 1 
+            ? "grid-cols-4 sm:grid-cols-4 md:grid-cols-4" // 1 brand = 4 columns
+            : brandCount === 2 
+            ? "grid-cols-2 sm:grid-cols-3" // 2 brands = 2-3 columns
+            : "grid-cols-2" // 3-4 brands = 2 columns
+        }`}>
           {displayProducts.map((product, index) => (
             <div key={product.id} className="group cursor-pointer">
               <Link href={`/product/${product.id}`}>
