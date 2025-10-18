@@ -41,6 +41,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import Link from "next/link";
 import QRCode from "qrcode";
+import { DeliveryNotesDialog } from "@/components/orders/DeliveryNotesDialog";
 
 export default function AccountOrderDetailsPage() {
   const params = useParams();
@@ -51,6 +52,7 @@ export default function AccountOrderDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
+  const [showOrderNotes, setShowOrderNotes] = useState(false);
 
   const generateQRCode = async (pickupToken: string) => {
     try {
@@ -378,6 +380,42 @@ export default function AccountOrderDetailsPage() {
                           </div>
                           {getDaysRemainingBadge(item)}
                         </div>
+
+                        {/* Return Information */}
+                        {item.returnInfo && item.returnInfo.hasReturnRequest && (
+                          <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                            <div className="flex items-center gap-2 mb-2">
+                              <RotateCcw className="h-4 w-4 text-orange-600" />
+                              <span className="text-sm font-medium text-orange-800">
+                                Return Information
+                              </span>
+                            </div>
+                            <div className="space-y-1 text-sm text-orange-700">
+                              <p>
+                                <span className="font-medium">Returned:</span> {item.returnInfo.totalReturnedQuantity} of {item.quantity} items
+                              </p>
+                              <p>
+                                <span className="font-medium">Remaining:</span> {item.returnInfo.remainingQuantity} items
+                              </p>
+                              <p>
+                                <span className="font-medium">Refund Amount:</span> {formatCurrency(item.price * item.returnInfo.totalReturnedQuantity)}
+                              </p>
+                              {item.returnInfo.returnRequests.length > 0 && (
+                                <div className="mt-2 pt-2 border-t border-orange-300">
+                                  <p className="font-medium mb-1">Return Requests:</p>
+                                  {item.returnInfo.returnRequests.map((req, idx) => (
+                                    <div key={idx} className="ml-2 text-xs">
+                                      <Badge variant="outline" className="mr-2">
+                                        {req.status}
+                                      </Badge>
+                                      {req.returnedQuantity} items - {req.reason}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -386,166 +424,44 @@ export default function AccountOrderDetailsPage() {
             </Card>
           )}
 
-          {/* Return Request Section */}
-          {order.returnRequest ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <RotateCcw className="h-5 w-5" />
-                    Return Request
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {/* Return Request Status */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Status</span>
-                      <Badge
-                        variant={
-                          order.returnRequest.status === "APPROVED"
-                            ? "default"
-                            : order.returnRequest.status === "DENIED"
-                            ? "destructive"
-                            : "secondary"
-                        }
-                      >
-                        {order.returnRequest.status}
-                      </Badge>
-                    </div>
-
-                    <Separator />
-
-                    {/* Return Request Details */}
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Reason</p>
-                        <p className="text-sm font-medium">{order.returnRequest.reason}</p>
-                      </div>
-
-                      <div>
-                        <p className="text-sm text-muted-foreground">Submitted At</p>
-                        <p className="text-sm">{formatDate(order.returnRequest.submittedAt)}</p>
-                      </div>
-
-                      {order.returnRequest.decisionAt && (
-                        <div>
-                          <p className="text-sm text-muted-foreground">Decision Date</p>
-                          <p className="text-sm">{formatDate(order.returnRequest.decisionAt)}</p>
-                        </div>
-                      )}
-
-                      {order.returnRequest.decisionNotes && (
-                        <div>
-                          <p className="text-sm text-muted-foreground">Decision Notes</p>
-                          <div className="bg-gray-50 p-3 rounded-lg border">
-                            <p className="text-sm">{order.returnRequest.decisionNotes}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Appeal Section */}
-                    {order.returnRequest.appeal ? (
-                      <div className="mt-4 pt-4 border-t">
-                        <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                          <AlertCircle className="h-4 w-4" />
-                          Appeal Status
-                        </h4>
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Status</span>
-                            <Badge
-                              variant={
-                                order.returnRequest.appeal.status === "APPROVED"
-                                  ? "default"
-                                  : order.returnRequest.appeal.status === "DENIED"
-                                  ? "destructive"
-                                  : "secondary"
-                              }
-                            >
-                              {order.returnRequest.appeal.status}
-                            </Badge>
-                          </div>
-
-                          <div>
-                            <p className="text-sm text-muted-foreground">Appeal Reason</p>
-                            <p className="text-sm">{order.returnRequest.appeal.reason}</p>
-                          </div>
-
-                          {order.returnRequest.appeal.description && (
-                            <div>
-                              <p className="text-sm text-muted-foreground">Description</p>
-                              <p className="text-sm">{order.returnRequest.appeal.description}</p>
-                            </div>
-                          )}
-
-                          <div>
-                            <p className="text-sm text-muted-foreground">Submitted At</p>
-                            <p className="text-sm">{formatDate(order.returnRequest.appeal.submittedAt)}</p>
-                          </div>
-
-                          {order.returnRequest.appeal.decisionAt && (
-                            <div>
-                              <p className="text-sm text-muted-foreground">Decision Date</p>
-                              <p className="text-sm">{formatDate(order.returnRequest.appeal.decisionAt)}</p>
-                            </div>
-                          )}
-
-                          {order.returnRequest.appeal.decisionNotes && (
-                            <div>
-                              <p className="text-sm text-muted-foreground">Decision Notes</p>
-                              <div className="bg-gray-50 p-3 rounded-lg border">
-                                <p className="text-sm">{order.returnRequest.appeal.decisionNotes}</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ) : order.returnRequest.canBeAppealed && order.returnRequest.status === "DENIED" ? (
-                      <div className="mt-4 pt-4 border-t">
-                        <Alert className="mb-4">
-                          <AlertCircle className="h-4 w-4" />
-                          <AlertDescription>
-                            Your return request was denied. You can submit an appeal if you believe this decision was made in error.
-                          </AlertDescription>
-                        </Alert>
-                        <Button
-                          onClick={() => {
-                            router.push(`/returns/appeal?returnRequestId=${order.returnRequest?.id}`);
-                          }}
-                          className="w-full"
-                          variant="outline"
-                        >
-                          <AlertCircle className="h-4 w-4 mr-2" />
-                          Submit Appeal
-                        </Button>
-                      </div>
-                    ) : null}
+          {/* Return Requests Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <RotateCcw className="h-5 w-5" />
+                Return Requests
+              </CardTitle>
+              <CardDescription>
+                View all return requests for this order
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Info className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-800">Return Policy</span>
                   </div>
-                </CardContent>
-              </Card>
-            ) : canRequestReturn ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <RotateCcw className="h-5 w-5" />
-                    Return Request
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <p className="text-muted-foreground">
-                      You can return eligible items from this order within the return window.
-                    </p>
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Info className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm font-medium text-blue-800">Return Policy</span>
-                      </div>
-                      <p className="text-sm text-blue-700">
-                        Items can be returned within 30 days. Items must be in original condition with tags attached.
-                      </p>
-                    </div>
+                  <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
+                    <li>Items can be returned within 30 days of delivery</li>
+                    <li>Each item can have a maximum of 2 return requests</li>
+                    <li>Items must be in original condition with tags attached</li>
+                  </ul>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Button 
+                    onClick={() => {
+                      router.push(`/returns/order/${order.id}?customerId=${order.userId || ''}`);
+                    }}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    View All Return Requests
+                  </Button>
+
+                  {canRequestReturn && (
                     <Button 
                       onClick={() => {
                         router.push(`/returns/request?orderId=${order.id}`);
@@ -553,12 +469,22 @@ export default function AccountOrderDetailsPage() {
                       className="w-full"
                     >
                       <RotateCcw className="h-4 w-4 mr-2" />
-                      Request Return
+                      Request New Return
                     </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : null}
+                  )}
+                </div>
+
+                {!canRequestReturn && !hasEligibleItems && (isDelivered || isProcessing) && (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      The return window for this order has expired. Items can only be returned within 30 days of the order date.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Return Information for Non-Eligible Orders */}
           {!order.returnRequest && !canRequestReturn && order?.items && order.items.length > 0 && (
@@ -601,6 +527,31 @@ export default function AccountOrderDetailsPage() {
             </Card>
           )}
 
+          {/* Delivery Notes Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Delivery Notes
+              </CardTitle>
+              <CardDescription>
+                View notes from delivery agents about this order
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowOrderNotes(true)}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Order Notes
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Order Summary */}
           <Card>
             <CardHeader>
@@ -633,6 +584,39 @@ export default function AccountOrderDetailsPage() {
                 <span>Total:</span>
                 <span>{formatCurrency(order.total || 0)}</span>
               </div>
+              
+              {/* Calculate and show total refund if any */}
+              {order.items && order.items.some(item => item.returnInfo?.hasReturnRequest) && (
+                <>
+                  <Separator />
+                  <div className="flex justify-between text-orange-600">
+                    <span>Total Refunded:</span>
+                    <span>
+                      -{formatCurrency(
+                        order.items.reduce((sum, item) => {
+                          if (item.returnInfo?.totalReturnedQuantity) {
+                            return sum + (item.price * item.returnInfo.totalReturnedQuantity);
+                          }
+                          return sum;
+                        }, 0)
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between font-bold text-lg">
+                    <span>Net Total:</span>
+                    <span>
+                      {formatCurrency(
+                        (order.total || 0) - order.items.reduce((sum, item) => {
+                          if (item.returnInfo?.totalReturnedQuantity) {
+                            return sum + (item.price * item.returnInfo.totalReturnedQuantity);
+                          }
+                          return sum;
+                        }, 0)
+                      )}
+                    </span>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -753,6 +737,16 @@ export default function AccountOrderDetailsPage() {
           )}
         </div>
       </div>
+
+      {/* Delivery Notes Dialog */}
+      {order && (
+        <DeliveryNotesDialog
+          open={showOrderNotes}
+          onOpenChange={setShowOrderNotes}
+          orderId={parseInt(order.id)}
+          title="Order Delivery Notes"
+        />
+      )}
     </div>
   );
 }

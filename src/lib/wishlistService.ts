@@ -434,7 +434,6 @@ async function getWishlistFromBackend(): Promise<WishlistResponse> {
       productIds: localWishlist.map((item) => item.productId),
     };
 
-    // Fetch product details from backend
     const response = await fetch(API_ENDPOINTS.PRODUCTS_BY_IDS, {
       method: "POST",
       headers: {
@@ -450,12 +449,11 @@ async function getWishlistFromBackend(): Promise<WishlistResponse> {
     const data = await response.json();
     const productsData = data.data as ProductsByIdsResponse;
 
-    // Transform backend response to match wishlist interface
     const wishlistProducts: WishlistProduct[] = productsData.products.map(
       (product, index) => ({
-        id: Date.now() + index, // Generate temporary ID
+        id: Date.now() + index,
         productId: product.productId,
-        productSku: product.productId, // Use productId as SKU since ManyProductsDto doesn't have sku field
+        productSku: product.productId,
         productName: product.productName,
         productImage: product.primaryImage?.imageUrl || null,
         notes: null,

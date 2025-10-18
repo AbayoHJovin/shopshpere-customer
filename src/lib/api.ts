@@ -91,6 +91,10 @@ export const API_ENDPOINTS = {
   RETURN_BY_ID: (returnId: string) => `${API_BASE_URL}/returns/${returnId}`,
   RETURN_BY_ORDER_ID: (orderId: string) => `${API_BASE_URL}/returns/order/${orderId}`,
   RETURN_BY_ORDER_NUMBER: (orderNumber: string) => `${API_BASE_URL}/returns/order-number/${orderNumber}`,
+  RETURN_REQUESTS_BY_ORDER: (orderId: string, customerId: string) => 
+    `${API_BASE_URL}/returns/order/${orderId}?customerId=${customerId}`,
+  RETURN_REQUESTS_BY_ORDER_GUEST: (orderNumber: string, token: string) => 
+    `${API_BASE_URL}/returns/order/guest?orderNumber=${encodeURIComponent(orderNumber)}&token=${encodeURIComponent(token)}`,
   RETURN_SUBMIT: `${API_BASE_URL}/returns/submit`,
 
   // Appeal endpoints

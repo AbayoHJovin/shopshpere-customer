@@ -34,6 +34,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { OrderService, OrderDetailsResponse } from "@/lib/orderService";
 import { ReturnService } from "@/lib/services/returnService";
+import { DeliveryNotesDialog } from "@/components/orders/DeliveryNotesDialog";
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -48,6 +49,8 @@ export default function OrderDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [hasReturnRequest, setHasReturnRequest] = useState<boolean>(false);
   const [checkingReturn, setCheckingReturn] = useState<boolean>(false);
+  const [showOrderNotes, setShowOrderNotes] = useState(false);
+  const [showGroupNotes, setShowGroupNotes] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -292,6 +295,42 @@ export default function OrderDetailPage() {
                           </div>
                           {getDaysRemainingBadge(item)}
                         </div>
+
+                        {/* Return Information */}
+                        {item.returnInfo && item.returnInfo.hasReturnRequest && (
+                          <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                            <div className="flex items-center gap-2 mb-2">
+                              <RotateCcw className="h-4 w-4 text-orange-600" />
+                              <span className="text-sm font-medium text-orange-800">
+                                Return Information
+                              </span>
+                            </div>
+                            <div className="space-y-1 text-sm text-orange-700">
+                              <p>
+                                <span className="font-medium">Returned:</span> {item.returnInfo.totalReturnedQuantity} of {item.quantity} items
+                              </p>
+                              <p>
+                                <span className="font-medium">Remaining:</span> {item.returnInfo.remainingQuantity} items
+                              </p>
+                              <p>
+                                <span className="font-medium">Refund Amount:</span> {formatCurrency(item.price * item.returnInfo.totalReturnedQuantity)}
+                              </p>
+                              {item.returnInfo.returnRequests.length > 0 && (
+                                <div className="mt-2 pt-2 border-t border-orange-300">
+                                  <p className="font-medium mb-1">Return Requests:</p>
+                                  {item.returnInfo.returnRequests.map((req, idx) => (
+                                    <div key={idx} className="ml-2 text-xs">
+                                      <Badge variant="outline" className="mr-2">
+                                        {req.status}
+                                      </Badge>
+                                      {req.returnedQuantity} items - {req.reason}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -392,6 +431,93 @@ export default function OrderDetailPage() {
             )}
           </div>
 
+          {/* Delivery Notes Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Delivery Notes
+              </CardTitle>
+              <CardDescription>
+                View notes from delivery agents about this order
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowOrderNotes(true)}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Order Notes
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Return Requests Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <RotateCcw className="h-5 w-5" />
+                Return Requests
+              </CardTitle>
+              <CardDescription>
+                View all return requests for this order
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Info className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-800">Return Policy</span>
+                  </div>
+                  <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
+                    <li>Items can be returned within 30 days of delivery</li>
+                    <li>Each item can have a maximum of 2 return requests</li>
+                    <li>Items must be in original condition with tags attached</li>
+                  </ul>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Button 
+                    onClick={() => {
+                      router.push(`/returns/order/${orderId}?orderNumber=${orderDetails.orderNumber}&token=${token}`);
+                    }}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    View All Return Requests
+                  </Button>
+
+                  {canRequestReturn && (
+                    <Button 
+                      onClick={() => {
+                        router.push(`/returns/request?orderId=${orderId}&token=${token}`);
+                      }}
+                      className="w-full"
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Request New Return
+                    </Button>
+                  )}
+                </div>
+
+                {!canRequestReturn && !hasEligibleItems && (isDelivered || isProcessing) && (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      The return window for this order has expired. Items can only be returned within 30 days of the order date.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Order Summary */}
           <Card>
             <CardHeader>
@@ -424,6 +550,39 @@ export default function OrderDetailPage() {
                 <span>Total:</span>
                 <span>{formatCurrency(orderDetails.total || 0)}</span>
               </div>
+              
+              {/* Calculate and show total refund if any */}
+              {orderDetails.items && orderDetails.items.some(item => item.returnInfo?.hasReturnRequest) && (
+                <>
+                  <Separator />
+                  <div className="flex justify-between text-orange-600">
+                    <span>Total Refunded:</span>
+                    <span>
+                      -{formatCurrency(
+                        orderDetails.items.reduce((sum, item) => {
+                          if (item.returnInfo?.totalReturnedQuantity) {
+                            return sum + (item.price * item.returnInfo.totalReturnedQuantity);
+                          }
+                          return sum;
+                        }, 0)
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between font-bold text-lg">
+                    <span>Net Total:</span>
+                    <span>
+                      {formatCurrency(
+                        (orderDetails.total || 0) - orderDetails.items.reduce((sum, item) => {
+                          if (item.returnInfo?.totalReturnedQuantity) {
+                            return sum + (item.price * item.returnInfo.totalReturnedQuantity);
+                          }
+                          return sum;
+                        }, 0)
+                      )}
+                    </span>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -544,6 +703,18 @@ export default function OrderDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Delivery Notes Dialogs */}
+      {orderDetails && (
+        <>
+          <DeliveryNotesDialog
+            open={showOrderNotes}
+            onOpenChange={setShowOrderNotes}
+            orderId={parseInt(orderId)}
+            title="Order Delivery Notes"
+          />
+        </>
+      )}
     </div>
   );
 }

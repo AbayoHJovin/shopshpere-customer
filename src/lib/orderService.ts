@@ -167,20 +167,68 @@ export interface SimpleProduct {
   images: string[];
 }
 
+export interface OrderProductInfo {
+  id: string;
+  name: string;
+  images: string[];
+}
+
+export interface OrderVariantInfo {
+  id: number;
+  name: string;
+  images: string[];
+}
+
 export interface OrderItemResponse {
   id: string;
   productId: string;
   variantId?: string;
-  product?: SimpleProduct;
-  variant?: SimpleProduct;
   quantity: number;
   price: number;
   totalPrice: number;
-  // Return eligibility fields
-  maxReturnDays?: number;
-  deliveredAt?: string;
+  product?: OrderProductInfo;
+  variant?: OrderVariantInfo;
   returnEligible?: boolean;
+  maxReturnDays?: number;
   daysRemainingForReturn?: number;
+  returnInfo?: ReturnItemInfo;
+}
+
+export interface ReturnItemInfo {
+  hasReturnRequest: boolean;
+  totalReturnedQuantity: number;
+  remainingQuantity: number;
+  returnRequests: ReturnRequestSummary[];
+}
+
+export interface ReturnRequestSummary {
+  returnRequestId: number;
+  returnedQuantity: number;
+  status: string;
+  reason: string;
+  submittedAt: string;
+}
+
+export interface DeliveryNote {
+  id: number;
+  orderId: number;
+  deliveryGroupId?: number;
+  agentId: string;
+  agentName: string;
+  noteText: string;
+  noteCategory: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DeliveryNotesResponse {
+  success: boolean;
+  data: {
+    notes: DeliveryNote[];
+    totalNotes: number;
+    currentPage: number;
+    totalPages: number;
+  };
 }
 
 export interface OrderAddressResponse {
@@ -601,6 +649,39 @@ export const OrderService = {
       return data.data;
     } catch (error) {
       console.error("Error fetching order by ID:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get delivery notes for an order
+   */
+  getOrderDeliveryNotes: async (
+    orderId: number,
+    page: number = 0,
+    size: number = 10
+  ): Promise<DeliveryNotesResponse> => {
+    try {
+      const baseUrl = process.env.NODE_ENV === "production" ? "/api/v1" : "http://localhost:8080/api/v1";
+      const response = await fetch(
+        `${baseUrl}/public/orders/${orderId}/delivery-notes?page=${page}&size=${size}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Error fetching delivery notes");
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error fetching delivery notes:", error);
       throw error;
     }
   },
