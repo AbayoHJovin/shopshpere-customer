@@ -399,7 +399,6 @@ export default function OrderReturnRequestsPage() {
                     </div>
                   )}
 
-                  {/* Appeal Action */}
                   {request.canBeAppealed && request.status === "DENIED" && !request.returnAppeal && (
                     <div>
                       <Separator className="mb-4" />
