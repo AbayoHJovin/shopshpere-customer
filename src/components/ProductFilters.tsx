@@ -20,6 +20,7 @@ import {
   AlertCircle,
   Loader2,
   Clock,
+  Search,
 } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { FilterService, FilterOptions, FilterError } from "@/lib/filterService";
@@ -49,6 +50,16 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
   const [discountsLoading, setDiscountsLoading] = useState(true);
   const [discountsError, setDiscountsError] = useState<string | null>(null);
 
+  // Search state for categories and brands
+  const [categorySearch, setCategorySearch] = useState("");
+  const [brandSearch, setBrandSearch] = useState("");
+  const [searchedCategories, setSearchedCategories] = useState<any[]>([]);
+  const [searchedBrands, setSearchedBrands] = useState<any[]>([]);
+  const [categorySearchLoading, setCategorySearchLoading] = useState(false);
+  const [brandSearchLoading, setBrandSearchLoading] = useState(false);
+  const categorySearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const brandSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Load filter options from backend
   useEffect(() => {
     loadFilterOptions();
@@ -64,8 +75,54 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
   const loadFilterOptions = async () => {
     setIsLoading(true);
     try {
-      const { data, errors } = await FilterService.fetchAllFilterOptions();
-      setFilterOptions(data);
+      // Fetch limited categories and brands with product counts (10 each)
+      const [categoriesResult, brandsResult, attributesResult] = await Promise.allSettled([
+        FilterService.fetchCategoriesWithProductCount(0, 10),
+        FilterService.fetchBrandsWithProductCount(0, 10),
+        FilterService.fetchAttributesWithValues(),
+      ]);
+
+      const errors: FilterError[] = [];
+      let categories: any[] = [];
+      let brands: any[] = [];
+      let attributes: any[] = [];
+
+      if (categoriesResult.status === "fulfilled") {
+        categories = categoriesResult.value.content || [];
+      } else {
+        errors.push({
+          type: "categories",
+          message: "Failed to fetch categories",
+          originalError: categoriesResult.reason,
+        });
+      }
+
+      if (brandsResult.status === "fulfilled") {
+        brands = brandsResult.value.content || [];
+      } else {
+        errors.push({
+          type: "brands",
+          message: "Failed to fetch brands",
+          originalError: brandsResult.reason,
+        });
+      }
+
+      if (attributesResult.status === "fulfilled") {
+        attributes = attributesResult.value;
+      } else {
+        errors.push({
+          type: "attributes",
+          message: "Failed to fetch attributes",
+          originalError: attributesResult.reason,
+        });
+      }
+
+      setFilterOptions({
+        categories,
+        brands,
+        attributes,
+        priceRange: { min: 0, max: 2000 },
+      });
       setFilterErrors(errors);
 
       if (errors.length > 0) {
@@ -99,6 +156,60 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
       setDiscountsLoading(false);
     }
   };
+
+  // Search categories handler
+  const handleCategorySearch = useCallback(async (searchTerm: string) => {
+    setCategorySearch(searchTerm);
+    
+    if (categorySearchTimeoutRef.current) {
+      clearTimeout(categorySearchTimeoutRef.current);
+    }
+
+    if (!searchTerm.trim()) {
+      setSearchedCategories([]);
+      return;
+    }
+
+    categorySearchTimeoutRef.current = setTimeout(async () => {
+      setCategorySearchLoading(true);
+      try {
+        const result = await FilterService.fetchCategoriesWithSearch(searchTerm, 0, 10);
+        setSearchedCategories(result.content || []);
+      } catch (error) {
+        console.error("Error searching categories:", error);
+        setSearchedCategories([]);
+      } finally {
+        setCategorySearchLoading(false);
+      }
+    }, 300);
+  }, []);
+
+  // Search brands handler
+  const handleBrandSearch = useCallback(async (searchTerm: string) => {
+    setBrandSearch(searchTerm);
+    
+    if (brandSearchTimeoutRef.current) {
+      clearTimeout(brandSearchTimeoutRef.current);
+    }
+
+    if (!searchTerm.trim()) {
+      setSearchedBrands([]);
+      return;
+    }
+
+    brandSearchTimeoutRef.current = setTimeout(async () => {
+      setBrandSearchLoading(true);
+      try {
+        const result = await FilterService.fetchBrandsWithSearch(searchTerm, 0, 10);
+        setSearchedBrands(result.content || []);
+      } catch (error) {
+        console.error("Error searching brands:", error);
+        setSearchedBrands([]);
+      } finally {
+        setBrandSearchLoading(false);
+      }
+    }, 300);
+  }, []);
 
   const handleRetry = () => {
     setRetryCount((prev) => prev + 1);
@@ -535,58 +646,152 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
       {/* Categories Filter */}
       {renderFilterSection(
         "Categories",
-        <div className="space-y-2 max-h-60 overflow-y-auto">
-          {currentData.categories.length > 0 ? (
-            currentData.categories.map((category) => renderCategory(category))
-          ) : (
-            <div className="text-center py-4 text-gray-500">
-              <p className="text-sm">No categories available</p>
-              {filterErrors.some((e) => e.type === "categories") && (
-                <p className="text-xs mt-1">Failed to load categories</p>
-              )}
-            </div>
-          )}
+        <div className="space-y-3">
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search categories..."
+              value={categorySearch}
+              onChange={(e) => handleCategorySearch(e.target.value)}
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            {categorySearchLoading && (
+              <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+            )}
+          </div>
+
+          {/* Categories List */}
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {categorySearch.trim() ? (
+              // Show search results
+              categorySearchLoading ? (
+                <div className="text-center py-4 text-gray-500">
+                  <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+                  <p className="text-sm">Searching...</p>
+                </div>
+              ) : searchedCategories.length > 0 ? (
+                searchedCategories.map((category) => renderCategory(category))
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  <p className="text-sm">No categories found for "{categorySearch}"</p>
+                </div>
+              )
+            ) : (
+              // Show default categories
+              currentData.categories.length > 0 ? (
+                currentData.categories.map((category) => renderCategory(category))
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  <p className="text-sm">No categories available</p>
+                  {filterErrors.some((e) => e.type === "categories") && (
+                    <p className="text-xs mt-1">Failed to load categories</p>
+                  )}
+                </div>
+              )
+            )}
+          </div>
         </div>
       )}
 
       {/* Brands Filter */}
       {renderFilterSection(
         "Brands",
-        <div className="space-y-3 max-h-60 overflow-y-auto">
-          {currentData.brands.length > 0 ? (
-            currentData.brands.map((brand) => (
-              <div key={brand.brandId} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`brand-${brand.brandId}`}
-                  checked={filters.brands?.includes(brand.brandName) || false}
-                  onCheckedChange={(checked) => {
-                    const newBrands = checked
-                      ? [...(filters.brands || []), brand.brandName]
-                      : (filters.brands || []).filter(
-                          (b: string) => b !== brand.brandName
-                        );
-                    updateFilters("brands", newBrands);
-                  }}
-                />
-                <label
-                  htmlFor={`brand-${brand.brandId}`}
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-1 cursor-pointer"
-                >
-                  {brand.brandName}
-                </label>
-                <span className="text-xs text-gray-500">
-                  ({brand.productCount || 0})
-                </span>
-              </div>
-            ))
-          ) : (
-            <div className="text-center py-4 text-gray-500">
-              <p className="text-sm">No brands available</p>
-              {filterErrors.some((e) => e.type === "brands") && (
-                <p className="text-xs mt-1">Failed to load brands</p>
-              )}
-            </div>
-          )}
+        <div className="space-y-3">
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search brands..."
+              value={brandSearch}
+              onChange={(e) => handleBrandSearch(e.target.value)}
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            {brandSearchLoading && (
+              <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+            )}
+          </div>
+
+          {/* Brands List */}
+          <div className="space-y-3 max-h-60 overflow-y-auto">
+            {brandSearch.trim() ? (
+              // Show search results
+              brandSearchLoading ? (
+                <div className="text-center py-4 text-gray-500">
+                  <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+                  <p className="text-sm">Searching...</p>
+                </div>
+              ) : searchedBrands.length > 0 ? (
+                searchedBrands.map((brand) => (
+                  <div key={brand.brandId} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`brand-${brand.brandId}`}
+                      checked={filters.brands?.includes(brand.brandName) || false}
+                      onCheckedChange={(checked) => {
+                        const newBrands = checked
+                          ? [...(filters.brands || []), brand.brandName]
+                          : (filters.brands || []).filter(
+                              (b: string) => b !== brand.brandName
+                            );
+                        updateFilters("brands", newBrands);
+                      }}
+                    />
+                    <label
+                      htmlFor={`brand-${brand.brandId}`}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-1 cursor-pointer"
+                    >
+                      {brand.brandName}
+                    </label>
+                    <span className="text-xs text-gray-500">
+                      ({brand.productCount || 0})
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  <p className="text-sm">No brands found for "{brandSearch}"</p>
+                </div>
+              )
+            ) : (
+              // Show default brands
+              currentData.brands.length > 0 ? (
+                currentData.brands.map((brand) => (
+                  <div key={brand.brandId} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`brand-${brand.brandId}`}
+                      checked={filters.brands?.includes(brand.brandName) || false}
+                      onCheckedChange={(checked) => {
+                        const newBrands = checked
+                          ? [...(filters.brands || []), brand.brandName]
+                          : (filters.brands || []).filter(
+                              (b: string) => b !== brand.brandName
+                            );
+                        updateFilters("brands", newBrands);
+                      }}
+                    />
+                    <label
+                      htmlFor={`brand-${brand.brandId}`}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-1 cursor-pointer"
+                    >
+                      {brand.brandName}
+                    </label>
+                    <span className="text-xs text-gray-500">
+                      ({brand.productCount || 0})
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  <p className="text-sm">No brands available</p>
+                  {filterErrors.some((e) => e.type === "brands") && (
+                    <p className="text-xs mt-1">Failed to load brands</p>
+                  )}
+                </div>
+              )
+            )}
+          </div>
         </div>
       )}
 
