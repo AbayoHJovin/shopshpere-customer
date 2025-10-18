@@ -261,17 +261,17 @@ export default function OrderDetailPage() {
               <CardContent>
                 <div className="space-y-4">
                   {orderDetails.items?.map((item, index) => (
-                    <div key={index} className="flex gap-4 p-4 border rounded-lg">
+                    <div key={index} className="flex gap-4 p-4 border rounded-md">
                       {/* Product Image */}
                       <div className="flex-shrink-0">
                         {item.product?.images && item.product.images.length > 0 ? (
                           <img
                             src={item.product.images[0]}
                             alt={item.product?.name || 'Product'}
-                            className="w-16 h-16 object-cover rounded-md"
+                            className="w-16 h-16 object-cover rounded-[2px]"
                           />
                         ) : (
-                          <div className="w-16 h-16 bg-gray-200 rounded-md flex items-center justify-center">
+                          <div className="w-16 h-16 bg-gray-200 rounded-[2px] flex items-center justify-center">
                             <Package className="h-6 w-6 text-gray-400" />
                           </div>
                         )}
@@ -298,7 +298,7 @@ export default function OrderDetailPage() {
 
                         {/* Return Information */}
                         {item.returnInfo && item.returnInfo.hasReturnRequest && (
-                          <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                          <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-[2px]">
                             <div className="flex items-center gap-2 mb-2">
                               <RotateCcw className="h-4 w-4 text-orange-600" />
                               <span className="text-sm font-medium text-orange-800">
@@ -360,7 +360,7 @@ export default function OrderDetailPage() {
                       <p className="text-muted-foreground">
                         You can return eligible items from this order within the return window.
                       </p>
-                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                      <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
                         <div className="flex items-center gap-2 mb-2">
                           <Info className="h-4 w-4 text-blue-600" />
                           <span className="text-sm font-medium text-blue-800">Return Policy</span>
@@ -416,7 +416,7 @@ export default function OrderDetailPage() {
                         </AlertDescription>
                       </Alert>
                     )}
-                    <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="bg-gray-50 p-4 rounded-md">
                       <div className="flex items-center gap-2 mb-2">
                         <Info className="h-4 w-4 text-gray-600" />
                         <span className="text-sm font-medium text-gray-800">Return Policy</span>
@@ -469,7 +469,7 @@ export default function OrderDetailPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
                   <div className="flex items-center gap-2 mb-2">
                     <Info className="h-4 w-4 text-blue-600" />
                     <span className="text-sm font-medium text-blue-800">Return Policy</span>
@@ -637,7 +637,7 @@ export default function OrderDetailPage() {
                 {/* Google Maps Integration */}
                 {orderDetails.shippingAddress.latitude && orderDetails.shippingAddress.longitude && (
                   <div className="space-y-3">
-                    <div className="relative w-full h-48 rounded-lg overflow-hidden border">
+                    <div className="relative w-full h-48 rounded-md overflow-hidden border">
                       <iframe
                         src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&q=${orderDetails.shippingAddress.latitude},${orderDetails.shippingAddress.longitude}&zoom=18&maptype=satellite`}
                         width="100%"

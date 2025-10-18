@@ -377,9 +377,9 @@ export default function ReturnInfoPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {returnRequest.returnMedia.map(
                       (media: MediaAttachment, index: number) => (
-                        <div key={index} className="border rounded-lg p-4">
+                        <div key={index} className="border rounded-md p-4">
                           {media.image && (
-                            <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden mb-3">
+                            <div className="aspect-video bg-gray-100 rounded-md overflow-hidden mb-3">
                               <img
                                 src={media.fileUrl}
                                 alt={`Return attachment ${index + 1}`}
@@ -388,7 +388,7 @@ export default function ReturnInfoPage() {
                             </div>
                           )}
                           {media.video && (
-                            <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden mb-3">
+                            <div className="aspect-video bg-gray-100 rounded-md overflow-hidden mb-3">
                               <video
                                 src={media.fileUrl}
                                 controls
@@ -453,9 +453,9 @@ export default function ReturnInfoPage() {
                   returnRequest.returnItems.map((item, index) => (
                     <div
                       key={index}
-                      className="flex items-start gap-4 p-4 border rounded-lg"
+                      className="flex items-start gap-4 p-4 border rounded-md"
                     >
-                      <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                      <div className="w-16 h-16 bg-gray-100 rounded-md flex items-center justify-center overflow-hidden flex-shrink-0">
                         {item.productImage ? (
                           <img
                             src={item.productImage}

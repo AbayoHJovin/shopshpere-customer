@@ -148,7 +148,7 @@ export default function ReturnsPage() {
               </Button>
 
               {isAuthenticated && (
-                <div className="bg-green-50 p-3 rounded-lg">
+                <div className="bg-green-50 p-3 rounded-md">
                   <div className="flex items-center gap-2 text-green-700 mb-1">
                     <CheckCircle className="h-4 w-4" />
                     <span className="font-medium">Signed In</span>
@@ -217,7 +217,7 @@ export default function ReturnsPage() {
                 )}
               </Button>
 
-              <div className="bg-blue-50 p-3 rounded-lg">
+              <div className="bg-blue-50 p-3 rounded-md">
                 <div className="flex items-center gap-2 text-blue-700 mb-1">
                   <QrCode className="h-4 w-4" />
                   <span className="font-medium">Need Help Finding Your Pickup Token?</span>

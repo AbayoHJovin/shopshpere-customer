@@ -250,7 +250,7 @@ export default function OrderReturnRequestsPage() {
                       <FileText className="h-4 w-4" />
                       Return Reason
                     </h4>
-                    <p className="text-sm text-muted-foreground bg-muted p-3 rounded-lg">
+                    <p className="text-sm text-muted-foreground bg-muted p-3 rounded-md">
                       {request.reason}
                     </p>
                   </div>
@@ -265,7 +265,7 @@ export default function OrderReturnRequestsPage() {
                       {request.returnItems.map((item) => (
                         <div
                           key={item.productId}
-                          className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                          className="flex items-center justify-between p-3 bg-muted rounded-md"
                         >
                           <div>
                             <p className="font-medium">{item.productName}</p>
@@ -298,10 +298,10 @@ export default function OrderReturnRequestsPage() {
                               <img
                                 src={media.fileUrl}
                                 alt="Return media"
-                                className="w-full h-32 object-cover rounded-lg border"
+                                className="w-full h-32 object-cover rounded-md border"
                               />
                             ) : (
-                              <div className="w-full h-32 bg-muted rounded-lg border flex items-center justify-center">
+                              <div className="w-full h-32 bg-muted rounded-md border flex items-center justify-center">
                                 <Video className="h-8 w-8 text-muted-foreground" />
                               </div>
                             )}
@@ -309,7 +309,7 @@ export default function OrderReturnRequestsPage() {
                               href={media.fileUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center text-white text-sm"
+                              className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-md flex items-center justify-center text-white text-sm"
                             >
                               View
                             </a>
@@ -327,7 +327,7 @@ export default function OrderReturnRequestsPage() {
                         <Info className="h-4 w-4" />
                         Decision
                       </h4>
-                      <div className="bg-muted p-4 rounded-lg space-y-2">
+                      <div className="bg-muted p-4 rounded-md space-y-2">
                         <p className="text-sm">
                           <span className="font-medium">Date:</span> {formatDate(request.decisionAt)}
                         </p>

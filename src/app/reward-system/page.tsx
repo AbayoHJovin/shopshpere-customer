@@ -138,7 +138,7 @@ export default function RewardSystemPage() {
           <CardContent>
             <div className="space-y-4">
               {rewardSystem.isSignupPointsEnabled && rewardSystem.signupPointsAmount > 0 && (
-                <div className="flex items-start gap-4 p-4 border rounded-lg">
+                <div className="flex items-start gap-4 p-4 border rounded-md">
                   <div className="bg-blue-100 rounded-full p-3">
                     <UserPlus className="h-6 w-6 text-blue-600" />
                   </div>
@@ -155,7 +155,7 @@ export default function RewardSystemPage() {
               )}
 
               {rewardSystem.isPurchasePointsEnabled && (
-                <div className="flex items-start gap-4 p-4 border rounded-lg">
+                <div className="flex items-start gap-4 p-4 border rounded-md">
                   <div className="bg-green-100 rounded-full p-3">
                     <ShoppingBag className="h-6 w-6 text-green-600" />
                   </div>
@@ -174,7 +174,7 @@ export default function RewardSystemPage() {
               )}
 
               {rewardSystem.isReviewPointsEnabled && rewardSystem.reviewPointsAmount > 0 && (
-                <div className="flex items-start gap-4 p-4 border rounded-lg">
+                <div className="flex items-start gap-4 p-4 border rounded-md">
                   <div className="bg-purple-100 rounded-full p-3">
                     <MessageSquare className="h-6 w-6 text-purple-600" />
                   </div>
@@ -212,7 +212,7 @@ export default function RewardSystemPage() {
                     {rewardSystem.rewardRanges
                       .filter((range) => range.rangeType === "QUANTITY")
                       .map((range, index) => (
-                        <div key={range.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div key={range.id} className="flex items-center justify-between p-4 border rounded-md">
                           <div className="flex-1">
                             <h3 className="font-semibold mb-1">
                               {range.minValue} {range.maxValue ? `- ${range.maxValue}` : "+"} items
@@ -247,7 +247,7 @@ export default function RewardSystemPage() {
                     {rewardSystem.rewardRanges
                       .filter((range) => range.rangeType === "AMOUNT")
                       .map((range, index) => (
-                        <div key={range.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div key={range.id} className="flex items-center justify-between p-4 border rounded-md">
                           <div className="flex-1">
                             <h3 className="font-semibold mb-1">
                               ${range.minValue} {range.maxValue ? `- $${range.maxValue}` : "+"} purchase
@@ -311,7 +311,7 @@ export default function RewardSystemPage() {
                   </p>
                 </div>
               </div>
-              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 mt-4">
+              <div className="p-4 bg-blue-50 rounded-md border border-blue-200 mt-4">
                 <p className="text-sm text-blue-900">
                   <strong>Note:</strong> Each point is worth ${rewardSystem.pointValue.toFixed(2)}. 
                   Points can be used to reduce your order total at checkout.

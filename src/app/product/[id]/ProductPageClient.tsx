@@ -563,7 +563,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
           <div className="space-y-4">
             {/* Zoom Controls - Always visible on desktop */}
             {isDesktop && displayImages && displayImages.length > 0 && (
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3 shadow-sm">
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-md p-3 shadow-sm">
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-gray-700 whitespace-nowrap">Image Zoom:</span>
                   <input
@@ -573,7 +573,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                     step="0.1"
                     value={zoomLevel}
                     onChange={(e) => setZoomLevel(parseFloat(e.target.value))}
-                    className="flex-1 h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer"
+                    className="flex-1 h-2 bg-gray-300 rounded-md appearance-none cursor-pointer"
                     style={{
                       background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${((zoomLevel - 1.5) / (5 - 1.5)) * 100}%, #d1d5db ${((zoomLevel - 1.5) / (5 - 1.5)) * 100}%, #d1d5db 100%)`
                     }}
@@ -585,7 +585,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
             )}
             
             <div
-              className="aspect-square relative rounded-lg overflow-hidden border bg-muted cursor-crosshair"
+              className="aspect-square relative rounded-md overflow-hidden border bg-muted cursor-crosshair"
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
               onMouseMove={handleMouseMove}
@@ -666,7 +666,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                 {displayImages.map((image, index) => (
                   <div
                     key={image.imageId}
-                    className={`cursor-pointer rounded-md border overflow-hidden w-20 h-20 flex-shrink-0 ${
+                    className={`cursor-pointer rounded-[2px] border overflow-hidden w-20 h-20 flex-shrink-0 ${
                       selectedImage === index ? "ring-2 ring-primary" : ""
                     }`}
                     onClick={() => setSelectedImage(index)}
@@ -689,7 +689,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                   {product.videos.map((video, index) => (
                     <div
                       key={video.videoId}
-                      className="relative aspect-video rounded-lg overflow-hidden border"
+                      className="relative aspect-video rounded-md overflow-hidden border"
                     >
                       <video
                         src={video.url}
@@ -720,7 +720,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
           {isZooming && displayImages && displayImages.length > 0 && isDesktop ? (
             // Zoom View - Replaces product details when zooming
             <div className="space-y-4">
-              <div className="flex flex-col bg-white border-2 border-blue-500 rounded-lg shadow-2xl overflow-hidden" style={{ height: '600px' }}>
+              <div className="flex flex-col bg-white border-2 border-blue-500 rounded-md shadow-2xl overflow-hidden" style={{ height: '600px' }}>
                 {/* Zoom Controls Header */}
                 <div className="bg-black bg-opacity-90 text-white p-3 flex-shrink-0">
                   <div className="flex items-center justify-between mb-2">
@@ -745,7 +745,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                       step="0.1"
                       value={zoomLevel}
                       onChange={(e) => setZoomLevel(parseFloat(e.target.value))}
-                      className="flex-1 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
+                      className="flex-1 h-2 bg-gray-600 rounded-md appearance-none cursor-pointer slider"
                       style={{
                         background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${((zoomLevel - 1.5) / (5 - 1.5)) * 100}%, #4b5563 ${((zoomLevel - 1.5) / (5 - 1.5)) * 100}%, #4b5563 100%)`
                       }}
@@ -915,7 +915,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                   {product.variants.every(
                     (v) => ProductService.getVariantTotalStock(v) === 0
                   ) && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-md">
                       <div className="text-sm font-medium text-red-800">
                         All variants are currently out of stock
                       </div>
@@ -944,7 +944,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                       return (
                         <div
                           key={variant.variantId}
-                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                          className={`p-3 border rounded-md cursor-pointer transition-colors ${
                             selectedVariant?.variantId === variant.variantId
                               ? "border-primary bg-primary/5 ring-2 ring-primary/20"
                               : variantsInCart.has(variant.variantId.toString())
@@ -1037,7 +1037,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                     })}
                   </div>
                   {selectedVariant && (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg mt-2">
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-md mt-2">
                       <div className="text-sm font-medium text-green-800">
                         Selected: {selectedVariant.variantSku}
                       </div>
@@ -1127,7 +1127,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
               <div className="flex flex-wrap items-center gap-4">
                 <div>
                   <label className="text-sm font-medium">Quantity</label>
-                  <div className="flex items-center border rounded-md mt-1">
+                  <div className="flex items-center border rounded-[2px] mt-1">
                     <button
                       className="px-3 py-2 hover:bg-muted disabled:opacity-50"
                       onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}

@@ -170,7 +170,7 @@ export function PointsPaymentModal({
           </div>
         ) : preview ? (
           <div className="space-y-4">
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium">Available Points</span>
                 <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
@@ -217,7 +217,7 @@ export function PointsPaymentModal({
             </div>
 
             {!preview.canPayWithPointsOnly && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                 <div className="flex items-center gap-2 text-sm text-blue-800">
                   <CreditCard className="h-4 w-4" />
                   <span>

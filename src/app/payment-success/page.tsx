@@ -344,7 +344,7 @@ function PaymentSuccessContent() {
 
           {/* Email notification message */}
           {orderDetails?.customerInfo?.email && (
-            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
               <div className="flex items-center gap-2 text-blue-800">
                 <svg
                   className="w-5 h-5"
@@ -366,7 +366,7 @@ function PaymentSuccessContent() {
 
         {/* Professional Invoice Layout */}
         {orderDetails && (
-          <div className="bg-white border-2 border-gray-200 rounded-lg shadow-lg mb-8 print:shadow-none print:border-gray-400">
+          <div className="bg-white border-2 border-gray-200 rounded-md shadow-lg mb-8 print:shadow-none print:border-gray-400">
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-t-lg">
               <div className="flex justify-between items-start">
                 <div>
@@ -378,7 +378,7 @@ function PaymentSuccessContent() {
                 </div>
                 <div className="text-right">
                   <div className="flex items-center gap-3">
-                    <div className="bg-white/20 rounded-lg p-3">
+                    <div className="bg-white/20 rounded-md p-3">
                       <p className="text-sm text-blue-100">Invoice #</p>
                       <p className="font-mono font-bold text-lg">
                         {orderDetails.orderNumber}
@@ -386,7 +386,7 @@ function PaymentSuccessContent() {
                     </div>
                     <button
                       onClick={() => window.print()}
-                      className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors print:hidden"
+                      className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors print:hidden"
                     >
                       Print Invoice
                     </button>
@@ -544,7 +544,7 @@ function PaymentSuccessContent() {
               {/* Order Summary */}
               <div className="flex justify-end">
                 <div className="w-full max-w-sm">
-                  <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="bg-gray-50 rounded-md p-4">
                     <h4 className="font-semibold text-gray-700 mb-3">
                       Order Summary
                     </h4>
@@ -707,7 +707,7 @@ function PaymentSuccessContent() {
                   <CardContent>
                     <div className="space-y-4">
                       {/* Enhanced Map with Marker */}
-                      <div className="relative h-80 w-full rounded-lg overflow-hidden border-2 border-gray-200 shadow-md">
+                      <div className="relative h-80 w-full rounded-md overflow-hidden border-2 border-gray-200 shadow-md">
                         <iframe
                           src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&q=${orderDetails.shippingAddress.latitude},${orderDetails.shippingAddress.longitude}&zoom=17&maptype=satellite&center=${orderDetails.shippingAddress.latitude},${orderDetails.shippingAddress.longitude}`}
                           width="100%"
@@ -720,7 +720,7 @@ function PaymentSuccessContent() {
                         />
 
                         {/* Overlay with delivery info */}
-                        <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm rounded-lg p-3 shadow-lg border">
+                        <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm rounded-md p-3 shadow-lg border">
                           <div className="flex items-center gap-2 text-sm">
                             <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
                             <span className="font-medium text-gray-800">
@@ -734,7 +734,7 @@ function PaymentSuccessContent() {
                       </div>
 
                       {/* Address Details */}
-                      <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="bg-gray-50 rounded-md p-4">
                         <h4 className="font-medium text-gray-800 mb-2">
                           Complete Address
                         </h4>
@@ -776,7 +776,7 @@ function PaymentSuccessContent() {
                           href={`https://www.google.com/maps?q=${orderDetails.shippingAddress.latitude},${orderDetails.shippingAddress.longitude}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                          className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
                         >
                           <svg
                             className="w-4 h-4"
@@ -795,7 +795,7 @@ function PaymentSuccessContent() {
                           href={`https://www.google.com/maps/dir/?api=1&destination=${orderDetails.shippingAddress.latitude},${orderDetails.shippingAddress.longitude}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+                          className="flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 transition-colors"
                         >
                           <svg
                             className="w-4 h-4"
@@ -817,7 +817,7 @@ function PaymentSuccessContent() {
                             );
                             // You could add a toast notification here
                           }}
-                          className="flex items-center justify-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-700 transition-colors"
+                          className="flex items-center justify-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-700 transition-colors"
                         >
                           <svg
                             className="w-4 h-4"
@@ -858,7 +858,7 @@ function PaymentSuccessContent() {
                     <img
                       src={qrCodeDataUrl}
                       alt="Pickup Token QR Code"
-                      className="border-2 border-gray-200 rounded-lg"
+                      className="border-2 border-gray-200 rounded-md"
                     />
                     <div className="absolute -top-2 -right-2 bg-green-500 text-white rounded-full p-1">
                       <CheckCircle className="h-4 w-4" />

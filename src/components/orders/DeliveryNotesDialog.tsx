@@ -147,7 +147,7 @@ export function DeliveryNotesDialog({
                 {notes.map((note) => (
                   <div
                     key={note.id}
-                    className="border rounded-lg p-4 space-y-3 hover:bg-gray-50 transition-colors"
+                    className="border rounded-md p-4 space-y-3 hover:bg-gray-50 transition-colors"
                   >
                     {/* Header */}
                     <div className="flex items-start justify-between">

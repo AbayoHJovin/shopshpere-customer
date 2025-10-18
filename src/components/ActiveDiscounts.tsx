@@ -34,7 +34,7 @@ const ActiveDiscounts = () => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border p-6">
+      <div className="bg-white rounded-md shadow-sm border p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-gray-900">
             Active discounts
@@ -42,7 +42,7 @@ const ActiveDiscounts = () => {
         </div>
         <div className="animate-pulse space-y-4">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-24 bg-gray-200 rounded-lg"></div>
+            <div key={i} className="h-24 bg-gray-200 rounded-md"></div>
           ))}
         </div>
       </div>
@@ -51,7 +51,7 @@ const ActiveDiscounts = () => {
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border p-6">
+      <div className="bg-white rounded-md shadow-sm border p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-gray-900">
             Active discounts
@@ -65,7 +65,7 @@ const ActiveDiscounts = () => {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border p-6">
+    <div className="bg-white rounded-md shadow-sm border p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold text-gray-900">
           Active discounts
@@ -114,7 +114,7 @@ const ActiveDiscounts = () => {
                 </CardHeader>
                 <CardContent className="pt-0">
                   {/* Countdown Timer - Dedicated Space */}
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
                     <div className="flex items-center justify-center gap-3">
                       <Clock className="h-5 w-5 text-red-500" />
                       <div className="text-center">

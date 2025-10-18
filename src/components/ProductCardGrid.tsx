@@ -109,7 +109,7 @@ const ProductCardGrid = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border p-6">
+    <div className="bg-white rounded-md shadow-sm border p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
         {showSeeMore && onSeeMore && (
@@ -135,7 +135,7 @@ const ProductCardGrid = ({
         {displayedProducts.map((product) => (
           <div key={product.id} className="group relative">
             <Link href={`/product/${product.id}`}>
-              <div className="relative bg-gray-100 rounded-lg overflow-hidden aspect-square mb-3">
+              <div className="relative bg-gray-100 rounded-md overflow-hidden aspect-square mb-3">
                 {product.image &&
                 product.image !== "https://via.placeholder.com/400x400" ? (
                   <img

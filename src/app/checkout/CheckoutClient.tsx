@@ -909,7 +909,7 @@ export function CheckoutClient() {
                 />
               ) : (
                 <div className="space-y-4">
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
                     <div className="flex items-center gap-2 mb-2">
                       <MapPin className="h-5 w-5 text-blue-600" />
                       <h4 className="font-medium text-blue-800">Selected Delivery Address</h4>
@@ -962,7 +962,7 @@ export function CheckoutClient() {
             </CardHeader>
             <CardContent className="p-6">
               <div className="space-y-4">
-                <div className="p-4 border rounded-lg bg-blue-50 border-blue-200">
+                <div className="p-4 border rounded-md bg-blue-50 border-blue-200">
                   <div className="flex items-center gap-3">
                     <CreditCard className="h-6 w-6 text-blue-600" />
                     <div>
@@ -978,7 +978,7 @@ export function CheckoutClient() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-2 p-3 border rounded-lg">
+                  <div className="flex items-center gap-2 p-3 border rounded-md">
                     <Image
                       src="/visa-icon.png"
                       alt="Visa"
@@ -988,7 +988,7 @@ export function CheckoutClient() {
                     />
                     <span className="text-sm font-medium">Visa</span>
                   </div>
-                  <div className="flex items-center gap-3 p-3 border rounded-lg">
+                  <div className="flex items-center gap-3 p-3 border rounded-md">
                     <Image
                       src="/mastercard-icon.png"
                       alt="Mastercard"
@@ -1000,7 +1000,7 @@ export function CheckoutClient() {
                   </div>
                 </div>
 
-                <div className="mt-4 flex items-center justify-center py-4 bg-muted/30 rounded-md">
+                <div className="mt-4 flex items-center justify-center py-4 bg-muted/30 rounded-[2px]">
                   <div className="flex items-center gap-2">
                     <LockIcon className="h-4 w-4 text-blue-600" />
                     <span className="text-sm text-muted-foreground">
@@ -1080,7 +1080,7 @@ export function CheckoutClient() {
                     <AccordionContent className="space-y-4 pt-2">
                       {cart.items.map((item) => (
                         <div key={item.productId} className="flex gap-4">
-                          <div className="h-16 w-16 flex-shrink-0 bg-muted rounded-md overflow-hidden">
+                          <div className="h-16 w-16 flex-shrink-0 bg-muted rounded-[2px] overflow-hidden">
                             <Link href={`/product/${item.productId}`}>
                               <img
                                 src={
@@ -1256,7 +1256,7 @@ export function CheckoutClient() {
                   </div>
 
                   {paymentSummary && (
-                    <div className="mt-2 p-2 bg-blue-50 rounded-md">
+                    <div className="mt-2 p-2 bg-blue-50 rounded-[2px]">
                       <p className="text-xs text-blue-700">
                         💡 Shipping calculated based on your address and item
                         weight

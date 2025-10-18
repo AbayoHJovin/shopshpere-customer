@@ -144,7 +144,7 @@ const TrackOrderPage: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="max-w-md w-full mx-4">
-          <div className="bg-white rounded-lg shadow-lg p-8">
+          <div className="bg-white rounded-md shadow-lg p-8">
             <div className="text-center mb-6">
               <Package className="h-12 w-12 text-blue-600 mx-auto mb-4" />
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Track Your Orders</h1>
@@ -166,7 +166,7 @@ const TrackOrderPage: React.FC = () => {
                     value={emailInput}
                     onChange={(e) => setEmailInput(e.target.value)}
                     placeholder="Enter your email address"
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     onKeyPress={(e) => e.key === 'Enter' && requestTrackingAccess()}
                   />
                 </div>
@@ -175,7 +175,7 @@ const TrackOrderPage: React.FC = () => {
               <button
                 onClick={requestTrackingAccess}
                 disabled={isRequestingAccess}
-                className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isRequestingAccess ? (
                   <div className="flex items-center justify-center gap-2">
@@ -191,7 +191,7 @@ const TrackOrderPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+            <div className="mt-6 p-4 bg-blue-50 rounded-md">
               <h3 className="text-sm font-medium text-blue-900 mb-2">How it works:</h3>
               <ol className="text-sm text-blue-800 space-y-1">
                 <li>1. Enter your email address</li>
@@ -226,13 +226,13 @@ const TrackOrderPage: React.FC = () => {
 
         {/* Error State */}
         {error && !loading && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <div className="bg-red-50 border border-red-200 rounded-md p-6 text-center">
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <h2 className="text-lg font-semibold text-red-900 mb-2">Error Loading Orders</h2>
             <p className="text-red-700 mb-4">{error}</p>
             <button
               onClick={fetchOrders}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
             >
               Try Again
             </button>
@@ -243,7 +243,7 @@ const TrackOrderPage: React.FC = () => {
         {!loading && !error && orders.length > 0 && (
           <div className="space-y-4">
             {orders.map((order) => (
-              <div key={order.id} className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow">
+              <div key={order.id} className="bg-white rounded-md shadow-sm border hover:shadow-md transition-shadow">
                 <div className="p-6">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between">
                     <div className="flex-grow">
@@ -280,7 +280,7 @@ const TrackOrderPage: React.FC = () => {
                     <div className="mt-4 md:mt-0">
                       <button
                         onClick={() => viewOrderDetail(order.id)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                       >
                         <Eye className="h-4 w-4" />
                         View Details
@@ -297,7 +297,7 @@ const TrackOrderPage: React.FC = () => {
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 0}
-                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
@@ -307,7 +307,7 @@ const TrackOrderPage: React.FC = () => {
                     <button
                       key={i}
                       onClick={() => handlePageChange(i)}
-                      className={`px-3 py-2 text-sm rounded-lg ${
+                      className={`px-3 py-2 text-sm rounded-md ${
                         currentPage === i
                           ? 'bg-blue-600 text-white'
                           : 'border border-gray-300 hover:bg-gray-50'
@@ -321,7 +321,7 @@ const TrackOrderPage: React.FC = () => {
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage >= totalPages - 1}
-                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>
@@ -340,7 +340,7 @@ const TrackOrderPage: React.FC = () => {
             </p>
             <button
               onClick={fetchOrders}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >
               <Search className="h-4 w-4" />
               Refresh
