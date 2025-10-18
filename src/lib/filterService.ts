@@ -30,10 +30,8 @@ export interface BrandDTO {
 export interface ProductAttributeTypeDTO {
   attributeTypeId: number;
   name: string;
-  description?: string;
   isRequired: boolean;
-  createdAt: string;
-  updatedAt: string;
+  productCount?: number;
 }
 
 export interface ProductAttributeValueDTO {
@@ -41,10 +39,7 @@ export interface ProductAttributeValueDTO {
   value: string;
   attributeTypeId: number;
   attributeTypeName?: string;
-  isActive: boolean;
   productCount?: number;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface Page<T> {
@@ -551,6 +546,130 @@ export const FilterService = {
       return brandsPage;
     } catch (error) {
       console.error("Error fetching brands with product count:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Fetch attribute types with pagination and product counts
+   */
+  fetchAttributeTypes: async (
+    page = 0,
+    size = 10
+  ): Promise<Page<ProductAttributeTypeDTO>> => {
+    try {
+      const response = await fetch(
+        `${API_ENDPOINTS.ATTRIBUTE_TYPES}?page=${page}&size=${size}&sort=name&direction=ASC`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch attribute types: ${response.status}`);
+      }
+
+      const attributeTypesPage: Page<ProductAttributeTypeDTO> = await response.json();
+      return attributeTypesPage;
+    } catch (error) {
+      console.error("Error fetching attribute types:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Search attribute types by name with pagination
+   */
+  searchAttributeTypes: async (
+    searchTerm: string,
+    page = 0,
+    size = 10
+  ): Promise<Page<ProductAttributeTypeDTO>> => {
+    try {
+      const response = await fetch(
+        `${API_ENDPOINTS.ATTRIBUTE_TYPES}/search?name=${encodeURIComponent(searchTerm)}&page=${page}&size=${size}&sort=name&direction=ASC`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to search attribute types: ${response.status}`);
+      }
+
+      const attributeTypesPage: Page<ProductAttributeTypeDTO> = await response.json();
+      return attributeTypesPage;
+    } catch (error) {
+      console.error("Error searching attribute types:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Fetch attribute values for a specific type with pagination
+   */
+  fetchAttributeValuesByType: async (
+    attributeTypeId: number,
+    page = 0,
+    size = 10
+  ): Promise<Page<ProductAttributeValueDTO>> => {
+    try {
+      const response = await fetch(
+        `${API_ENDPOINTS.ATTRIBUTE_VALUES}/type/${attributeTypeId}?page=${page}&size=${size}&sort=value&direction=ASC`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch attribute values: ${response.status}`);
+      }
+
+      const attributeValuesPage: Page<ProductAttributeValueDTO> = await response.json();
+      return attributeValuesPage;
+    } catch (error) {
+      console.error("Error fetching attribute values:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Search attribute values by value and type with pagination
+   */
+  searchAttributeValuesByType: async (
+    searchTerm: string,
+    attributeTypeId: number,
+    page = 0,
+    size = 10
+  ): Promise<Page<ProductAttributeValueDTO>> => {
+    try {
+      const response = await fetch(
+        `${API_ENDPOINTS.ATTRIBUTE_VALUES}/search/type/${attributeTypeId}?value=${encodeURIComponent(searchTerm)}&page=${page}&size=${size}&sort=value&direction=ASC`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to search attribute values: ${response.status}`);
+      }
+
+      const attributeValuesPage: Page<ProductAttributeValueDTO> = await response.json();
+      return attributeValuesPage;
+    } catch (error) {
+      console.error("Error searching attribute values:", error);
       throw error;
     }
   },

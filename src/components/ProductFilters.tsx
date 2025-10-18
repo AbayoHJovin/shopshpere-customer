@@ -60,6 +60,19 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
   const categorySearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const brandSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Attribute types state
+  const [attributeTypes, setAttributeTypes] = useState<any[]>([]);
+  const [attributeTypesLoading, setAttributeTypesLoading] = useState(false);
+  const [attributeTypeSearch, setAttributeTypeSearch] = useState("");
+  const [searchedAttributeTypes, setSearchedAttributeTypes] = useState<any[]>([]);
+  const [attributeTypeSearchLoading, setAttributeTypeSearchLoading] = useState(false);
+  const attributeTypeSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [expandedAttributeTypes, setExpandedAttributeTypes] = useState<number[]>([]);
+  const [attributeValues, setAttributeValues] = useState<Record<number, any[]>>({});
+  const [attributeValueSearch, setAttributeValueSearch] = useState<Record<number, string>>({});
+  const [attributeValueSearchLoading, setAttributeValueSearchLoading] = useState<Record<number, boolean>>({});
+  const attributeValueSearchTimeoutRefs = useRef<Record<number, NodeJS.Timeout | null>>({});
+
   // Load filter options from backend
   useEffect(() => {
     loadFilterOptions();
@@ -309,6 +322,136 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
       searchTerm: "",
     });
   }, [onFiltersChange]);
+
+  // Load attribute types on mount
+  useEffect(() => {
+    loadAttributeTypes();
+  }, []);
+
+  const loadAttributeTypes = async () => {
+    setAttributeTypesLoading(true);
+    try {
+      const result = await FilterService.fetchAttributeTypes(0, 10);
+      setAttributeTypes(result.content || []);
+    } catch (error) {
+      console.error("Error loading attribute types:", error);
+      setAttributeTypes([]);
+    } finally {
+      setAttributeTypesLoading(false);
+    }
+  };
+
+// Handle attribute type search
+  const handleAttributeTypeSearch = useCallback(async (searchTerm: string) => {
+    setAttributeTypeSearch(searchTerm);
+
+    if (attributeTypeSearchTimeoutRef.current) {
+      clearTimeout(attributeTypeSearchTimeoutRef.current);
+    }
+
+    if (!searchTerm.trim()) {
+      setSearchedAttributeTypes([]);
+      setAttributeTypeSearchLoading(false);
+      return;
+    }
+
+    attributeTypeSearchTimeoutRef.current = setTimeout(async () => {
+      setAttributeTypeSearchLoading(true);
+      try {
+        const result = await FilterService.searchAttributeTypes(searchTerm, 0, 10);
+        setSearchedAttributeTypes(result.content || []);
+      } catch (error) {
+        console.error("Error searching attribute types:", error);
+        setSearchedAttributeTypes([]);
+      } finally {
+        setAttributeTypeSearchLoading(false);
+      }
+    }, 300);
+  }, []);
+
+  // Toggle attribute type expansion and load values
+  const toggleAttributeType = useCallback(async (attributeTypeId: number) => {
+    setExpandedAttributeTypes((prev) => {
+      const isExpanding = !prev.includes(attributeTypeId);
+      
+      if (isExpanding && !attributeValues[attributeTypeId]) {
+        // Load attribute values for this type
+        loadAttributeValues(attributeTypeId);
+      }
+      
+      return isExpanding
+        ? [...prev, attributeTypeId]
+        : prev.filter((id) => id !== attributeTypeId);
+    });
+  }, [attributeValues]);
+
+  // Load attribute values for a specific type
+  const loadAttributeValues = async (attributeTypeId: number) => {
+    try {
+      const result = await FilterService.fetchAttributeValuesByType(attributeTypeId, 0, 10);
+      setAttributeValues((prev) => ({
+        ...prev,
+        [attributeTypeId]: result.content || [],
+      }));
+    } catch (error) {
+      console.error("Error loading attribute values:", error);
+      setAttributeValues((prev) => ({
+        ...prev,
+        [attributeTypeId]: [],
+      }));
+    }
+  };
+
+  // Handle attribute value search within a type
+  const handleAttributeValueSearch = useCallback(
+    async (attributeTypeId: number, searchTerm: string) => {
+      setAttributeValueSearch((prev) => ({
+        ...prev,
+        [attributeTypeId]: searchTerm,
+      }));
+
+      if (attributeValueSearchTimeoutRefs.current[attributeTypeId]) {
+        clearTimeout(attributeValueSearchTimeoutRefs.current[attributeTypeId]!);
+      }
+
+      if (!searchTerm.trim()) {
+        // Reload default values
+        loadAttributeValues(attributeTypeId);
+        return;
+      }
+
+      attributeValueSearchTimeoutRefs.current[attributeTypeId] = setTimeout(async () => {
+        setAttributeValueSearchLoading((prev) => ({
+          ...prev,
+          [attributeTypeId]: true,
+        }));
+        try {
+          const result = await FilterService.searchAttributeValuesByType(
+            searchTerm,
+            attributeTypeId,
+            0,
+            10
+          );
+          setAttributeValues((prev) => ({
+            ...prev,
+            [attributeTypeId]: result.content || [],
+          }));
+        } catch (error) {
+          console.error("Error searching attribute values:", error);
+          setAttributeValues((prev) => ({
+            ...prev,
+            [attributeTypeId]: [],
+          }));
+        } finally {
+          setAttributeValueSearchLoading((prev) => ({
+            ...prev,
+            [attributeTypeId]: false,
+          }));
+        }
+      }, 300);
+    },
+    []
+  );
 
   const hasActiveFilters =
     filters.priceRange[0] > 0 ||
@@ -795,76 +938,277 @@ const ProductFilters = ({ filters, onFiltersChange }: ProductFiltersProps) => {
         </div>
       )}
 
-      {/* Product Attributes Filter */}
-      {currentData.attributes.length > 0 && (
-        <div className="space-y-4">
-          {currentData.attributes.map(
-            ({ type, values }) =>
-              values.length > 0 && (
-                <div key={type.attributeTypeId}>
-                  {renderFilterSection(
-                    type.name,
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {values.map((value) => (
-                        <div
-                          key={value.attributeValueId}
-                          className="flex items-center space-x-2"
-                        >
-                          <Checkbox
-                            id={`attr-${value.attributeValueId}`}
-                            checked={
-                              filters.attributes?.[type.name]?.includes(
-                                value.value
-                              ) || false
-                            }
-                            onCheckedChange={(checked) => {
-                              const currentAttributes =
-                                filters.attributes || {};
-                              const currentTypeValues =
-                                currentAttributes[type.name] || [];
-                              const newTypeValues = checked
-                                ? [...currentTypeValues, value.value]
-                                : currentTypeValues.filter(
-                                    (v: string) => v !== value.value
-                                  );
+      {/* Product Attributes Filter - New Implementation */}
+      {renderFilterSection(
+        "Product Attributes",
+        <div className="space-y-3">
+          {/* Search Bar for Attribute Types */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search attributes..."
+              value={attributeTypeSearch}
+              onChange={(e) => handleAttributeTypeSearch(e.target.value)}
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            {attributeTypeSearchLoading && (
+              <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+            )}
+          </div>
 
-                              const newAttributes = {
-                                ...currentAttributes,
-                                [type.name]:
-                                  newTypeValues.length > 0
-                                    ? newTypeValues
-                                    : undefined,
-                              };
-
-                              // Remove empty arrays
-                              Object.keys(newAttributes).forEach((key) => {
-                                if (
-                                  !newAttributes[key] ||
-                                  newAttributes[key].length === 0
-                                ) {
-                                  delete newAttributes[key];
-                                }
-                              });
-
-                              updateFilters("attributes", newAttributes);
-                            }}
-                          />
-                          <label
-                            htmlFor={`attr-${value.attributeValueId}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-1 cursor-pointer"
-                          >
-                            {value.value}
-                          </label>
-                          <span className="text-xs text-gray-500">
-                            ({value.productCount || 0})
-                          </span>
-                        </div>
-                      ))}
+          {/* Attribute Types List */}
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {attributeTypesLoading ? (
+              <div className="text-center py-4 text-gray-500">
+                <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+                <p className="text-sm">Loading attributes...</p>
+              </div>
+            ) : attributeTypeSearch.trim() ? (
+              // Show search results
+              attributeTypeSearchLoading ? (
+                <div className="text-center py-4 text-gray-500">
+                  <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+                  <p className="text-sm">Searching...</p>
+                </div>
+              ) : searchedAttributeTypes.length > 0 ? (
+                searchedAttributeTypes.map((attrType) => (
+                  <div key={attrType.attributeTypeId} className="border rounded-md">
+                    {/* Attribute Type Header */}
+                    <div
+                      className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50"
+                      onClick={() => toggleAttributeType(attrType.attributeTypeId)}
+                    >
+                      <div className="flex items-center space-x-2 flex-1">
+                        {expandedAttributeTypes.includes(attrType.attributeTypeId) ? (
+                          <ChevronDown className="h-4 w-4 text-gray-500" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-gray-500" />
+                        )}
+                        <span className="text-sm font-medium">{attrType.name}</span>
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        ({attrType.productCount || 0})
+                      </span>
                     </div>
-                  )}
+
+                    {/* Attribute Values (Expanded) */}
+                    {expandedAttributeTypes.includes(attrType.attributeTypeId) && (
+                      <div className="px-3 pb-3 space-y-2">
+                        {/* Search bar for values */}
+                        <div className="relative">
+                          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Search values..."
+                            value={attributeValueSearch[attrType.attributeTypeId] || ""}
+                            onChange={(e) =>
+                              handleAttributeValueSearch(
+                                attrType.attributeTypeId,
+                                e.target.value
+                              )
+                            }
+                            className="w-full pl-8 pr-3 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                          {attributeValueSearchLoading[attrType.attributeTypeId] && (
+                            <Loader2 className="absolute right-2 top-1/2 transform -translate-y-1/2 h-3 w-3 animate-spin text-gray-400" />
+                          )}
+                        </div>
+
+                        {/* Values list */}
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {attributeValues[attrType.attributeTypeId]?.map((value) => (
+                            <div
+                              key={value.attributeValueId}
+                              className="flex items-center space-x-2"
+                            >
+                              <Checkbox
+                                id={`attr-${value.attributeValueId}`}
+                                checked={
+                                  filters.attributes?.[attrType.name]?.includes(
+                                    value.value
+                                  ) || false
+                                }
+                                onCheckedChange={(checked) => {
+                                  const currentAttributes = filters.attributes || {};
+                                  const currentTypeValues =
+                                    currentAttributes[attrType.name] || [];
+                                  const newTypeValues = checked
+                                    ? [...currentTypeValues, value.value]
+                                    : currentTypeValues.filter(
+                                        (v: string) => v !== value.value
+                                      );
+
+                                  const newAttributes = {
+                                    ...currentAttributes,
+                                    [attrType.name]:
+                                      newTypeValues.length > 0
+                                        ? newTypeValues
+                                        : undefined,
+                                  };
+
+                                  // Remove empty arrays
+                                  Object.keys(newAttributes).forEach((key) => {
+                                    if (
+                                      !newAttributes[key] ||
+                                      newAttributes[key].length === 0
+                                    ) {
+                                      delete newAttributes[key];
+                                    }
+                                  });
+
+                                  updateFilters("attributes", newAttributes);
+                                }}
+                              />
+                              <label
+                                htmlFor={`attr-${value.attributeValueId}`}
+                                className="text-xs font-medium leading-none cursor-pointer flex-1"
+                              >
+                                {value.value}
+                              </label>
+                              <span className="text-xs text-gray-500">
+                                ({value.productCount || 0})
+                              </span>
+                            </div>
+                          ))}
+                          {!attributeValues[attrType.attributeTypeId] ||
+                          attributeValues[attrType.attributeTypeId].length === 0 ? (
+                            <p className="text-xs text-gray-500 text-center py-2">
+                              No values available
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  <p className="text-sm">
+                    No attributes found for "{attributeTypeSearch}"
+                  </p>
                 </div>
               )
-          )}
+            ) : (
+              // Show default attribute types
+              attributeTypes.length > 0 ? (
+                attributeTypes.map((attrType) => (
+                  <div key={attrType.attributeTypeId} className="border rounded-md">
+                    {/* Attribute Type Header */}
+                    <div
+                      className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50"
+                      onClick={() => toggleAttributeType(attrType.attributeTypeId)}
+                    >
+                      <div className="flex items-center space-x-2 flex-1">
+                        {expandedAttributeTypes.includes(attrType.attributeTypeId) ? (
+                          <ChevronDown className="h-4 w-4 text-gray-500" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-gray-500" />
+                        )}
+                        <span className="text-sm font-medium">{attrType.name}</span>
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        ({attrType.productCount || 0})
+                      </span>
+                    </div>
+
+                    {/* Attribute Values (Expanded) */}
+                    {expandedAttributeTypes.includes(attrType.attributeTypeId) && (
+                      <div className="px-3 pb-3 space-y-2">
+                        {/* Search bar for values */}
+                        <div className="relative">
+                          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Search values..."
+                            value={attributeValueSearch[attrType.attributeTypeId] || ""}
+                            onChange={(e) =>
+                              handleAttributeValueSearch(
+                                attrType.attributeTypeId,
+                                e.target.value
+                              )
+                            }
+                            className="w-full pl-8 pr-3 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                          {attributeValueSearchLoading[attrType.attributeTypeId] && (
+                            <Loader2 className="absolute right-2 top-1/2 transform -translate-y-1/2 h-3 w-3 animate-spin text-gray-400" />
+                          )}
+                        </div>
+
+                        {/* Values list */}
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                          {attributeValues[attrType.attributeTypeId]?.map((value) => (
+                            <div
+                              key={value.attributeValueId}
+                              className="flex items-center space-x-2"
+                            >
+                              <Checkbox
+                                id={`attr-${value.attributeValueId}`}
+                                checked={
+                                  filters.attributes?.[attrType.name]?.includes(
+                                    value.value
+                                  ) || false
+                                }
+                                onCheckedChange={(checked) => {
+                                  const currentAttributes = filters.attributes || {};
+                                  const currentTypeValues =
+                                    currentAttributes[attrType.name] || [];
+                                  const newTypeValues = checked
+                                    ? [...currentTypeValues, value.value]
+                                    : currentTypeValues.filter(
+                                        (v: string) => v !== value.value
+                                      );
+
+                                  const newAttributes = {
+                                    ...currentAttributes,
+                                    [attrType.name]:
+                                      newTypeValues.length > 0
+                                        ? newTypeValues
+                                        : undefined,
+                                  };
+
+                                  // Remove empty arrays
+                                  Object.keys(newAttributes).forEach((key) => {
+                                    if (
+                                      !newAttributes[key] ||
+                                      newAttributes[key].length === 0
+                                    ) {
+                                      delete newAttributes[key];
+                                    }
+                                  });
+
+                                  updateFilters("attributes", newAttributes);
+                                }}
+                              />
+                              <label
+                                htmlFor={`attr-${value.attributeValueId}`}
+                                className="text-xs font-medium leading-none cursor-pointer flex-1"
+                              >
+                                {value.value}
+                              </label>
+                              <span className="text-xs text-gray-500">
+                                ({value.productCount || 0})
+                              </span>
+                            </div>
+                          ))}
+                          {!attributeValues[attrType.attributeTypeId] ||
+                          attributeValues[attrType.attributeTypeId].length === 0 ? (
+                            <p className="text-xs text-gray-500 text-center py-2">
+                              No values available
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  <p className="text-sm">No attributes available</p>
+                </div>
+              )
+            )}
+          </div>
         </div>
       )}
 
