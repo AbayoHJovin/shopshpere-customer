@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+import { API_BASE_URL } from "./api";
 
 export interface RewardRange {
   id: number;
@@ -36,7 +36,7 @@ export const rewardSystemService = {
    */
   async checkStatus(): Promise<RewardSystemStatus> {
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/public/reward-system/status`
+      `${API_BASE_URL}/public/reward-system/status`
     );
 
     if (!response.ok) {
@@ -51,7 +51,7 @@ export const rewardSystemService = {
    */
   async getActiveRewardSystem(): Promise<RewardSystem | null> {
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/public/reward-system/active`
+      `${API_BASE_URL}/public/reward-system/active`
     );
 
     if (response.status === 404) {
