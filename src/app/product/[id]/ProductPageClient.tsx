@@ -129,7 +129,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
 
         return (
           <div className="flex flex-col">
-            <span className="font-semibold text-green-600">
+            <span className="font-semibold text-blue-600">
               {discountedPrice}
             </span>
             <span className="text-xs text-muted-foreground line-through">
@@ -725,7 +725,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                 <div className="bg-black bg-opacity-90 text-white p-3 flex-shrink-0">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
                       <span className="text-sm font-medium">
                         Zoom View Active
                       </span>
@@ -932,7 +932,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                     {variantsInCart.size > 0 && (
                       <Badge
                         variant="secondary"
-                        className="bg-green-100 text-green-800"
+                        className="bg-blue-100 text-blue-800"
                       >
                         {variantsInCart.size} in cart
                       </Badge>
@@ -948,7 +948,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                             selectedVariant?.variantId === variant.variantId
                               ? "border-primary bg-primary/5 ring-2 ring-primary/20"
                               : variantsInCart.has(variant.variantId.toString())
-                              ? "border-green-500 bg-green-50"
+                              ? "border-blue-500 bg-blue-50"
                               : "hover:border-primary/50"
                           } ${
                             ProductService.getVariantTotalStock(variant) === 0
@@ -964,7 +964,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                             {variantsInCart.has(variant.variantId.toString()) && (
                               <Badge
                                 variant="secondary"
-                                className="text-xs bg-green-500 text-white"
+                                className="text-xs bg-blue-500 text-white"
                               >
                                 In Cart
                               </Badge>
@@ -973,7 +973,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                           <div className="text-xs text-muted-foreground">
                             {effectiveDiscount ? (
                               <div className="flex flex-col">
-                                <span className="font-semibold text-green-600">
+                                <span className="font-semibold text-blue-600">
                                   {formatPriceUtil(
                                     effectiveDiscount.discountedPrice
                                   )}
@@ -1008,7 +1008,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
                           <div
                             className={`text-xs ${
                               ProductService.getVariantTotalStock(variant) > 0
-                                ? "text-green-600"
+                                ? "text-blue-600"
                                 : "text-red-600"
                             }`}
                           >
@@ -1037,11 +1037,11 @@ export function ProductPageClient({ productId }: { productId: string }) {
                     })}
                   </div>
                   {selectedVariant && (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-md mt-2">
-                      <div className="text-sm font-medium text-green-800">
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md mt-2">
+                      <div className="text-sm font-medium text-blue-800">
                         Selected: {selectedVariant.variantSku}
                       </div>
-                      <div className="text-xs text-green-600">
+                      <div className="text-xs text-blue-600">
                         {(() => {
                           const effectiveDiscount =
                             getEffectiveDiscount(selectedVariant);
