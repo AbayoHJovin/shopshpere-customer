@@ -716,9 +716,7 @@ export function ProductPageClient({ productId }: { productId: string }) {
             )}
           </div>
 
-          {/* CONDITIONAL RENDERING: Show either Zoom View OR Product Details */}
           {isZooming && displayImages && displayImages.length > 0 && isDesktop ? (
-            // Zoom View - Replaces product details when zooming
             <div className="space-y-4">
               <div className="flex flex-col bg-white border-2 border-blue-500 rounded-md shadow-2xl overflow-hidden" style={{ height: '600px' }}>
                 {/* Zoom Controls Header */}
@@ -735,7 +733,6 @@ export function ProductPageClient({ productId }: { productId: string }) {
                     </div>
                   </div>
                   
-                  {/* Magnification Slider */}
                   <div className="flex items-center gap-3">
                     <span className="text-xs whitespace-nowrap">Zoom:</span>
                     <input
