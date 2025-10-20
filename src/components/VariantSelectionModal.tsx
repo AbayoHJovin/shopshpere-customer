@@ -249,7 +249,7 @@ const VariantSelectionModal = ({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Product Image */}
           <div className="space-y-4">
-            <div className="relative aspect-square overflow-hidden rounded-lg border">
+            <div className="relative aspect-square overflow-hidden rounded-md border">
               <img
                 src={
                   selectedVariant
@@ -303,7 +303,7 @@ const VariantSelectionModal = ({
                           <div className="flex items-start gap-3">
                             {/* Variant Image */}
                             <div className="flex-shrink-0">
-                              <div className="w-16 h-16 relative rounded-md overflow-hidden border">
+                              <div className="w-16 h-16 relative rounded-lg overflow-hidden border">
                                 <img
                                   src={getVariantImage(variant)}
                                   alt={variant.variantSku}

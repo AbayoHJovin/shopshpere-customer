@@ -132,7 +132,7 @@ export default function ReturnSuccessPage() {
             {returnRequest.reason && (
               <div>
                 <p className="text-sm text-gray-500">General Reason</p>
-                <p className="text-sm bg-gray-50 p-3 rounded-lg mt-1">
+                <p className="text-sm bg-gray-50 p-3 rounded-md mt-1">
                   {returnRequest.reason}
                 </p>
               </div>
@@ -145,7 +145,7 @@ export default function ReturnSuccessPage() {
               <h3 className="font-semibold mb-3">Items to Return ({returnRequest.returnItems.length})</h3>
               <div className="space-y-3">
                 {returnRequest.returnItems.map((item, index) => (
-                  <div key={item.id} className="bg-gray-50 p-3 rounded-lg">
+                  <div key={item.id} className="bg-gray-50 p-3 rounded-md">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <p className="font-medium">Item #{index + 1}</p>
@@ -173,7 +173,7 @@ export default function ReturnSuccessPage() {
                   </h3>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {returnRequest.returnMedia.map((media) => (
-                      <div key={media.id} className="border rounded-lg p-2">
+                      <div key={media.id} className="border rounded-md p-2">
                         <div className="aspect-square bg-gray-100 rounded mb-2 overflow-hidden">
                           {media.fileType.startsWith('image/') ? (
                             <img

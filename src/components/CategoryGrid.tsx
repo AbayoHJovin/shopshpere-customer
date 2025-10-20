@@ -86,7 +86,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ category, categoryCount }) 
           {displayProducts.map((product, index) => (
             <div key={product.id} className="group cursor-pointer">
               <Link href={`/product/${product.id}`}>
-                <div className="aspect-square relative overflow-hidden rounded-lg bg-gray-100">
+                <div className="aspect-square relative overflow-hidden rounded-md bg-gray-100">
                   <Image
                     src={product.image}
                     alt={product.name}

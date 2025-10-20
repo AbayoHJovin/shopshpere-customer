@@ -663,7 +663,7 @@ export function GoogleMapsAddressPicker({
           <MapPin className="h-5 w-5" />
           Select Delivery Address
         </CardTitle>
-        <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
           <p className="text-sm text-blue-800 font-medium flex items-center gap-2">
             <span className="inline-block w-4 h-1 bg-blue-600 rounded"></span>
             Blue highlighted paths show roads where delivery is available
@@ -713,7 +713,7 @@ export function GoogleMapsAddressPicker({
             {showSuggestions && (searchSuggestions.length > 0 || isSearching) && (
               <div 
                 ref={suggestionContainerRef}
-                className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-80 overflow-y-auto"
+                className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto"
               >
                 {isSearching ? (
                   <div className="flex items-center justify-center py-6">
@@ -794,10 +794,10 @@ export function GoogleMapsAddressPicker({
         <div className="relative">
           <div
             ref={mapRef}
-            className="w-full h-[500px] rounded-lg border shadow-lg"
+            className="w-full h-[500px] rounded-md border shadow-lg"
             style={{ minHeight: "500px" }}
           />
-          <div className="absolute top-2 left-2 bg-white/95 backdrop-blur-sm rounded-lg p-3 text-sm text-muted-foreground shadow-md border">
+          <div className="absolute top-2 left-2 bg-white/95 backdrop-blur-sm rounded-md p-3 text-sm text-muted-foreground shadow-md border">
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-blue-500" />
               <span className="font-medium">🛰️ Satellite View Active</span>
@@ -813,7 +813,7 @@ export function GoogleMapsAddressPicker({
               )}
             </div>
           </div>
-          <div className="absolute bottom-2 left-2 bg-white/95 backdrop-blur-sm rounded-lg p-2.5 text-xs shadow-md border border-blue-200">
+          <div className="absolute bottom-2 left-2 bg-white/95 backdrop-blur-sm rounded-md p-2.5 text-xs shadow-md border border-blue-200">
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-blue-700 font-medium">
                 <span className="inline-block w-3 h-0.5 bg-blue-600 rounded"></span>
@@ -828,7 +828,7 @@ export function GoogleMapsAddressPicker({
 
         {/* Selected Address Info - Compact display below map */}
         {selectedAddress && (
-          <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+          <div className="p-3 bg-green-50 border border-green-200 rounded-md">
             <div className="flex items-start gap-2">
               <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">

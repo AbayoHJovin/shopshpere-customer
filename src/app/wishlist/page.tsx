@@ -374,7 +374,7 @@ export default function WishlistPage() {
                       <TableRow key={product.id}>
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted">
+                            <div className="w-16 h-16 rounded-md overflow-hidden bg-muted">
                               {product.productImage ? (
                                 <img
                                   src={product.productImage}
@@ -514,7 +514,7 @@ export default function WishlistPage() {
                 <Card key={product.id}>
                   <CardContent className="p-4">
                     <div className="flex gap-4">
-                      <div className="w-20 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                      <div className="w-20 h-20 rounded-md overflow-hidden bg-muted flex-shrink-0">
                         {product.productImage ? (
                           <img
                             src={product.productImage}

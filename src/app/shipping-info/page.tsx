@@ -63,15 +63,15 @@ export default function ShippingInfoPage() {
               <div>
                 <h3 className="font-semibold mb-4">Standard Shipping Rates</h3>
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center p-3 border rounded-lg">
+                  <div className="flex justify-between items-center p-3 border rounded-md">
                     <span className="text-sm">Orders under $25</span>
                     <Badge variant="secondary">$4.99</Badge>
                   </div>
-                  <div className="flex justify-between items-center p-3 border rounded-lg">
+                  <div className="flex justify-between items-center p-3 border rounded-md">
                     <span className="text-sm">Orders $25 - $50</span>
                     <Badge variant="secondary">$2.99</Badge>
                   </div>
-                  <div className="flex justify-between items-center p-3 border rounded-lg bg-green-50">
+                  <div className="flex justify-between items-center p-3 border rounded-md bg-green-50">
                     <span className="text-sm">Orders over $50</span>
                     <Badge variant="default" className="bg-green-500">
                       FREE
@@ -83,15 +83,15 @@ export default function ShippingInfoPage() {
               <div>
                 <h3 className="font-semibold mb-4">Express Shipping Rates</h3>
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center p-3 border rounded-lg">
+                  <div className="flex justify-between items-center p-3 border rounded-md">
                     <span className="text-sm">Next Day Delivery</span>
                     <Badge variant="secondary">$9.99</Badge>
                   </div>
-                  <div className="flex justify-between items-center p-3 border rounded-lg">
+                  <div className="flex justify-between items-center p-3 border rounded-md">
                     <span className="text-sm">2-Day Delivery</span>
                     <Badge variant="secondary">$6.99</Badge>
                   </div>
-                  <div className="flex justify-between items-center p-3 border rounded-lg">
+                  <div className="flex justify-between items-center p-3 border rounded-md">
                     <span className="text-sm">Same Day Delivery</span>
                     <Badge variant="destructive">$19.99</Badge>
                   </div>
@@ -114,7 +114,7 @@ export default function ShippingInfoPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-start gap-4 p-4 border rounded-lg">
+              <div className="flex items-start gap-4 p-4 border rounded-md">
                 <div className="bg-primary/10 rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">
                   <span className="text-sm font-semibold text-primary">1</span>
                 </div>
@@ -127,7 +127,7 @@ export default function ShippingInfoPage() {
                 </div>
               </div>
 
-              <div className="flex items-start gap-4 p-4 border rounded-lg">
+              <div className="flex items-start gap-4 p-4 border rounded-md">
                 <div className="bg-primary/10 rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">
                   <span className="text-sm font-semibold text-primary">2</span>
                 </div>
@@ -142,7 +142,7 @@ export default function ShippingInfoPage() {
                 </div>
               </div>
 
-              <div className="flex items-start gap-4 p-4 border rounded-lg">
+              <div className="flex items-start gap-4 p-4 border rounded-md">
                 <div className="bg-primary/10 rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">
                   <span className="text-sm font-semibold text-primary">3</span>
                 </div>
@@ -157,7 +157,7 @@ export default function ShippingInfoPage() {
                 </div>
               </div>
 
-              <div className="flex items-start gap-4 p-4 border rounded-lg">
+              <div className="flex items-start gap-4 p-4 border rounded-md">
                 <div className="bg-primary/10 rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">
                   <span className="text-sm font-semibold text-primary">4</span>
                 </div>
@@ -319,7 +319,7 @@ export default function ShippingInfoPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="bg-gray-50 p-6 rounded-lg">
+            <div className="bg-gray-50 p-6 rounded-md">
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-sm">Subtotal (Items)</span>
@@ -348,7 +348,7 @@ export default function ShippingInfoPage() {
               </div>
             </div>
 
-            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+            <div className="mt-4 p-4 bg-blue-50 rounded-md">
               <h4 className="font-semibold text-blue-900 mb-2">💡 Pro Tip</h4>
               <p className="text-sm text-blue-800">
                 Add items worth $5 more to your cart to qualify for free

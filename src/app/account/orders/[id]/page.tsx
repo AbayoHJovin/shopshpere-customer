@@ -337,7 +337,7 @@ export default function AccountOrderDetailsPage() {
                   {order.items.map((item) => (
                     <div
                       key={item.id}
-                      className="flex gap-4 p-4 border rounded-lg"
+                      className="flex gap-4 p-4 border rounded-md"
                     >
                       {/* Product Image */}
                       <div className="flex-shrink-0">
@@ -345,16 +345,16 @@ export default function AccountOrderDetailsPage() {
                           <img
                             src={item.product.images[0]}
                             alt={item.product.name || "Product"}
-                            className="w-16 h-16 object-cover rounded-md"
+                            className="w-16 h-16 object-cover rounded-lg"
                           />
                         ) : item.variant?.images && item.variant.images.length > 0 ? (
                           <img
                             src={item.variant.images[0]}
                             alt={item.variant.name || "Variant"}
-                            className="w-16 h-16 object-cover rounded-md"
+                            className="w-16 h-16 object-cover rounded-lg"
                           />
                         ) : (
-                          <div className="w-16 h-16 bg-gray-200 rounded-md flex items-center justify-center">
+                          <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
                             <Package className="h-6 w-6 text-gray-400" />
                           </div>
                         )}
@@ -383,7 +383,7 @@ export default function AccountOrderDetailsPage() {
 
                         {/* Return Information */}
                         {item.returnInfo && item.returnInfo.hasReturnRequest && (
-                          <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                          <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
                             <div className="flex items-center gap-2 mb-2">
                               <RotateCcw className="h-4 w-4 text-orange-600" />
                               <span className="text-sm font-medium text-orange-800">
@@ -437,7 +437,7 @@ export default function AccountOrderDetailsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
                   <div className="flex items-center gap-2 mb-2">
                     <Info className="h-4 w-4 text-blue-600" />
                     <span className="text-sm font-medium text-blue-800">Return Policy</span>
@@ -513,7 +513,7 @@ export default function AccountOrderDetailsPage() {
                       </AlertDescription>
                     </Alert>
                   )}
-                  <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="bg-gray-50 p-4 rounded-md">
                     <div className="flex items-center gap-2 mb-2">
                       <Info className="h-4 w-4 text-gray-600" />
                       <span className="text-sm font-medium text-gray-800">Return Policy</span>
@@ -670,7 +670,7 @@ export default function AccountOrderDetailsPage() {
                 {/* Google Maps Integration with Satellite View */}
                 {order.shippingAddress.latitude && order.shippingAddress.longitude && (
                   <div className="space-y-3">
-                    <div className="relative w-full h-48 rounded-lg overflow-hidden border">
+                    <div className="relative w-full h-48 rounded-md overflow-hidden border">
                       <iframe
                         src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&q=${order.shippingAddress.latitude},${order.shippingAddress.longitude}&zoom=18&maptype=satellite`}
                         width="100%"

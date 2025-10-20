@@ -65,7 +65,7 @@ const BrandCard: React.FC<BrandCardProps> = ({ brand, brandCount }) => {
     <Card className="h-full hover:shadow-lg transition-all duration-300 bg-white border border-gray-200 hover:border-gray-300">
       <CardHeader className="pb-3 px-4 pt-4">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-12 h-12 relative overflow-hidden rounded-lg bg-gray-100 flex-shrink-0">
+          <div className="w-12 h-12 relative overflow-hidden rounded-md bg-gray-100 flex-shrink-0">
             <Image
               src={brand.image}
               alt={brand.name}
@@ -99,7 +99,7 @@ const BrandCard: React.FC<BrandCardProps> = ({ brand, brandCount }) => {
           {displayProducts.map((product, index) => (
             <div key={product.id} className="group cursor-pointer">
               <Link href={`/product/${product.id}`}>
-                <div className="aspect-square relative overflow-hidden rounded-lg bg-gray-100">
+                <div className="aspect-square relative overflow-hidden rounded-md bg-gray-100">
                   <Image
                     src={product.image}
                     alt={product.name}

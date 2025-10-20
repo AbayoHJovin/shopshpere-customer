@@ -98,7 +98,7 @@ function PaymentCancelContent() {
           )}
 
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-md p-3">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
               <p className="text-sm text-red-600">{error}</p>
             </div>
           )}

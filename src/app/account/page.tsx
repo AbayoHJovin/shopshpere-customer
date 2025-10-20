@@ -222,7 +222,7 @@ export default function AccountPage() {
                   {userData?.enabled ? "Active" : "Inactive"}
                 </Badge>
                 {userData?.points !== undefined && (
-                  <div className="mt-3 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border">
+                  <div className="mt-3 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-md border">
                     <div className="flex items-center justify-center gap-2">
                       <Gift className="h-5 w-5 text-yellow-600" />
                       <span className="text-lg font-bold text-yellow-700">

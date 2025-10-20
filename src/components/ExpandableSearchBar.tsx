@@ -218,7 +218,7 @@ export function ExpandableSearchBar({
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className="pl-12 pr-12 h-11 rounded-lg border-2 focus:border-primary bg-background"
+                className="pl-12 pr-12 h-11 rounded-md border-2 focus:border-primary bg-background"
               />
               <Search className="absolute left-3 h-5 w-5 text-muted-foreground" />
               {isLoading && (
@@ -238,7 +238,7 @@ export function ExpandableSearchBar({
 
           {/* Search suggestions dropdown */}
           {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
+            <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-md shadow-lg z-50 max-h-80 overflow-y-auto">
               {suggestions.map((suggestion, index) => (
                 <button
                   key={suggestion.id}

@@ -323,7 +323,7 @@ export default function AppealPage() {
                 </p>
                 
                 {/* Upload Area */}
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <div className="border-2 border-dashed border-gray-300 rounded-md p-6 text-center">
                   <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Upload Evidence</p>
@@ -354,11 +354,11 @@ export default function AppealPage() {
                     <label className="text-sm font-medium">Uploaded Files ({formData.mediaFiles.length}/5)</label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {formData.mediaFiles.map((file, index) => (
-                        <div key={index} className="relative border rounded-lg p-3 bg-gray-50">
+                        <div key={index} className="relative border rounded-md p-3 bg-gray-50">
                           {/* Preview */}
                           <div className="mb-3">
                             {file.type.startsWith('image/') ? (
-                              <div className="relative w-full h-32 bg-gray-100 rounded-lg overflow-hidden">
+                              <div className="relative w-full h-32 bg-gray-100 rounded-md overflow-hidden">
                                 <img
                                   src={URL.createObjectURL(file)}
                                   alt={file.name}
@@ -366,7 +366,7 @@ export default function AppealPage() {
                                 />
                               </div>
                             ) : file.type.startsWith('video/') ? (
-                              <div className="relative w-full h-32 bg-gray-100 rounded-lg overflow-hidden">
+                              <div className="relative w-full h-32 bg-gray-100 rounded-md overflow-hidden">
                                 <video
                                   src={URL.createObjectURL(file)}
                                   className="w-full h-full object-cover"
@@ -375,7 +375,7 @@ export default function AppealPage() {
                                 />
                               </div>
                             ) : (
-                              <div className="w-full h-32 bg-gray-200 rounded-lg flex items-center justify-center">
+                              <div className="w-full h-32 bg-gray-200 rounded-md flex items-center justify-center">
                                 <Paperclip className="h-8 w-8 text-gray-400" />
                               </div>
                             )}

@@ -618,7 +618,7 @@ const ProductGrid = ({
             .fill(0)
             .map((_, i) => (
               <div key={i}>
-                <Skeleton className="aspect-square w-full rounded-md" />
+                <Skeleton className="aspect-square w-full rounded-lg" />
                 <div className="mt-4 space-y-2">
                   <Skeleton className="h-4 w-full" />
                   <Skeleton className="h-4 w-3/4" />
@@ -634,7 +634,7 @@ const ProductGrid = ({
   // Error state
   if (error) {
     return (
-      <div className="py-12 text-center border rounded-md bg-red-50">
+      <div className="py-12 text-center border rounded-lg bg-red-50">
         <div className="mx-auto w-24 h-24 flex items-center justify-center rounded-full bg-red-100 mb-4">
           <AlertCircle className="h-8 w-8 text-red-500" />
         </div>
@@ -696,7 +696,7 @@ const ProductGrid = ({
               </SelectContent>
             </Select>
           </div>
-          <div className="hidden sm:flex items-center space-x-1 border rounded-md">
+          <div className="hidden sm:flex items-center space-x-1 border rounded-lg">
             <Button
               variant={viewMode === "grid" ? "secondary" : "ghost"}
               size="icon"
@@ -728,7 +728,7 @@ const ProductGrid = ({
 
       {/* Products Grid */}
       {paginatedProducts.length === 0 ? (
-        <div className="py-12 text-center border rounded-md bg-gray-50">
+        <div className="py-12 text-center border rounded-lg bg-gray-50">
           <div className="mx-auto w-24 h-24 flex items-center justify-center rounded-full bg-gray-100 mb-4">
             <Filter className="h-8 w-8 text-gray-400" />
           </div>
@@ -778,7 +778,7 @@ const ProductGrid = ({
                     isFeatured={convertedProduct.isFeatured}
                   />
                 ) : (
-                  <div className="relative border rounded-lg overflow-hidden hover:border-primary/20 hover:shadow-lg transition-all duration-300 group">
+                  <div className="relative border rounded-md overflow-hidden hover:border-primary/20 hover:shadow-lg transition-all duration-300 group">
                     <div className="absolute top-3 left-3 z-10 flex flex-col gap-1">
                       {convertedProduct.hasActiveDiscount &&
                         convertedProduct.discount && (

@@ -426,7 +426,7 @@ export default function CartPage() {
     return (
       <div className="container mx-auto px-4 py-16">
         <h1 className="text-3xl font-bold mb-6">Your Shopping Cart</h1>
-        <div className="bg-muted/30 rounded-lg p-8 text-center">
+        <div className="bg-muted/30 rounded-md p-8 text-center">
           <div className="flex justify-center mb-6">
             <ShoppingCart className="h-16 w-16 text-muted-foreground" />
           </div>
@@ -458,7 +458,7 @@ export default function CartPage() {
         {/* Cart Items Section */}
         <div className="lg:col-span-2">
           {/* Desktop Cart View */}
-          <div className="hidden md:block rounded-lg border">
+          <div className="hidden md:block rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -482,7 +482,7 @@ export default function CartPage() {
                       <div className="flex items-center gap-3">
                         <Link
                           href={`/product/${item.productId}`}
-                          className="w-20 h-20 rounded-md overflow-hidden flex-shrink-0 hover:opacity-80 transition-opacity"
+                          className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 hover:opacity-80 transition-opacity"
                         >
                           <img
                             src={item.url}
@@ -551,7 +551,7 @@ export default function CartPage() {
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex flex-col items-center gap-1">
-                        <div className="flex border rounded-md overflow-hidden">
+                        <div className="flex border rounded-lg overflow-hidden">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -728,7 +728,7 @@ export default function CartPage() {
 
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">
-                            <div className="flex border rounded-md overflow-hidden">
+                            <div className="flex border rounded-lg overflow-hidden">
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -883,7 +883,7 @@ export default function CartPage() {
 
         {/* Order Summary Section */}
         <div className="mt-4 lg:mt-0">
-          <div className="rounded-lg border overflow-hidden sticky top-24">
+          <div className="rounded-md border overflow-hidden sticky top-24">
             <div className="bg-muted px-6 py-4">
               <h2 className="font-semibold text-lg">Order Summary</h2>
             </div>

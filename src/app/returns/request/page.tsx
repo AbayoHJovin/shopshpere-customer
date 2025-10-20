@@ -407,7 +407,7 @@ export default function ReturnRequestPage() {
               const displayProduct = item.variant || item.product;
               
               return (
-                <div key={item.id} className="border rounded-lg p-4">
+                <div key={item.id} className="border rounded-md p-4">
                   <div className="flex items-start gap-4">
                     <Checkbox
                       checked={!!isSelected}
@@ -416,7 +416,7 @@ export default function ReturnRequestPage() {
                     />
                     
                     {/* Product Image */}
-                    <div className="w-16 h-16 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
+                    <div className="w-16 h-16 bg-gray-100 rounded-md flex-shrink-0 overflow-hidden">
                       {displayProduct.images && displayProduct.images.length > 0 ? (
                         <img
                           src={displayProduct.images[0]}
@@ -452,7 +452,7 @@ export default function ReturnRequestPage() {
 
                       {/* Return Quantity and Reason (shown when selected) */}
                       {isSelected && (
-                        <div className="mt-4 space-y-3 bg-gray-50 p-3 rounded-lg">
+                        <div className="mt-4 space-y-3 bg-gray-50 p-3 rounded-md">
                           <div>
                             <Label htmlFor={`quantity-${itemId}`} className="text-sm font-medium">
                               Quantity to Return
@@ -533,12 +533,12 @@ export default function ReturnRequestPage() {
               const displayProduct = item.variant || item.product;
               
               return (
-                <div key={item.id} className="border rounded-lg p-4 opacity-60">
+                <div key={item.id} className="border rounded-md p-4 opacity-60">
                   <div className="flex items-start gap-4">
                     <Checkbox disabled className="mt-1" />
                     
                     {/* Product Image */}
-                    <div className="w-16 h-16 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
+                    <div className="w-16 h-16 bg-gray-100 rounded-md flex-shrink-0 overflow-hidden">
                       {displayProduct.images && displayProduct.images.length > 0 ? (
                         <img
                           src={displayProduct.images[0]}
@@ -604,7 +604,7 @@ export default function ReturnRequestPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {mediaFiles.map((file) => (
                   <div key={file.name} className="relative group">
-                    <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                    <div className="aspect-square bg-gray-100 rounded-md overflow-hidden">
                       {file.type.startsWith('image/') ? (
                         <img
                           src={mediaPreviews[file.name]}
