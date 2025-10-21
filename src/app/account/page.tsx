@@ -3,33 +3,16 @@
 import { useEffect, useState } from "react";
 import { useAppSelector, useAppDispatch } from "@/lib/store/hooks";
 import { logout } from "@/lib/store/slices/authSlice";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import {
-  User,
-  Mail,
-  Phone,
-  Calendar,
-  MapPin,
-  Settings,
-  ShoppingBag,
-  Heart,
-  LogOut,
-  AlertCircle,
-  Gift,
-  Truck,
-} from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { authService } from "@/lib/services/authService";
 import { toast } from "sonner";
+import AccountHeader from "./components/AccountHeader";
+import AccountProfileCard from "./components/AccountProfileCard";
+import AccountQuickActions from "./components/AccountQuickActions";
+import AccountSettingsCard from "./components/AccountSettingsCard";
+import AccountActionsCard from "./components/AccountActionsCard";
 
 interface UserData {
   id: string;
@@ -192,315 +175,23 @@ export default function AccountPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">My Account</h1>
-          <p className="text-muted-foreground">
-            Manage your account settings and preferences
-          </p>
-        </div>
+        <AccountHeader title="My Account" subtitle="Manage your account settings and preferences" />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Profile Card */}
           <div className="lg:col-span-1">
-            <Card>
-              <CardHeader className="text-center">
-                <div className="flex justify-center mb-4">
-                  <Avatar className="h-20 w-20">
-                    <AvatarFallback className="text-lg">
-                      {getUserInitials()}
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
-                <CardTitle className="text-xl">
-                  {userData?.firstName || "User"} {userData?.lastName || ""}
-                </CardTitle>
-                <CardDescription>{userData?.userEmail}</CardDescription>
-                <Badge
-                  variant={userData?.enabled ? "default" : "secondary"}
-                  className="mt-2"
-                >
-                  {userData?.enabled ? "Active" : "Inactive"}
-                </Badge>
-                {userData?.points !== undefined && (
-                  <div className="mt-3 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-md border">
-                    <div className="flex items-center justify-center gap-2">
-                      <Gift className="h-5 w-5 text-yellow-600" />
-                      <span className="text-lg font-bold text-yellow-700">
-                        {userData.points || 0} Points
-                      </span>
-                    </div>
-                    <p className="text-xs text-center text-gray-600 mt-1">
-                      {userData.points > 0
-                        ? "Available for redemption"
-                        : "Start earning points today!"}
-                    </p>
-                  </div>
-                )}
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span>{userData?.userEmail}</span>
-                  </div>
-                  {userData?.phoneNumber && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span>{userData.phoneNumber}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 text-sm">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <span className="capitalize">
-                      {userData?.role?.toLowerCase() || "Customer"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span
-                      className={
-                        userData?.emailVerified
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }
-                    >
-                      Email{" "}
-                      {userData?.emailVerified ? "Verified" : "Not Verified"}
-                    </span>
-                  </div>
-                  {userData?.phoneNumber && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span
-                        className={
-                          userData?.phoneVerified
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }
-                      >
-                        Phone{" "}
-                        {userData?.phoneVerified ? "Verified" : "Not Verified"}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <div className="pt-4 border-t">
-                  <p className="text-xs text-muted-foreground">
-                    Member since{" "}
-                    {userData?.createdAt
-                      ? formatDate(userData.createdAt)
-                      : "N/A"}
-                  </p>
-                  {userData?.lastLogin && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Last login: {formatDate(userData.lastLogin)}
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            {userData && (
+              <AccountProfileCard
+                userData={userData}
+                getUserInitials={getUserInitials}
+                formatDate={formatDate}
+              />
+            )}
           </div>
 
-          {/* Account Actions */}
-          <div className="lg:col-span-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <ShoppingBag className="h-5 w-5" />
-                    Orders
-                  </CardTitle>
-                  <CardDescription>
-                    View your order history and track current orders
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <Link href="/account/orders">
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start"
-                      >
-                        View All Orders
-                      </Button>
-                    </Link>
-                    <Link href="/track-order">
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start"
-                      >
-                        Track Order
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Heart className="h-5 w-5" />
-                    Wishlist
-                  </CardTitle>
-                  <CardDescription>
-                    Manage your saved items and wishlists
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Link href="/wishlist">
-                    <Button variant="outline" className="w-full justify-start">
-                      View Wishlist
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Settings className="h-5 w-5" />
-                    Settings
-                  </CardTitle>
-                  <CardDescription>
-                    Update your account settings and preferences
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <Link href="/account/profile">
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start"
-                      >
-                        Edit Profile
-                      </Button>
-                    </Link>
-                    <Link href="/account/password">
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start"
-                      >
-                        Change Password
-                      </Button>
-                    </Link>
-                    <Link href="/account/addresses">
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start"
-                      >
-                        Manage Addresses
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <LogOut className="h-5 w-5" />
-                    Account Actions
-                  </CardTitle>
-                  <CardDescription>
-                    Manage your account and privacy
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <Link href="/account/privacy">
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start"
-                      >
-                        Privacy Settings
-                      </Button>
-                    </Link>
-                    <Link href="/account/notifications">
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start"
-                      >
-                        Notification Preferences
-                      </Button>
-                    </Link>
-                    <Button
-                      variant="destructive"
-                      className="w-full justify-start"
-                      onClick={handleLogout}
-                    >
-                      Sign Out
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Gift className="h-5 w-5" />
-                    Reward System
-                  </CardTitle>
-                  <CardDescription>
-                    Your current points:{" "}
-                    <span className="font-semibold text-yellow-600">
-                      {userData?.points || 0}
-                    </span>
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <Link href="/reward-system">
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start"
-                      >
-                        How Rewards Work
-                      </Button>
-                    </Link>
-                    <div className="text-sm text-muted-foreground">
-                      <p>• Earn 1 point per $1 spent</p>
-                      <p>• Redeem 100 points = $1 discount</p>
-                      <p>• Unlock tier benefits</p>
-                      {userData?.points && userData.points > 0 && (
-                        <p className="text-green-600 font-medium mt-2">
-                          • You can redeem ${(userData.points / 100).toFixed(2)}{" "}
-                          in discounts
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Truck className="h-5 w-5" />
-                    Shipping Info
-                  </CardTitle>
-                  <CardDescription>
-                    Understand shipping costs and delivery options
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <Link href="/shipping-info">
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start"
-                      >
-                        Shipping Calculator
-                      </Button>
-                    </Link>
-                    <div className="text-sm text-muted-foreground">
-                      <p>• Free shipping on orders over $50</p>
-                      <p>• Standard: $2.99 (3-5 days)</p>
-                      <p>• Express: $6.99 (1-2 days)</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+          <div className="lg:col-span-2 space-y-6">
+            <AccountQuickActions />
+            <AccountSettingsCard />
+            <AccountActionsCard onLogout={handleLogout} />
           </div>
         </div>
       </div>

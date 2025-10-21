@@ -284,6 +284,73 @@ export default function OrderReturnRequestsPage() {
                     </div>
                   </div>
 
+                  {/* Expected Refund */}
+                  {request.expectedRefund && (
+                    <div>
+                      <h4 className="font-semibold mb-3 flex items-center gap-2">
+                        <RotateCcw className="h-4 w-4" />
+                        Expected Refund
+                      </h4>
+                      <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-muted-foreground">
+                              Payment Method
+                            </span>
+                            <Badge variant="outline" className="font-mono">
+                              {request.expectedRefund.paymentMethod}
+                            </Badge>
+                          </div>
+                          
+                          {request.expectedRefund.monetaryRefund > 0 && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-muted-foreground">
+                                Card Refund
+                              </span>
+                              <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                                ${(request.expectedRefund.monetaryRefund || 0).toFixed(2)}
+                              </span>
+                            </div>
+                          )}
+                          
+                          {request.expectedRefund.pointsRefund > 0 && (
+                            <>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-muted-foreground">
+                                  Points Refund
+                                </span>
+                                <span className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
+                                  {request.expectedRefund.pointsRefund} pts
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-muted-foreground">
+                                  Points Value
+                                </span>
+                                <span className="text-sm font-semibold text-green-600 dark:text-green-400">
+                                  ${(request.expectedRefund.pointsRefundValue || 0).toFixed(2)}
+                                </span>
+                              </div>
+                            </>
+                          )}
+                          
+                          <Separator />
+                          
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold">Total Refund Value</span>
+                            <span className="text-xl font-bold text-green-600 dark:text-green-400">
+                              ${(request.expectedRefund.totalRefundValue || 0).toFixed(2)}
+                            </span>
+                          </div>
+                          
+                          <p className="text-xs text-muted-foreground italic pt-2 border-t">
+                            {request.expectedRefund.refundDescription}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Media Attachments */}
                   {request.returnMedia && request.returnMedia.length > 0 && (
                     <div>

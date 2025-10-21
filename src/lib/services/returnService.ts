@@ -1,5 +1,17 @@
 import { API_BASE_URL, getAuthHeaders } from "../api";
 
+export interface ExpectedRefund {
+  paymentMethod: string;
+  monetaryRefund: number;
+  pointsRefund: number;
+  pointsRefundValue: number;
+  totalRefundValue: number;
+  isFullReturn: boolean;
+  itemsRefund: number;
+  shippingRefund: number;
+  refundDescription: string;
+}
+
 export interface ReturnRequest {
   id: number;
   orderNumber: string;
@@ -12,6 +24,7 @@ export interface ReturnRequest {
   returnItems: ReturnItem[];
   submittedAt: string;
   processedAt?: string;
+  decisionAt?: string;
   decisionNotes?: string;
   refundAmount?: number;
   refundMethod?: string;
@@ -20,6 +33,7 @@ export interface ReturnRequest {
   daysUntilExpiry?: number;
   eligibleForReturn?: boolean;
   returnMedia?: MediaAttachment[];
+  expectedRefund?: ExpectedRefund;
 }
 
 export interface ReturnItem {
@@ -45,6 +59,7 @@ export interface ReturnAppeal {
   status: AppealStatus;
   submittedAt: string;
   processedAt?: string;
+  decisionAt?: string;
   decisionNotes?: string;
   mediaAttachments?: MediaAttachment[];
 }
