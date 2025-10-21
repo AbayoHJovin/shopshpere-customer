@@ -89,6 +89,18 @@ export interface SubmitGuestReturnRequest {
   returnItems: ReturnItem[];
 }
 
+export interface ExpectedRefund {
+  paymentMethod: string;
+  monetaryRefund: number;
+  pointsRefund: number;
+  pointsRefundValue: number;
+  totalRefundValue: number;
+  isFullReturn: boolean;
+  itemsRefund: number;
+  shippingRefund: number;
+  refundDescription: string;
+}
+
 export interface ReturnRequestResponse {
   id: string;
   orderId: string;
@@ -110,4 +122,5 @@ export interface ReturnRequestResponse {
     fileType: string;
     uploadedAt: string;
   }[];
+  expectedRefund?: ExpectedRefund;
 }
