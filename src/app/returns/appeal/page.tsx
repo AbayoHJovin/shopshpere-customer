@@ -92,22 +92,94 @@ export default function AppealPage() {
     }
   }, [returnId, authChecked]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const validFiles = files.filter(file => {
-      const isValidType = file.type.startsWith('image/') || file.type.startsWith('video/');
-      const isValidSize = file.size <= 10 * 1024 * 1024; // 10MB limit
-      return isValidType && isValidSize;
-    });
+    if (files.length === 0) return;
 
-    if (validFiles.length !== files.length) {
-      toast.error("Some files were rejected. Only images and videos under 10MB are allowed.");
+    // Reset input
+    e.target.value = "";
+
+    // Check total file limit
+    if (formData.mediaFiles.length + files.length > 5) {
+      toast.error(`You can only upload up to 5 files. Currently you have ${formData.mediaFiles.length} file(s).`);
+      return;
     }
 
-    setFormData(prev => ({
-      ...prev,
-      mediaFiles: [...prev.mediaFiles, ...validFiles].slice(0, 5) 
-    }));
+    const validFiles: File[] = [];
+    const errors: string[] = [];
+
+    // Validate each file
+    for (const file of files) {
+      try {
+        // Check file type
+        if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+          errors.push(`"${file.name}" is not a valid image or video file`);
+          continue;
+        }
+
+        // Check file size
+        const maxSize = file.type.startsWith('image/') ? 10 * 1024 * 1024 : 50 * 1024 * 1024; // 10MB for images, 50MB for videos
+        if (file.size > maxSize) {
+          const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+          const maxSizeMB = file.type.startsWith('image/') ? '10MB' : '50MB';
+          errors.push(`"${file.name}" is too large (${sizeMB}MB). Maximum size is ${maxSizeMB}`);
+          continue;
+        }
+
+        // Validate video duration
+        if (file.type.startsWith('video/')) {
+          const duration = await getVideoDuration(file);
+          if (duration > 15) {
+            errors.push(
+              `"${file.name}" is too long (${duration.toFixed(1)}s). Maximum duration is 15 seconds`
+            );
+            continue;
+          }
+        }
+
+        // If all validations pass, add to valid files
+        validFiles.push(file);
+      } catch (error) {
+        console.error(`Error processing file ${file.name}:`, error);
+        errors.push(`"${file.name}" could not be processed. Please try again.`);
+      }
+    }
+
+    // Add valid files
+    if (validFiles.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        mediaFiles: [...prev.mediaFiles, ...validFiles]
+      }));
+      toast.success(`${validFiles.length} file(s) added successfully`);
+    }
+
+    // Show errors if any
+    if (errors.length > 0) {
+      const errorMessage = errors.length === 1 
+        ? errors[0]
+        : `${errors.length} files could not be added:\n${errors.join('\n')}`;
+      toast.error(errorMessage, { duration: 8000 });
+    }
+  };
+
+  // Helper function to get video duration
+  const getVideoDuration = (file: File): Promise<number> => {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+
+      video.onloadedmetadata = () => {
+        window.URL.revokeObjectURL(video.src);
+        resolve(video.duration);
+      };
+
+      video.onerror = () => {
+        reject(new Error("Failed to load video metadata"));
+      };
+
+      video.src = URL.createObjectURL(file);
+    });
   };
 
   const removeFile = (index: number) => {
@@ -322,13 +394,12 @@ export default function AppealPage() {
                   Upload images or videos that support your appeal. At least one file is required.
                 </p>
                 
-                {/* Upload Area */}
                 <div className="border-2 border-dashed border-gray-300 rounded-md p-6 text-center">
                   <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Upload Evidence</p>
                     <p className="text-xs text-muted-foreground">
-                      Images and videos up to 10MB each (Max 5 files)
+                      Images up to 10MB, videos up to 50MB and 15 seconds (Max 5 files total)
                     </p>
                     <input
                       type="file"
