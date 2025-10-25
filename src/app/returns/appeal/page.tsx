@@ -419,7 +419,6 @@ export default function AppealPage() {
                   </div>
                 </div>
 
-                {/* Uploaded Files with Previews */}
                 {formData.mediaFiles.length > 0 && (
                   <div className="space-y-4">
                     <label className="text-sm font-medium">Uploaded Files ({formData.mediaFiles.length}/5)</label>

@@ -42,6 +42,8 @@ import { format } from "date-fns";
 import Link from "next/link";
 import QRCode from "qrcode";
 import { DeliveryNotesDialog } from "@/components/orders/DeliveryNotesDialog";
+import OrderTimeline from "@/components/OrderTimeline";
+import { orderActivitiesService } from "@/lib/services/orderActivitiesService";
 
 export default function AccountOrderDetailsPage() {
   const params = useParams();
@@ -53,6 +55,8 @@ export default function AccountOrderDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
   const [showOrderNotes, setShowOrderNotes] = useState(false);
+  const [timelineActivities, setTimelineActivities] = useState<any[]>([]);
+  const [loadingTimeline, setLoadingTimeline] = useState(false);
 
   const generateQRCode = async (pickupToken: string) => {
     try {
@@ -93,6 +97,9 @@ export default function AccountOrderDetailsPage() {
         if (orderData.pickupToken) {
           await generateQRCode(orderData.pickupToken);
         }
+
+        // Fetch timeline activities
+        await fetchTimelineActivities();
       } catch (err: any) {
         console.error("Error fetching order:", err);
         if (err.response?.status === 403 || err.response?.status === 401) {
@@ -104,6 +111,20 @@ export default function AccountOrderDetailsPage() {
         }
       } finally {
         setLoading(false);
+      }
+    };
+
+    const fetchTimelineActivities = async () => {
+      setLoadingTimeline(true);
+      try {
+        const data = await orderActivitiesService.getOrderActivities(orderId);
+        setTimelineActivities(data.activities || []);
+      } catch (error) {
+        console.error("Error fetching timeline:", error);
+        // Don't show error toast - timeline is optional
+        setTimelineActivities([]);
+      } finally {
+        setLoadingTimeline(false);
       }
     };
 
@@ -321,6 +342,19 @@ export default function AccountOrderDetailsPage() {
             </div>
           </div>
         </div>
+
+        {/* Order Timeline */}
+        {loadingTimeline ? (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 className="text-xl font-semibold mb-4 text-gray-800">Order Timeline</h2>
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <span className="ml-3 text-muted-foreground">Loading timeline...</span>
+            </div>
+          </div>
+        ) : (
+          <OrderTimeline activities={timelineActivities} />
+        )}
 
         <div className="space-y-6">
           {/* Order Items */}

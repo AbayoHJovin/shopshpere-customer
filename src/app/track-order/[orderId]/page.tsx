@@ -35,6 +35,8 @@ import { toast } from "sonner";
 import { OrderService, OrderDetailsResponse } from "@/lib/orderService";
 import { ReturnService } from "@/lib/services/returnService";
 import { DeliveryNotesDialog } from "@/components/orders/DeliveryNotesDialog";
+import OrderTimeline from "@/components/OrderTimeline";
+import { orderActivitiesService } from "@/lib/services/orderActivitiesService";
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -51,6 +53,8 @@ export default function OrderDetailPage() {
   const [checkingReturn, setCheckingReturn] = useState<boolean>(false);
   const [showOrderNotes, setShowOrderNotes] = useState(false);
   const [showGroupNotes, setShowGroupNotes] = useState(false);
+  const [timelineActivities, setTimelineActivities] = useState<any[]>([]);
+  const [loadingTimeline, setLoadingTimeline] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -83,6 +87,9 @@ export default function OrderDetailPage() {
         await checkForReturnRequest(orderDetails.orderNumber);
       }
 
+      // Fetch timeline activities
+      await fetchTimelineActivities();
+
       toast.success("Order details loaded successfully!");
     } catch (err: any) {
       console.error("Error fetching order details:", err);
@@ -90,6 +97,22 @@ export default function OrderDetailPage() {
       toast.error(err.message || "Failed to load order details");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchTimelineActivities = async () => {
+    if (!token || !orderId) return;
+
+    setLoadingTimeline(true);
+    try {
+      const data = await orderActivitiesService.getOrderActivitiesWithToken(orderId, token);
+      setTimelineActivities(data.activities || []);
+    } catch (error) {
+      console.error("Error fetching timeline:", error);
+      // Don't show error toast - timeline is optional
+      setTimelineActivities([]);
+    } finally {
+      setLoadingTimeline(false);
     }
   };
 
@@ -247,6 +270,19 @@ export default function OrderDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Order Timeline */}
+        {loadingTimeline ? (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 className="text-xl font-semibold mb-4 text-gray-800">Order Timeline</h2>
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <span className="ml-3 text-muted-foreground">Loading timeline...</span>
+            </div>
+          </div>
+        ) : (
+          <OrderTimeline activities={timelineActivities} />
+        )}
 
         <div className="space-y-6">
           {/* Order Items */}
