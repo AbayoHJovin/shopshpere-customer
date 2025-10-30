@@ -1,31 +1,31 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
-import { toast } from 'sonner';
-import { 
-  Package, 
-  Calendar, 
-  Clock, 
-  Upload, 
-  X, 
-  Play, 
+import React, { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
+import {
+  Package,
+  Calendar,
+  Clock,
+  Upload,
+  X,
+  Play,
   Image as ImageIcon,
   AlertCircle,
   CheckCircle,
-  XCircle
-} from 'lucide-react';
-import { OrderDetails, OrderItem, ReturnItem } from '@/types/return';
-import { ReturnService } from '@/services/returnService';
+  XCircle,
+} from "lucide-react";
+import { OrderDetails, OrderItem, ReturnItem } from "@/types/return";
+import { ReturnService } from "@/services/returnService";
 
 interface SelectedItem {
   orderItemId: string;
@@ -36,13 +36,13 @@ interface SelectedItem {
 export default function ReturnRequestPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   // URL parameters
-  const orderNumber = searchParams.get('orderNumber');
-  const orderId = searchParams.get('orderId');
-  const pickupToken = searchParams.get('pickupToken');
-  const trackingToken = searchParams.get('token');
-  
+  const orderNumber = searchParams.get("orderNumber");
+  const orderId = searchParams.get("orderId");
+  const pickupToken = searchParams.get("pickupToken");
+  const trackingToken = searchParams.get("token");
+
   // Fix hydration mismatch by using state for authentication check
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isGuest, setIsGuest] = useState(true);
@@ -50,8 +50,8 @@ export default function ReturnRequestPage() {
 
   // Check authentication status on client side only
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('authToken');
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("authToken");
       setIsAuthenticated(!!token);
       setIsGuest(!token);
       setAuthChecked(true);
@@ -62,10 +62,14 @@ export default function ReturnRequestPage() {
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [selectedItems, setSelectedItems] = useState<Record<string, SelectedItem>>({});
+  const [selectedItems, setSelectedItems] = useState<
+    Record<string, SelectedItem>
+  >({});
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
-  const [mediaPreviews, setMediaPreviews] = useState<Record<string, string>>({});
-  const [generalReason, setGeneralReason] = useState('');
+  const [mediaPreviews, setMediaPreviews] = useState<Record<string, string>>(
+    {}
+  );
+  const [generalReason, setGeneralReason] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   // Load order details on component mount
@@ -75,11 +79,18 @@ export default function ReturnRequestPage() {
       loadOrderDetails();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderNumber, orderId, pickupToken, trackingToken, authChecked, isAuthenticated]);
+  }, [
+    orderNumber,
+    orderId,
+    pickupToken,
+    trackingToken,
+    authChecked,
+    isAuthenticated,
+  ]);
 
   const loadOrderDetails = async () => {
     if (!orderNumber && !orderId && !pickupToken && !trackingToken) {
-      setError('Order information is required');
+      setError("Order information is required");
       setLoading(false);
       return;
     }
@@ -93,48 +104,65 @@ export default function ReturnRequestPage() {
         order = await ReturnService.getOrderByIdForAuthenticated(orderId);
       } else if (trackingToken && orderNumber) {
         // Use tokenized order lookup for secure access
-        order = await ReturnService.getOrderByTrackingToken(trackingToken, orderNumber);
+        order = await ReturnService.getOrderByTrackingToken(
+          trackingToken,
+          orderNumber
+        );
       } else if (pickupToken) {
         order = await ReturnService.getOrderByPickupToken(pickupToken);
       } else if (orderNumber) {
         order = await ReturnService.getOrderByOrderNumber(orderNumber);
       } else {
-        throw new Error('Order information is required');
+        throw new Error("Order information is required");
       }
 
       // Normalize the order data to ensure consistent structure
       const normalizedOrder = {
         ...order,
-        id: order.id?.toString() || '',
-        items: order.items?.map(item => ({
-          ...item,
-          id: item.id?.toString() || '',
-          product: {
-            ...item.product,
-            id: item.product?.id || item.product?.productId || '',
-            productId: item.product?.productId || item.product?.id || '',
-            price: item.product?.price || item.price || 0,
-          },
-          variant: item.variant ? {
-            ...item.variant,
-            id: item.variant.id?.toString() || '',
-            productId: item.variant?.productId || item.product?.id || '',
-            price: item.variant?.price || item.price || 0,
-          } : undefined,
-        })) || [],
-        customerInfo: order.customerInfo ? {
-          firstName: order.customerInfo.name?.split(' ')[0] || order.customerInfo.firstName || '',
-          lastName: order.customerInfo.name?.split(' ').slice(1).join(' ') || order.customerInfo.lastName || '',
-          email: order.customerInfo.email || '',
-          phoneNumber: order.customerInfo.phone || order.customerInfo.phoneNumber || '',
-        } : undefined,
+        id: order.id?.toString() || "",
+        items:
+          order.items?.map((item) => ({
+            ...item,
+            id: item.id?.toString() || "",
+            product: {
+              ...item.product,
+              id: item.product?.id || item.product?.productId || "",
+              productId: item.product?.productId || item.product?.id || "",
+              price: item.product?.price || item.price || 0,
+            },
+            variant: item.variant
+              ? {
+                  ...item.variant,
+                  id: item.variant.id?.toString() || "",
+                  productId: item.variant?.productId || item.product?.id || "",
+                  price: item.variant?.price || item.price || 0,
+                }
+              : undefined,
+          })) || [],
+        customerInfo: order.customerInfo
+          ? {
+              firstName:
+                order.customerInfo.name?.split(" ")[0] ||
+                order.customerInfo.firstName ||
+                "",
+              lastName:
+                order.customerInfo.name?.split(" ").slice(1).join(" ") ||
+                order.customerInfo.lastName ||
+                "",
+              email: order.customerInfo.email || "",
+              phoneNumber:
+                order.customerInfo.phone ||
+                order.customerInfo.phoneNumber ||
+                "",
+            }
+          : undefined,
       };
 
       setOrderDetails(normalizedOrder);
       setError(null);
     } catch (err: any) {
-      setError(err.message || 'Failed to load order details');
-      toast.error('Failed to load order details');
+      setError(err.message || "Failed to load order details");
+      toast.error("Failed to load order details");
     } finally {
       setLoading(false);
     }
@@ -143,16 +171,16 @@ export default function ReturnRequestPage() {
   const handleItemSelection = (item: OrderItem, checked: boolean) => {
     const itemId = item.id.toString();
     if (checked) {
-      setSelectedItems(prev => ({
+      setSelectedItems((prev) => ({
         ...prev,
         [itemId]: {
           orderItemId: itemId,
           returnQuantity: 1,
-          itemReason: ''
-        }
+          itemReason: "",
+        },
       }));
     } else {
-      setSelectedItems(prev => {
+      setSelectedItems((prev) => {
         const newSelected = { ...prev };
         delete newSelected[itemId];
         return newSelected;
@@ -162,28 +190,28 @@ export default function ReturnRequestPage() {
 
   const handleQuantityChange = (itemId: string, returnQuantity: number) => {
     if (returnQuantity < 1) return;
-    
-    const item = orderDetails?.items.find(i => i.id.toString() === itemId);
+
+    const item = orderDetails?.items.find((i) => i.id.toString() === itemId);
     if (!item || returnQuantity > item.quantity) return;
 
-    setSelectedItems(prev => ({
+    setSelectedItems((prev) => ({
       ...prev,
       [itemId]: {
         ...prev[itemId],
-        returnQuantity
-      }
+        returnQuantity,
+      },
     }));
   };
 
   const handleReasonChange = (itemId: string, itemReason: string) => {
     if (itemReason.length > 500) return;
 
-    setSelectedItems(prev => ({
+    setSelectedItems((prev) => ({
       ...prev,
       [itemId]: {
         ...prev[itemId],
-        itemReason
-      }
+        itemReason,
+      },
     }));
   };
 
@@ -192,9 +220,12 @@ export default function ReturnRequestPage() {
     if (files.length === 0) return;
 
     // Validate files
-    const validation = ReturnService.validateMediaFiles([...mediaFiles, ...files]);
+    const validation = ReturnService.validateMediaFiles([
+      ...mediaFiles,
+      ...files,
+    ]);
     if (!validation.isValid) {
-      validation.errors.forEach(error => toast.error(error));
+      validation.errors.forEach((error) => toast.error(error));
       return;
     }
 
@@ -203,11 +234,11 @@ export default function ReturnRequestPage() {
     setMediaFiles(newFiles);
 
     // Create previews for new files
-    files.forEach(file => {
+    files.forEach((file) => {
       const url = URL.createObjectURL(file);
-      setMediaPreviews(prev => ({
+      setMediaPreviews((prev) => ({
         ...prev,
-        [file.name]: url
+        [file.name]: url,
       }));
     });
 
@@ -215,8 +246,8 @@ export default function ReturnRequestPage() {
   };
 
   const removeMediaFile = (fileName: string) => {
-    setMediaFiles(prev => prev.filter(file => file.name !== fileName));
-    setMediaPreviews(prev => {
+    setMediaFiles((prev) => prev.filter((file) => file.name !== fileName));
+    setMediaPreviews((prev) => {
       const newPreviews = { ...prev };
       if (newPreviews[fileName]) {
         URL.revokeObjectURL(newPreviews[fileName]);
@@ -228,58 +259,71 @@ export default function ReturnRequestPage() {
 
   const handleSubmit = async () => {
     if (Object.keys(selectedItems).length === 0) {
-      toast.error('Please select at least one item to return');
+      toast.error("Please select at least one item to return");
       return;
     }
 
     // Validate that all selected items have reasons
-    const itemsWithoutReason = Object.values(selectedItems).filter(item => !item.itemReason.trim());
+    const itemsWithoutReason = Object.values(selectedItems).filter(
+      (item) => !item.itemReason.trim()
+    );
     if (itemsWithoutReason.length > 0) {
-      toast.error('Please provide a reason for each selected item');
+      toast.error("Please provide a reason for each selected item");
       return;
     }
 
     try {
       setSubmitting(true);
 
-      const returnItems: ReturnItem[] = Object.values(selectedItems).map(item => ({
-        orderItemId: item.orderItemId.toString(),
-        returnQuantity: item.returnQuantity,
-        itemReason: item.itemReason
-      }));
+      const returnItems: ReturnItem[] = Object.values(selectedItems).map(
+        (item) => ({
+          orderItemId: item.orderItemId.toString(),
+          returnQuantity: item.returnQuantity,
+          itemReason: item.itemReason,
+        })
+      );
 
       let response;
       if (isAuthenticated && orderDetails?.userId && orderDetails?.id) {
         // Authenticated user return request
-        response = await ReturnService.submitReturnRequest({
-          customerId: orderDetails.userId,
-          orderId: orderDetails.id.toString(),
-          reason: generalReason,
-          returnItems
-        }, mediaFiles);
+        response = await ReturnService.submitReturnRequest(
+          {
+            customerId: orderDetails.userId,
+            orderId: orderDetails.id.toString(),
+            reason: generalReason,
+            returnItems,
+          },
+          mediaFiles
+        );
       } else if (trackingToken && orderNumber) {
         // Use tokenized return request submission
-        response = await ReturnService.submitTokenizedReturnRequest({
-          orderNumber,
-          trackingToken,
-          reason: generalReason,
-          returnItems
-        }, mediaFiles);
+        response = await ReturnService.submitTokenizedReturnRequest(
+          {
+            orderNumber,
+            trackingToken,
+            reason: generalReason,
+            returnItems,
+          },
+          mediaFiles
+        );
       } else if (isGuest && pickupToken && orderNumber) {
-        response = await ReturnService.submitGuestReturnRequest({
-          orderNumber,
-          pickupToken,
-          reason: generalReason,
-          returnItems
-        }, mediaFiles);
+        response = await ReturnService.submitGuestReturnRequest(
+          {
+            orderNumber,
+            pickupToken,
+            reason: generalReason,
+            returnItems,
+          },
+          mediaFiles
+        );
       } else {
-        throw new Error('Missing required information for return request');
+        throw new Error("Missing required information for return request");
       }
 
-      toast.success('Return request submitted successfully!');
+      toast.success("Return request submitted successfully!");
       router.push(`/returns/success?requestId=${response.id}`);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to submit return request');
+      toast.error(err.message || "Failed to submit return request");
     } finally {
       setSubmitting(false);
     }
@@ -287,15 +331,31 @@ export default function ReturnRequestPage() {
 
   const getDaysRemainingBadge = (item: OrderItem) => {
     if (!item.returnEligible) {
-      return <Badge variant="destructive" className="ml-2">Return Expired</Badge>;
+      return (
+        <Badge variant="destructive" className="ml-2">
+          Return Expired
+        </Badge>
+      );
     }
-    
+
     if (item.daysRemainingForReturn <= 3) {
-      return <Badge variant="destructive" className="ml-2">{item.daysRemainingForReturn} days left</Badge>;
+      return (
+        <Badge variant="destructive" className="ml-2">
+          {item.daysRemainingForReturn} days left
+        </Badge>
+      );
     } else if (item.daysRemainingForReturn <= 7) {
-      return <Badge variant="secondary" className="ml-2">{item.daysRemainingForReturn} days left</Badge>;
+      return (
+        <Badge variant="secondary" className="ml-2">
+          {item.daysRemainingForReturn} days left
+        </Badge>
+      );
     } else {
-      return <Badge variant="outline" className="ml-2">{item.daysRemainingForReturn} days left</Badge>;
+      return (
+        <Badge variant="outline" className="ml-2">
+          {item.daysRemainingForReturn} days left
+        </Badge>
+      );
     }
   };
 
@@ -306,7 +366,7 @@ export default function ReturnRequestPage() {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-600">
-              {!authChecked ? 'Initializing...' : 'Loading order details...'}
+              {!authChecked ? "Initializing..." : "Loading order details..."}
             </p>
           </div>
         </div>
@@ -319,9 +379,7 @@ export default function ReturnRequestPage() {
       <div className="container mx-auto px-4 py-8">
         <Alert className="max-w-md mx-auto">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            {error || 'Order not found'}
-          </AlertDescription>
+          <AlertDescription>{error || "Order not found"}</AlertDescription>
         </Alert>
         <div className="text-center mt-4">
           <Button onClick={() => router.back()}>Go Back</Button>
@@ -330,19 +388,25 @@ export default function ReturnRequestPage() {
     );
   }
 
-  const eligibleItems = orderDetails?.items?.filter(item => item.returnEligible) || [];
-  const ineligibleItems = orderDetails?.items?.filter(item => !item.returnEligible) || [];
+  const eligibleItems =
+    orderDetails?.items?.filter((item) => item.returnEligible) || [];
+  const ineligibleItems =
+    orderDetails?.items?.filter((item) => !item.returnEligible) || [];
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Return Request</h1>
         <p className="text-gray-600">
-          Select the items you'd like to return from order #{orderDetails.orderNumber}
+          Select the items you'd like to return from order #
+          {orderDetails.orderNumber}
         </p>
         {isAuthenticated && (
           <div className="mt-2">
-            <Badge variant="outline" className="text-green-600 border-green-300">
+            <Badge
+              variant="outline"
+              className="text-green-600 border-green-300"
+            >
               Authenticated User
             </Badge>
           </div>
@@ -377,11 +441,17 @@ export default function ReturnRequestPage() {
               <Label className="text-sm text-gray-500">Access Type</Label>
               <div className="flex items-center gap-2">
                 {isAuthenticated ? (
-                  <Badge variant="outline" className="text-green-600 border-green-300">
+                  <Badge
+                    variant="outline"
+                    className="text-green-600 border-green-300"
+                  >
                     Authenticated
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="text-blue-600 border-blue-300">
+                  <Badge
+                    variant="outline"
+                    className="text-blue-600 border-blue-300"
+                  >
                     Guest Access
                   </Badge>
                 )}
@@ -405,19 +475,22 @@ export default function ReturnRequestPage() {
               const itemId = item.id.toString();
               const isSelected = selectedItems[itemId];
               const displayProduct = item.variant || item.product;
-              
+
               return (
                 <div key={item.id} className="border rounded-md p-4">
                   <div className="flex items-start gap-4">
                     <Checkbox
                       checked={!!isSelected}
-                      onCheckedChange={(checked) => handleItemSelection(item, checked as boolean)}
+                      onCheckedChange={(checked) =>
+                        handleItemSelection(item, checked as boolean)
+                      }
                       className="mt-1"
                     />
-                    
+
                     {/* Product Image */}
                     <div className="w-16 h-16 bg-gray-100 rounded-md flex-shrink-0 overflow-hidden">
-                      {displayProduct.images && displayProduct.images.length > 0 ? (
+                      {displayProduct.images &&
+                      displayProduct.images.length > 0 ? (
                         <img
                           src={displayProduct.images[0]}
                           alt={displayProduct.name}
@@ -433,12 +506,17 @@ export default function ReturnRequestPage() {
                     <div className="flex-1">
                       <div className="flex items-start justify-between">
                         <div>
-                          <h3 className="font-semibold">{displayProduct.name}</h3>
+                          <h3 className="font-semibold">
+                            {displayProduct.name}
+                          </h3>
                           {item.variant && (
-                            <p className="text-sm text-gray-600">Variant: {item.variant.name}</p>
+                            <p className="text-sm text-gray-600">
+                              Variant: {item.variant.name}
+                            </p>
                           )}
                           <p className="text-sm text-gray-600">
-                            Quantity ordered: {item.quantity} • Price: RWF {item.price.toLocaleString()}
+                            Quantity ordered: {item.quantity} • Price: ${" "}
+                            {item.price.toLocaleString()}
                           </p>
                           <div className="flex items-center gap-2 mt-1">
                             <Clock className="h-4 w-4 text-gray-400" />
@@ -454,7 +532,10 @@ export default function ReturnRequestPage() {
                       {isSelected && (
                         <div className="mt-4 space-y-3 bg-gray-50 p-3 rounded-md">
                           <div>
-                            <Label htmlFor={`quantity-${itemId}`} className="text-sm font-medium">
+                            <Label
+                              htmlFor={`quantity-${itemId}`}
+                              className="text-sm font-medium"
+                            >
                               Quantity to Return
                             </Label>
                             <div className="flex items-center gap-2 mt-1">
@@ -462,7 +543,12 @@ export default function ReturnRequestPage() {
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleQuantityChange(itemId, isSelected.returnQuantity - 1)}
+                                onClick={() =>
+                                  handleQuantityChange(
+                                    itemId,
+                                    isSelected.returnQuantity - 1
+                                  )
+                                }
                                 disabled={isSelected.returnQuantity <= 1}
                               >
                                 -
@@ -473,15 +559,27 @@ export default function ReturnRequestPage() {
                                 min="1"
                                 max={item.quantity}
                                 value={isSelected.returnQuantity}
-                                onChange={(e) => handleQuantityChange(itemId, parseInt(e.target.value) || 1)}
+                                onChange={(e) =>
+                                  handleQuantityChange(
+                                    itemId,
+                                    parseInt(e.target.value) || 1
+                                  )
+                                }
                                 className="w-20 text-center"
                               />
                               <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleQuantityChange(itemId, isSelected.returnQuantity + 1)}
-                                disabled={isSelected.returnQuantity >= item.quantity}
+                                onClick={() =>
+                                  handleQuantityChange(
+                                    itemId,
+                                    isSelected.returnQuantity + 1
+                                  )
+                                }
+                                disabled={
+                                  isSelected.returnQuantity >= item.quantity
+                                }
                               >
                                 +
                               </Button>
@@ -492,14 +590,19 @@ export default function ReturnRequestPage() {
                           </div>
 
                           <div>
-                            <Label htmlFor={`reason-${itemId}`} className="text-sm font-medium">
+                            <Label
+                              htmlFor={`reason-${itemId}`}
+                              className="text-sm font-medium"
+                            >
                               Reason for Return *
                             </Label>
                             <Textarea
                               id={`reason-${itemId}`}
                               placeholder="Please explain why you want to return this item..."
                               value={isSelected.itemReason}
-                              onChange={(e) => handleReasonChange(itemId, e.target.value)}
+                              onChange={(e) =>
+                                handleReasonChange(itemId, e.target.value)
+                              }
                               maxLength={500}
                               className="mt-1"
                               rows={3}
@@ -531,15 +634,16 @@ export default function ReturnRequestPage() {
           <CardContent className="space-y-4">
             {ineligibleItems.map((item) => {
               const displayProduct = item.variant || item.product;
-              
+
               return (
                 <div key={item.id} className="border rounded-md p-4 opacity-60">
                   <div className="flex items-start gap-4">
                     <Checkbox disabled className="mt-1" />
-                    
+
                     {/* Product Image */}
                     <div className="w-16 h-16 bg-gray-100 rounded-md flex-shrink-0 overflow-hidden">
-                      {displayProduct.images && displayProduct.images.length > 0 ? (
+                      {displayProduct.images &&
+                      displayProduct.images.length > 0 ? (
                         <img
                           src={displayProduct.images[0]}
                           alt={displayProduct.name}
@@ -555,10 +659,13 @@ export default function ReturnRequestPage() {
                     <div className="flex-1">
                       <h3 className="font-semibold">{displayProduct.name}</h3>
                       {item.variant && (
-                        <p className="text-sm text-gray-600">Variant: {item.variant.name}</p>
+                        <p className="text-sm text-gray-600">
+                          Variant: {item.variant.name}
+                        </p>
                       )}
                       <p className="text-sm text-gray-600">
-                        Quantity: {item.quantity} • Price: RWF {item.price.toLocaleString()}
+                        Quantity: {item.quantity} • Price: ${" "}
+                        {item.price.toLocaleString()}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <Clock className="h-4 w-4 text-red-400" />
@@ -587,7 +694,8 @@ export default function ReturnRequestPage() {
           <div className="space-y-4">
             <div>
               <Label htmlFor="media-upload" className="text-sm text-gray-600">
-                Upload images or videos to support your return request (Max: 5 images, 1 video)
+                Upload images or videos to support your return request (Max: 5
+                images, 1 video)
               </Label>
               <Input
                 id="media-upload"
@@ -605,7 +713,7 @@ export default function ReturnRequestPage() {
                 {mediaFiles.map((file) => (
                   <div key={file.name} className="relative group">
                     <div className="aspect-square bg-gray-100 rounded-md overflow-hidden">
-                      {file.type.startsWith('image/') ? (
+                      {file.type.startsWith("image/") ? (
                         <img
                           src={mediaPreviews[file.name]}
                           alt={file.name}
@@ -626,7 +734,9 @@ export default function ReturnRequestPage() {
                     >
                       <X className="h-3 w-3" />
                     </Button>
-                    <p className="text-xs text-gray-600 mt-1 truncate">{file.name}</p>
+                    <p className="text-xs text-gray-600 mt-1 truncate">
+                      {file.name}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -675,7 +785,7 @@ export default function ReturnRequestPage() {
               Submitting...
             </>
           ) : (
-            'Submit Return Request'
+            "Submit Return Request"
           )}
         </Button>
       </div>
