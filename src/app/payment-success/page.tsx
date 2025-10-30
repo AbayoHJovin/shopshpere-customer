@@ -185,7 +185,7 @@ function PaymentSuccessContent() {
           amount: orderDetails.transaction?.orderAmount
             ? Math.round(orderDetails.transaction.orderAmount * 100)
             : Math.round(orderDetails.total * 100),
-          currency: "rwf",
+          currency: "$",
           customerEmail: orderDetails.customerInfo?.email || "N/A",
           receiptUrl: orderDetails.transaction?.receiptUrl || null,
           paymentIntentId:
@@ -528,10 +528,10 @@ function PaymentSuccessContent() {
                               {item.quantity}
                             </td>
                             <td className="py-4 px-2 text-right font-medium">
-                              RWF {item.price?.toLocaleString() || "0"}
+                              $ {item.price?.toLocaleString() || "0"}
                             </td>
                             <td className="py-4 px-2 text-right font-bold">
-                              RWF {item.totalPrice?.toLocaleString() || "0"}
+                              $ {item.totalPrice?.toLocaleString() || "0"}
                             </td>
                           </tr>
                         );
@@ -552,14 +552,14 @@ function PaymentSuccessContent() {
                       <div className="flex justify-between">
                         <span className="text-gray-600">Subtotal:</span>
                         <span className="font-medium">
-                          RWF {orderDetails.subtotal?.toLocaleString() || "0"}
+                          $ {orderDetails.subtotal?.toLocaleString() || "0"}
                         </span>
                       </div>
                       {orderDetails.tax > 0 && (
                         <div className="flex justify-between">
                           <span className="text-gray-600">Tax:</span>
                           <span className="font-medium">
-                            RWF {orderDetails.tax?.toLocaleString() || "0"}
+                            $ {orderDetails.tax?.toLocaleString() || "0"}
                           </span>
                         </div>
                       )}
@@ -567,7 +567,7 @@ function PaymentSuccessContent() {
                         <div className="flex justify-between">
                           <span className="text-gray-600">Shipping:</span>
                           <span className="font-medium">
-                            RWF {orderDetails.shipping?.toLocaleString() || "0"}
+                            $ {orderDetails.shipping?.toLocaleString() || "0"}
                           </span>
                         </div>
                       )}
@@ -575,8 +575,7 @@ function PaymentSuccessContent() {
                         <div className="flex justify-between text-green-600">
                           <span>Discount:</span>
                           <span className="font-medium">
-                            -RWF{" "}
-                            {orderDetails.discount?.toLocaleString() || "0"}
+                            -$ {orderDetails.discount?.toLocaleString() || "0"}
                           </span>
                         </div>
                       )}
@@ -601,7 +600,7 @@ function PaymentSuccessContent() {
                             <div className="flex justify-between text-blue-600">
                               <span>Points Value:</span>
                               <span className="font-medium">
-                                -RWF{" "}
+                                -${" "}
                                 {(
                                   pointsValue ||
                                   orderDetails?.transaction?.pointsValue ||
@@ -617,7 +616,7 @@ function PaymentSuccessContent() {
                         <div className="flex justify-between text-lg font-bold text-gray-800">
                           <span>Total Amount:</span>
                           <span>
-                            RWF {orderDetails.total?.toLocaleString() || "0"}
+                            $ {orderDetails.total?.toLocaleString() || "0"}
                           </span>
                         </div>
                       </div>
